@@ -10,36 +10,48 @@ import (
 // TestCoroutine tests manually constructed coroutines.
 func TestCoroutine(t *testing.T) {
 	for _, test := range []struct {
-		name    string
-		coro    coroutine.Coroutine
-		args    []coroutine.Serializable
-		yields  [][]coroutine.Serializable
-		returns []coroutine.Serializable
+		name   string
+		coro   func(*coroutine.Context, coroutine.Int)
+		arg    coroutine.Int
+		yields []coroutine.Serializable
 	}{
 		{
-			name:    "identity",
-			coro:    identity,
-			args:    []coroutine.Serializable{coroutine.Int(11)},
-			returns: []coroutine.Serializable{coroutine.Int(11)},
+			name: "identity",
+			coro: identity,
+			arg:  coroutine.Int(11),
+			yields: []coroutine.Serializable{
+				coroutine.Int(11),
+			},
 		},
+
 		{
 			name: "square generator",
 			coro: squareGenerator,
-			args: []coroutine.Serializable{coroutine.Int(4)},
-			yields: [][]coroutine.Serializable{
-				{coroutine.Int(1)},
-				{coroutine.Int(4)},
-				{coroutine.Int(9)},
-				{coroutine.Int(16)},
+			arg:  coroutine.Int(4),
+			yields: []coroutine.Serializable{
+				coroutine.Int(1),
+				coroutine.Int(4),
+				coroutine.Int(9),
+				coroutine.Int(16),
 			},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			c := coroutine.NewContext(test.args...)
+			c := new(coroutine.Context)
 
 			var yield int
 			for {
-				returned := c.Call(test.coro)
+				returned := (func() bool {
+					defer func() {
+						if c.Unwinding {
+							recover()
+						}
+					}()
+					c.Stack.FP = -1
+					c.Unwinding = false
+					test.coro(c, test.arg)
+					return true
+				})()
 				if returned {
 					break
 				}
@@ -47,15 +59,11 @@ func TestCoroutine(t *testing.T) {
 					t.Errorf("unexpected yield from coroutine")
 					break
 				}
-				expects := test.yields[yield]
+				actual := c.YieldValue
+				expect := test.yields[yield]
 
-				topFrame := c.Stack.Top()
-				for i, expect := range expects {
-					if !topFrame.Has(i) {
-						t.Fatalf("coroutine did not yield an object at index %d: expect %#v", i, expect)
-					} else if actual := topFrame.Get(i); !reflect.DeepEqual(actual, expect) {
-						t.Fatalf("coroutine yielded incorrect value at index %d: got %#v, expect %#v", i, actual, expect)
-					}
+				if !reflect.DeepEqual(actual, expect) {
+					t.Fatalf("coroutine yielded incorrect value at index %d: got %#v, expect %#v", yield, actual, expect)
 				}
 
 				yield++
@@ -76,73 +84,65 @@ func TestCoroutine(t *testing.T) {
 			if yield < len(test.yields) {
 				t.Errorf("coroutine did not yield the correct number of times: got %d, expect %d", yield, len(test.yields))
 			}
-
-			f := c.Stack.Frames[0]
-			offset := len(test.args)
-			for i, expect := range test.returns {
-				if !f.Has(offset + i) {
-					t.Errorf("coroutine did not return value at index %d: expect %#v", i, expect)
-				} else if actual := f.Get(offset + i); !reflect.DeepEqual(actual, expect) {
-					t.Errorf("coroutine returned incorrect value at index %d: got %#v, expect %#v", i, actual, expect)
-				}
-			}
 		})
 	}
 }
 
-func identity(c *coroutine.Context) {
+func identity(c *coroutine.Context, n coroutine.Int) {
 	// func identity(n int) int {
-	//   return n
+	//   yield(n)
 	// }
-
-	frame := &c.Stack.Frames[c.Stack.FP]
-
-	frame.Set(1, frame.Get(0))
+	c.Push()
+	c.Yield(coroutine.Int(n), func() {})
+	c.Pop()
 }
 
-func squareGenerator(c *coroutine.Context) {
+func squareGenerator(c *coroutine.Context, n coroutine.Int) {
 	// func squareGenerator(n int) {
 	//   for i := 1; i <= n; i++ {
 	//     yield(i * i)
 	//   }
 	// }
 
-	stack := &c.Stack
-	frame := &stack.Frames[stack.FP]
+	// new stack frame, or reuse current frame on resume
+	frame := c.Push()
 
-	n := int(frame.Get(0).(coroutine.Int))
+	// variable declaration
+	var (
+		i coroutine.Int
+	)
 
-	var i int
+	// state restoration
+	switch frame.IP {
+	case 1:
+		n = frame.Get(0).(coroutine.Int)
+		i = frame.Get(1).(coroutine.Int)
+	}
+
+	// coroutine state machine
+	//
+	// TOOD: is it better to avoid fallthrough? fallthrough requires cases
+	// to be implemented as comparisons, potentially preventing the compiler
+	// from turning the state machine into a jump table. A jump to the start
+	// of the state machine (via goto or for loop?) simplifies the switch
+	// statement.
+coroutineStateMachineLevel0:
 	switch frame.IP {
 	case 0:
 		i = 1
-		frame.Set(1, coroutine.Int(i))
 		frame.IP = 1
-		fallthrough
+		goto coroutineStateMachineLevel0
 	case 1:
-		i = int(frame.Get(1).(coroutine.Int))
-
 		for i <= n {
-			stack.Push(func() coroutine.Frame {
-				arg0 := i * i
-				return coroutine.Frame{
-					Storage: coroutine.NewStorage([]coroutine.Serializable{
-						coroutine.Int(arg0),
-					}),
-				}
+			c.Yield(i*i, func() {
+				// state capture; called before unwinding
+				frame.Set(0, coroutine.Int(n))
+				frame.Set(1, coroutine.Int(i))
 			})
-			yieldInt(c)
-			stack.Pop()
-
 			i++
-			frame.Set(1, coroutine.Int(i))
 		}
 	}
-}
 
-func yieldInt(c *coroutine.Context) {
-	if frame := c.Top(); !frame.Resume {
-		frame.Resume = true
-		coroutine.Unwind()
-	}
+	// pop stack frame now that the function call completed
+	c.Pop()
 }

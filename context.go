@@ -5,6 +5,10 @@ package coroutine
 type Context struct {
 	Stack
 	Heap
+
+	YieldValue Serializable
+
+	Unwinding bool
 }
 
 // NewContext constructs a Context and prepares its stack so that
@@ -63,4 +67,18 @@ func (c *Context) Unmarshal(b []byte) (int, error) {
 		return 0, err
 	}
 	return sn + hn, err
+}
+
+// TODO: do we have use cases for yielding more than one value?
+// TODO: the program should be able to send a value that is returned by Yield on resume
+func (c *Context) Yield(value Serializable, capture func()) {
+	if frame := c.Top(); frame.Resume {
+		frame.Resume = false
+	} else {
+		frame.Resume = true
+		c.Unwinding = true
+		c.YieldValue = value
+		capture()
+		Unwind()
+	}
 }
