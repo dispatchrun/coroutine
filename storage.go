@@ -3,6 +3,7 @@ package coroutine
 import (
 	"encoding/binary"
 	"fmt"
+	"slices"
 	"strconv"
 )
 
@@ -42,21 +43,11 @@ func (v *Storage) Delete(i int) {
 
 // Set sets the object for a specific index.
 func (v *Storage) Set(i int, value Serializable) {
-	v.grow(i + 1)
+	if n := i + 1; n > len(v.objects) {
+		v.objects = slices.Grow(v.objects, n-len(v.objects))
+		v.objects = v.objects[:n]
+	}
 	v.objects[i] = value
-}
-
-func (v *Storage) grow(i int) {
-	if i < 0 {
-		panic("invalid object index " + strconv.Itoa(i))
-	}
-	if i < len(v.objects) {
-		return
-	}
-	if i > cap(v.objects) {
-		v.objects = append(make([]Serializable, 0, i), v.objects...)
-	}
-	v.objects = v.objects[:i]
 }
 
 func (v *Storage) shrink() {
