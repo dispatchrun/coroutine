@@ -7,6 +7,39 @@ type Context struct {
 	Heap
 }
 
+// NewContext constructs a Context and prepares its stack so that
+// a coroutine can be invoked with the specified arguments.
+func NewContext(args ...Serializable) *Context {
+	return &Context{
+		Stack: Stack{
+			Frames: []Frame{
+				{
+					Storage: NewStorage(args),
+				},
+			},
+		},
+	}
+}
+
+// Call invokes or resumes a coroutine.
+//
+// The boolean return value indicates whether the coroutine returned
+// normally (true) or whether it yielded (false).
+func (c *Context) Call(fn Coroutine) (returned bool) {
+	defer func() {
+		if err := recover(); Unwinding(err) {
+			returned = false
+		} else if err != nil {
+			panic(err)
+		}
+	}()
+
+	c.Stack.FP = 0
+
+	fn(c)
+	return true
+}
+
 // MarshalAppend appends a serialized Context to the provided buffer.
 func (c *Context) MarshalAppend(b []byte) ([]byte, error) {
 	var err error

@@ -15,6 +15,41 @@ type Stack struct {
 	Frames []Frame
 }
 
+// Top returns the top of the call stack.
+func (s *Stack) Top() *Frame {
+	if len(s.Frames) == 0 {
+		panic("no stack frames")
+	}
+	return &s.Frames[len(s.Frames)-1]
+}
+
+// Push prepares the stack for an impending function call.
+//
+// The stack's frame pointer is incremented, and a Frame is pushed to the
+// stack if the caller is on the topmost frame.
+//
+// If the caller is not on the topmost frame it means that a coroutine
+// is being resumed and the next frame is already present on the stack.
+func (s *Stack) Push(fn func() Frame) {
+	if s.isTop() {
+		s.Frames = append(s.Frames, fn())
+	}
+	s.FP++
+}
+
+// Pop pops the topmost stack frame after a function call.
+func (s *Stack) Pop() {
+	if !s.isTop() {
+		panic("pop when caller is not on topmost frame")
+	}
+	s.Frames = s.Frames[:len(s.Frames)-1]
+	s.FP--
+}
+
+func (s *Stack) isTop() bool {
+	return s.FP == len(s.Frames)-1
+}
+
 // MarshalAppend appends a serialized Stack to the provided buffer.
 func (s *Stack) MarshalAppend(b []byte) ([]byte, error) {
 	// The frame pointer is always set to zero when invoking or
@@ -60,11 +95,20 @@ type Frame struct {
 
 	// Storage holds the Serializable objects on the frame.
 	Storage
+
+	// Resume is true if the function associated with the frame
+	// previously yielded.
+	Resume bool
 }
 
 // MarshalAppend appends a serialized Frame to the provided buffer.
 func (f *Frame) MarshalAppend(b []byte) ([]byte, error) {
 	b = binary.AppendVarint(b, int64(f.IP))
+	if f.Resume {
+		b = append(b, 1)
+	} else {
+		b = append(b, 0)
+	}
 	return f.Storage.MarshalAppend(b)
 }
 
@@ -76,6 +120,11 @@ func (f *Frame) Unmarshal(b []byte) (int, error) {
 	if n <= 0 || int64(int(ip)) != ip {
 		return 0, fmt.Errorf("invalid frame instruction pointer: %v", b)
 	}
+	if len(b) == 0 || (b[0] != 0 && b[0] != 1) {
+		return 0, fmt.Errorf("invalid frame resume flag: %v", b)
+	}
+	f.Resume = b[0] == 1
+	n++
 
 	var storage Storage
 	sn, err := storage.Unmarshal(b[n:])
