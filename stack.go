@@ -120,10 +120,10 @@ func (f *Frame) Unmarshal(b []byte) (int, error) {
 	if n <= 0 || int64(int(ip)) != ip {
 		return 0, fmt.Errorf("invalid frame instruction pointer: %v", b)
 	}
-	if len(b) == 0 || (b[0] != 0 && b[0] != 1) {
+	if n >= len(b) || (b[n] != 0 && b[n] != 1) {
 		return 0, fmt.Errorf("invalid frame resume flag: %v", b)
 	}
-	f.Resume = b[0] == 1
+	f.Resume = b[n] == 1
 	n++
 
 	var storage Storage

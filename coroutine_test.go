@@ -39,8 +39,6 @@ func TestCoroutine(t *testing.T) {
 
 			var yield int
 			for {
-				//spew.Dump(c.Stack)
-
 				returned := c.Call(test.coro)
 				if returned {
 					break
