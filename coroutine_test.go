@@ -89,11 +89,11 @@ func TestCoroutine(t *testing.T) {
 }
 
 func identity(c *coroutine.Context, n coroutine.Int) {
-	// func identity(n int) int {
+	// func identity(n int) {
 	//   yield(n)
 	// }
 	c.Push()
-	c.Yield(coroutine.Int(n), func() {})
+	c.Yield(coroutine.Int(n))
 	c.Pop()
 }
 
@@ -119,26 +119,24 @@ func squareGenerator(c *coroutine.Context, n coroutine.Int) {
 		i = frame.Get(1).(coroutine.Int)
 	}
 
+	// state capture
+	defer func() {
+		switch frame.IP {
+		case 1:
+			frame.Set(0, coroutine.Int(n))
+			frame.Set(1, coroutine.Int(i))
+		}
+	}()
+
 	// coroutine state machine
-	//
-	// TOOD: is it better to avoid fallthrough? fallthrough requires cases
-	// to be implemented as comparisons, potentially preventing the compiler
-	// from turning the state machine into a jump table. A jump to the start
-	// of the state machine (via goto or for loop?) simplifies the switch
-	// statement.
-coroutineStateMachineLevel0:
 	switch frame.IP {
 	case 0:
 		i = 1
 		frame.IP = 1
-		goto coroutineStateMachineLevel0
+		fallthrough
 	case 1:
 		for i <= n {
-			c.Yield(i*i, func() {
-				// state capture; called before unwinding
-				frame.Set(0, coroutine.Int(n))
-				frame.Set(1, coroutine.Int(i))
-			})
+			c.Yield(i * i)
 			i++
 		}
 	}

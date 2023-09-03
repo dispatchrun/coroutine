@@ -71,14 +71,13 @@ func (c *Context) Unmarshal(b []byte) (int, error) {
 
 // TODO: do we have use cases for yielding more than one value?
 // TODO: the program should be able to send a value that is returned by Yield on resume
-func (c *Context) Yield(value Serializable, capture func()) {
+func (c *Context) Yield(value Serializable) {
 	if frame := c.Top(); frame.Resume {
 		frame.Resume = false
 	} else {
 		frame.Resume = true
 		c.Unwinding = true
 		c.YieldValue = value
-		capture()
 		Unwind()
 	}
 }
