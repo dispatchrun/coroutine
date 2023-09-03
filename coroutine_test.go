@@ -41,7 +41,7 @@ func TestCoroutine(t *testing.T) {
 
 			var yield int
 			for {
-				c.YieldValue = nil
+				c.Send(nil)
 				returned := (func() bool {
 					defer func() {
 						if c.Unwinding() {
@@ -59,7 +59,7 @@ func TestCoroutine(t *testing.T) {
 					t.Errorf("unexpected yield from coroutine")
 					break
 				}
-				actual := c.YieldValue
+				actual := c.Recv()
 				expect := test.yields[yield]
 
 				if !reflect.DeepEqual(actual, expect) {

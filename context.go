@@ -8,7 +8,7 @@ type Context struct {
 
 	// Value passed to Yield when a coroutine yields control back to its caller,
 	// and value returned to the coroutine when the caller resumes it.
-	YieldValue any
+	yield any
 }
 
 // MarshalAppend appends a serialized Context to the provided buffer.
@@ -36,14 +36,22 @@ func (c *Context) Unmarshal(b []byte) (int, error) {
 	return sn + hn, err
 }
 
+func (c *Context) Recv() any {
+	return c.yield
+}
+
+func (c *Context) Send(value any) {
+	c.yield = value
+}
+
 // TODO: do we have use cases for yielding more than one value?
 func (c *Context) Yield(value any) any {
 	if frame := c.Top(); frame.Resume {
 		frame.Resume = false
-		return c.YieldValue
+		return c.yield
 	} else {
 		frame.Resume = true
-		c.YieldValue = value
+		c.yield = value
 		panic(unwind{})
 	}
 }
