@@ -41,14 +41,14 @@ func TestCoroutine(t *testing.T) {
 
 			var yield int
 			for {
+				c.YieldValue = nil
 				returned := (func() bool {
 					defer func() {
-						if c.Unwinding {
+						if c.Unwinding() {
 							recover()
 						}
 					}()
 					c.Stack.FP = -1
-					c.Unwinding = false
 					test.coro(c, test.arg)
 					return true
 				})()
@@ -121,10 +121,12 @@ func squareGenerator(c *coroutine.Context, n coroutine.Int) {
 
 	// state capture
 	defer func() {
-		switch frame.IP {
-		case 1:
-			frame.Set(0, coroutine.Int(n))
-			frame.Set(1, coroutine.Int(i))
+		if c.Unwinding() {
+			switch frame.IP {
+			case 1:
+				frame.Set(0, coroutine.Int(n))
+				frame.Set(1, coroutine.Int(i))
+			}
 		}
 	}()
 

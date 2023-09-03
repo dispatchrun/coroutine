@@ -30,13 +30,6 @@ func (s *Stack) Top() *Frame {
 //
 // If the caller is not on the topmost frame it means that a coroutine
 // is being resumed and the next frame is already present on the stack.
-// func (s *Stack) Push(fn func() Frame) {
-// 	if s.isTop() {
-// 		s.Frames = append(s.Frames, fn())
-// 	}
-// 	s.FP++
-// }
-
 func (s *Stack) Push() *Frame {
 	if s.isTop() {
 		s.Frames = append(s.Frames, Frame{})

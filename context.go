@@ -6,42 +6,9 @@ type Context struct {
 	Stack
 	Heap
 
-	YieldValue Serializable
-
-	Unwinding bool
-}
-
-// NewContext constructs a Context and prepares its stack so that
-// a coroutine can be invoked with the specified arguments.
-func NewContext(args ...Serializable) *Context {
-	return &Context{
-		Stack: Stack{
-			Frames: []Frame{
-				{
-					Storage: NewStorage(args),
-				},
-			},
-		},
-	}
-}
-
-// Call invokes or resumes a coroutine.
-//
-// The boolean return value indicates whether the coroutine returned
-// normally (true) or whether it yielded (false).
-func (c *Context) Call(fn Coroutine) (returned bool) {
-	defer func() {
-		if err := recover(); Unwinding(err) {
-			returned = false
-		} else if err != nil {
-			panic(err)
-		}
-	}()
-
-	c.Stack.FP = 0
-
-	fn(c)
-	return true
+	// Value passed to Yield when a coroutine yields control back to its caller,
+	// and value returned to the coroutine when the caller resumes it.
+	YieldValue any
 }
 
 // MarshalAppend appends a serialized Context to the provided buffer.
@@ -70,14 +37,18 @@ func (c *Context) Unmarshal(b []byte) (int, error) {
 }
 
 // TODO: do we have use cases for yielding more than one value?
-// TODO: the program should be able to send a value that is returned by Yield on resume
-func (c *Context) Yield(value Serializable) {
+func (c *Context) Yield(value any) any {
 	if frame := c.Top(); frame.Resume {
 		frame.Resume = false
+		return c.YieldValue
 	} else {
 		frame.Resume = true
-		c.Unwinding = true
 		c.YieldValue = value
-		Unwind()
+		panic(unwind{})
 	}
+}
+
+// Unwinding returns true if the coroutine is currently unwinding its stack.
+func (c *Context) Unwinding() bool {
+	return len(c.Frames) > 0 && c.Top().Resume
 }
