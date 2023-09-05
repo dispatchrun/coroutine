@@ -18,7 +18,7 @@ func (c *Context[R, S]) Yield(v R) S {
 }
 
 func Yield[R, S any](v R) S {
-	if c, _ := gls.Load(getg()); c != nil {
+	if c := loadContext(getg()); c != nil {
 		return c.(*Context[R, S]).Yield(v)
 	} else {
 		panic("coroutine.Yield: not called from a coroutine stack")
