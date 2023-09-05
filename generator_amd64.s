@@ -1,3 +1,5 @@
+//go:build !durable
+
 #include "go_asm.h"
 #include "go_tls.h"
 #include "testflag.h"
