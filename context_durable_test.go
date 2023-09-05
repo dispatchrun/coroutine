@@ -1,3 +1,5 @@
+//go:build durable
+
 package coroutine
 
 import (
@@ -7,7 +9,7 @@ import (
 )
 
 func TestContextSerialization(t *testing.T) {
-	original := Context{
+	original := Context[string, rune]{
 		Stack: Stack{
 			Frames: []Frame{
 				{
@@ -36,7 +38,7 @@ func TestContextSerialization(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var reconstructed Context
+	var reconstructed Context[string, rune]
 	if n, err := reconstructed.Unmarshal(b); err != nil {
 		t.Fatal(err)
 	} else if n != len(b) {

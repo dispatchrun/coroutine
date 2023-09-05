@@ -1,62 +1,33 @@
+//go:build !durable
+
 package coroutine
 
-// Context is passed to a coroutine and flows through all
-// functions that Yield (or could yield).
-type Context struct {
-	Stack
-	Heap
+import "github.com/jtolds/gls"
 
-	// Value passed to Yield when a coroutine yields control back to its caller,
-	// and value returned to the coroutine when the caller resumes it.
-	yield any
+type Context[R, S any] struct {
+	recv R
+	send S
+	next chan struct{}
 }
 
-// MarshalAppend appends a serialized Context to the provided buffer.
-func (c *Context) MarshalAppend(b []byte) ([]byte, error) {
-	var err error
-	b, err = c.Stack.MarshalAppend(b)
-	if err != nil {
-		return b, err
-	}
-	return c.Heap.MarshalAppend(b)
+func (c *Context[R, S]) Yield(v R) S {
+	var zero S
+	c.send = zero
+	c.recv = v
+	c.next <- struct{}{}
+	<-c.next
+	return c.send
 }
 
-// Unmarshal deserializes a Context from the provided buffer, returning
-// the number of bytes that were read in order to reconstruct the
-// context.
-func (c *Context) Unmarshal(b []byte) (int, error) {
-	sn, err := c.Stack.Unmarshal(b)
-	if err != nil {
-		return 0, err
-	}
-	hn, err := c.Heap.Unmarshal(b[sn:])
-	if err != nil {
-		return 0, err
-	}
-	return sn + hn, err
-}
-
-func (c *Context) Recv() any {
-	return c.yield
-}
-
-func (c *Context) Send(value any) {
-	c.yield = value
-}
-
-// TODO: do we have use cases for yielding more than one value?
-func (c *Context) Yield(value any) any {
-	if frame := c.Top(); frame.Resume {
-		frame.Resume = false
-		return c.yield
+func Yield[R, S any](v R) S {
+	c, ok := goroutine.GetValue(contextKey{})
+	if ok {
+		return c.(*Context[R, S]).Yield(v)
 	} else {
-		frame.Resume = true
-		c.yield = value
-		panic(unwind{})
+		panic("coroutine.Yield: not called from a coroutine stack")
 	}
 }
 
-// Unwinding returns true if the coroutine is currently unwinding its stack.
-func (c *Context) Unwinding() bool {
-	return len(c.Frames) > 0 && c.Top().Resume
-}
+type contextKey struct{}
+
+var goroutine = gls.NewContextManager()
