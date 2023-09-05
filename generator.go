@@ -2,7 +2,9 @@
 
 package coroutine
 
-import "github.com/jtolds/gls"
+import (
+	"sync"
+)
 
 type Generator[R, S any] struct {
 	ctx *Context[R, S]
@@ -28,13 +30,49 @@ func New[R, S any](f func(*Context[R, S])) Generator[R, S] {
 	}
 
 	go func() {
+		g := getg()
+		storeContext(g, c)
+		defer clearContext(g)
 		defer close(c.next)
 
-		goroutine.SetValues(gls.Values{contextKey{}: c}, func() {
-			<-c.next
-			f(c)
-		})
+		<-c.next
+		f(c)
 	}()
 
 	return Generator[R, S]{ctx: c}
 }
+
+// goroutine local storage; the map contains one entry for each goroutine that
+// is started to power a coroutine.
+var (
+	gmutex sync.RWMutex
+	gstate map[uintptr]any
+)
+
+func loadContext(g uintptr) any {
+	gmutex.RLock()
+	v := gstate[g]
+	gmutex.RUnlock()
+	return v
+}
+
+func storeContext(g uintptr, c any) {
+	gmutex.Lock()
+	if gstate == nil {
+		gstate = make(map[uintptr]any)
+	}
+	gstate[g] = c
+	gmutex.Unlock()
+}
+
+func clearContext(g uintptr) {
+	gmutex.Lock()
+	delete(gstate, g)
+	gmutex.Unlock()
+}
+
+// getg is like the compiler intrisinc runtime.getg which retrieves the current
+// goroutine object.
+//
+// https://github.com/golang/go/blob/a2647f08f0c4e540540a7ae1b9ba7e668e6fed80/src/runtime/HACKING.md?plain=1#L44-L54
+func getg() uintptr

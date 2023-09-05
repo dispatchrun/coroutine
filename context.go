@@ -2,8 +2,6 @@
 
 package coroutine
 
-import "github.com/jtolds/gls"
-
 type Context[R, S any] struct {
 	recv R
 	send S
@@ -20,14 +18,9 @@ func (c *Context[R, S]) Yield(v R) S {
 }
 
 func Yield[R, S any](v R) S {
-	c, ok := goroutine.GetValue(contextKey{})
-	if ok {
+	if c := loadContext(getg()); c != nil {
 		return c.(*Context[R, S]).Yield(v)
 	} else {
 		panic("coroutine.Yield: not called from a coroutine stack")
 	}
 }
-
-type contextKey struct{}
-
-var goroutine = gls.NewContextManager()
