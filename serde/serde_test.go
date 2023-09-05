@@ -1,18 +1,17 @@
 package serde_test
 
 import (
+	"fmt"
 	"math"
-	"strconv"
 	"testing"
 
 	"github.com/stealthrocket/coroutine/serde"
 )
 
 type basicTest[T comparable] struct {
-	name string
-	ser  func(x T, b []byte) []byte
-	des  func(b []byte) (T, []byte)
-
+	name  string
+	ser   func(x T, b []byte) []byte
+	des   func(b []byte) (T, []byte)
 	cases []T
 }
 
@@ -20,7 +19,7 @@ func (bt basicTest[T]) Run(t *testing.T) {
 	t.Run(bt.name, func(t *testing.T) {
 		for i, x := range bt.cases {
 			x := x
-			t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%d %v", i, x), func(t *testing.T) {
 				var b []byte
 				b = bt.ser(x, b)
 				y, b := bt.des(b)
