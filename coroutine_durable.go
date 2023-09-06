@@ -10,7 +10,15 @@ func (c Coroutine[R, S]) Recv() R { return c.ctx.recv }
 
 func (c Coroutine[R, S]) Send(v S) { c.ctx.send = v }
 
+func (c Coroutine[R, S]) Stop() { c.ctx.stop = true }
+
+func (c Coroutine[R, S]) Done() bool { return c.ctx.done }
+
 func (c Coroutine[R, S]) Next() (hasNext bool) {
+	if c.ctx.done {
+		return false
+	}
+
 	g := getg()
 	storeContext(g, c.ctx)
 
@@ -19,7 +27,10 @@ func (c Coroutine[R, S]) Next() (hasNext bool) {
 
 		if c.ctx.Unwinding() {
 			recover()
-			hasNext = true
+			stop := c.ctx.stop
+			c.ctx.done, hasNext = stop, !stop
+		} else {
+			c.ctx.done = true
 		}
 	}()
 
