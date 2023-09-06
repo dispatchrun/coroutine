@@ -34,6 +34,16 @@ func TestStruct1(t *testing.T) {
 		StrPtr:    &str,
 		IntPtr:    &myint,
 		IntPtrPtr: &myintptr,
+
+		InnerV: Inner{
+			A: 53,
+			B: "test",
+		},
+
+		InnerP: &Inner{
+			A: 99,
+			B: "hello",
+		},
 	}
 
 	var b []byte

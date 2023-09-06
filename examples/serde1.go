@@ -22,6 +22,11 @@ func (f *Foo) Unmarshal(b []byte) (int, error) {
 	return n, nil
 }
 
+type Inner struct {
+	A int64
+	B string
+}
+
 type Struct1 struct {
 	Str  string
 	Int  int
@@ -45,4 +50,7 @@ type Struct1 struct {
 	StrPtr    *string
 	IntPtr    *int
 	IntPtrPtr **int
+
+	InnerV Inner
+	InnerP *Inner
 }
