@@ -2,11 +2,11 @@ package coroutine
 
 // Run executes a coroutine to completion, calling f for each value that the
 // coroutine yields, and sending back each value that f returns.
-func Run[R, S any](g Generator[R, S], f func(R) S) {
-	for g.Next() {
-		r := g.Recv()
+func Run[R, S any](c Coroutine[R, S], f func(R) S) {
+	for c.Next() {
+		r := c.Recv()
 		s := f(r)
-		g.Send(s)
+		c.Send(s)
 	}
 }
 
