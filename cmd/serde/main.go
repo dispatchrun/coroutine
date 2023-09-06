@@ -53,10 +53,25 @@ func main() {
 }
 
 func generate(typeName string, patterns []string, output string) error {
+	// Add the serde support library to the search to bring the built-ins
+	// into the type system. At the moment it's only used for the
+	// Serializable interface, but eventually it should be used to reference
+	// helpers and basic types serialization functions by their ast.Ident
+	// directly.
+	patterns = append(patterns, "github.com/stealthrocket/coroutine/serde")
+
 	pkgs, err := parse(patterns)
 	if err != nil {
 		return err
 	}
+
+	// Find our built-in Serializable interface type so that we can check
+	// for its implementations.
+	serializable := findTypeDef("Serializable", pkgs)
+	if serializable == notype {
+		return fmt.Errorf("could not find built-in Serializable interface")
+	}
+	serializableIface := serializable.obj.Type().(*types.Named).Underlying().(*types.Interface)
 
 	// Find the package that contains the type declaration requested.
 	// This will also be the output package.
@@ -68,10 +83,10 @@ func generate(typeName string, patterns []string, output string) error {
 	output = td.TargetFile()
 
 	g := generator{
-		output: td.TargetFile(),
-		main:   td.pkg,
+		serializable: serializableIface,
+		output:       td.TargetFile(),
+		main:         td.pkg,
 	}
-	//	fmt.Println("OUTPUT:")
 
 	g.Typedef(td)
 
@@ -114,6 +129,8 @@ type locations struct {
 }
 
 type generator struct {
+	// Type of the serde.Serializable interface.
+	serializable *types.Interface
 	// Map[types.Type] -> locations to track the types that already have
 	// their serialization functions emitted.
 	known typeutil.Map
@@ -160,6 +177,19 @@ func (g *generator) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (g *generator) Type(t types.Type, name string) locations {
+	// Hit the cache first.
+	if loc, ok := g.get(t); ok {
+		return loc
+	}
+
+	if types.AssignableTo(t, g.serializable) {
+		return g.Serializable(t, name)
+	}
+
+	if types.AssignableTo(types.NewPointer(t), g.serializable) {
+		return g.SerializableToPtr(t, name)
+	}
+
 	switch x := t.(type) {
 	case *types.Basic:
 		return g.Basic(x, name)
@@ -174,11 +204,37 @@ func (g *generator) Type(t types.Type, name string) locations {
 	}
 }
 
-func (g *generator) Slice(t *types.Slice, name string) locations {
-	if loc, ok := g.get(t); ok {
-		return loc
-	}
+func (g *generator) Serializable(t types.Type, name string) locations {
+	return g.builtin(t, "SerializeSerializable", "DeserializeSerializable")
+}
 
+func (g *generator) SerializableToPtr(t types.Type, name string) locations {
+	// t is not Serializable, but *t is.
+	loc := g.newGenLocation(t, name)
+
+	// location for the pointer type
+	ploc := g.Type(types.NewPointer(t), name)
+
+	// generate wrappers to use the pointer type
+	g.W(`func %s(z %s, b []byte) []byte {`, loc.serializer.name, name)
+	g.W(`x := &z`)
+	g.serializeCallForLoc(ploc)
+	g.W(`return b`)
+	g.W(`}`)
+	g.W(``)
+
+	g.W(`func %s(b []byte) (%s, []byte) {`, loc.deserializer.name, name)
+	g.W(`var z %s`, name)
+	g.W(`x := &z`)
+	g.W(`b = serde.DeserializeSerializable(x, b)`)
+	g.W(`return z, b`)
+	g.W(`}`)
+	g.W(``)
+
+	return loc
+}
+
+func (g *generator) Slice(t *types.Slice, name string) locations {
 	loc := g.newGenLocation(t, name)
 
 	et := t.Elem()
@@ -215,12 +271,10 @@ func (g *generator) Named(t *types.Named, name string) locations {
 }
 
 func (g *generator) Struct(t *types.Struct, name string) locations {
-	if loc, ok := g.get(t); ok {
-		return loc
-	}
-
 	loc := g.newGenLocation(t, name)
 
+	// Depth-first search in the fields to generate serialization functions
+	// of fields themsleves.
 	n := t.NumFields()
 	for i := 0; i < n; i++ {
 		f := t.Field(i)
@@ -300,7 +354,7 @@ func (g *generator) deserializeCallForLoc(loc locations) {
 }
 
 func isInvalidChar(r rune) bool {
-	valid := (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+	valid := (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r == '_')
 	return !valid
 }
 
@@ -322,73 +376,70 @@ func (g *generator) newGenLocation(t types.Type, name string) locations {
 			name: "Deserialize_" + name,
 		},
 	}
+	g.setLocation(t, loc)
+	return loc
+}
+
+func (g *generator) setLocation(t types.Type, loc locations) {
 	prev := g.known.Set(t, loc)
 	if prev != nil {
 		panic(fmt.Errorf("trying to override known location"))
 	}
-	return loc
 }
 
-func (g *generator) Basic(t *types.Basic, name string) locations {
+func (g *generator) builtin(t types.Type, ser, des interface{}) locations {
 	g.ensureImport("serde", "github.com/stealthrocket/coroutine/serde")
 	nameof := func(x interface{}) string {
+		if s, ok := x.(string); ok {
+			return s
+		}
+
 		full := runtime.FuncForPC(reflect.ValueOf(x).Pointer()).Name()
 		return full[strings.LastIndexByte(full, '.')+1:]
 	}
 	l := locations{
-		serializer:   location{pkg: "serde", name: ""},
-		deserializer: location{pkg: "serde", name: ""},
+		serializer:   location{pkg: "serde", name: nameof(ser)},
+		deserializer: location{pkg: "serde", name: nameof(des)},
 	}
+	g.setLocation(t, l)
+	return l
+}
 
+func (g *generator) Basic(t *types.Basic, name string) locations {
 	switch t.Kind() {
 	case types.Invalid:
 		panic("trying to generate serializer for invalid basic type")
 	case types.String:
-		l.serializer.name = nameof(serde.SerializeString)
-		l.deserializer.name = nameof(serde.DeserializeString)
+		return g.builtin(t, serde.SerializeString, serde.DeserializeString)
 	case types.Bool:
-		l.serializer.name = nameof(serde.SerializeBool)
-		l.deserializer.name = nameof(serde.DeserializeBool)
+		return g.builtin(t, serde.SerializeBool, serde.DeserializeBool)
 	case types.Int64:
-		l.serializer.name = nameof(serde.SerializeInt64)
-		l.deserializer.name = nameof(serde.DeserializeInt64)
+		return g.builtin(t, serde.SerializeInt64, serde.DeserializeInt64)
 	case types.Int32:
-		l.serializer.name = nameof(serde.SerializeInt32)
-		l.deserializer.name = nameof(serde.DeserializeInt32)
+		return g.builtin(t, serde.SerializeInt32, serde.DeserializeInt32)
 	case types.Int16:
-		l.serializer.name = nameof(serde.SerializeInt16)
-		l.deserializer.name = nameof(serde.DeserializeInt16)
+		return g.builtin(t, serde.SerializeInt16, serde.DeserializeInt16)
 	case types.Int8:
-		l.serializer.name = nameof(serde.SerializeInt8)
-		l.deserializer.name = nameof(serde.DeserializeInt8)
+		return g.builtin(t, serde.SerializeInt8, serde.DeserializeInt8)
 	case types.Uint64:
-		l.serializer.name = nameof(serde.SerializeUint64)
-		l.deserializer.name = nameof(serde.DeserializeUint64)
+		return g.builtin(t, serde.SerializeUint64, serde.DeserializeUint64)
 	case types.Uint32:
-		l.serializer.name = nameof(serde.SerializeUint32)
-		l.deserializer.name = nameof(serde.DeserializeUint32)
+		return g.builtin(t, serde.SerializeUint32, serde.DeserializeUint32)
 	case types.Uint16:
-		l.serializer.name = nameof(serde.SerializeUint16)
-		l.deserializer.name = nameof(serde.DeserializeUint16)
+		return g.builtin(t, serde.SerializeUint16, serde.DeserializeUint16)
 	case types.Uint8:
-		l.serializer.name = nameof(serde.SerializeUint8)
-		l.deserializer.name = nameof(serde.DeserializeUint8)
+		return g.builtin(t, serde.SerializeUint8, serde.DeserializeUint8)
 	case types.Float32:
-		l.serializer.name = nameof(serde.SerializeFloat32)
-		l.deserializer.name = nameof(serde.DeserializeFloat32)
+		return g.builtin(t, serde.SerializeFloat32, serde.DeserializeFloat32)
 	case types.Float64:
-		l.serializer.name = nameof(serde.SerializeFloat64)
-		l.deserializer.name = nameof(serde.DeserializeFloat64)
+		return g.builtin(t, serde.SerializeFloat64, serde.DeserializeFloat64)
 	case types.Complex64:
-		l.serializer.name = nameof(serde.SerializeComplex64)
-		l.deserializer.name = nameof(serde.DeserializeComplex64)
+		return g.builtin(t, serde.SerializeComplex64, serde.DeserializeComplex64)
 	case types.Complex128:
-		l.serializer.name = nameof(serde.SerializeComplex128)
-		l.deserializer.name = nameof(serde.DeserializeComplex128)
+		return g.builtin(t, serde.SerializeComplex128, serde.DeserializeComplex128)
 	default:
 		panic(fmt.Errorf("basic type kind %s not handled", basicKindString(t)))
 	}
-	return l
 }
 
 func (g *generator) TypeNameFor(t types.Type) string {

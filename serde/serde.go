@@ -2,12 +2,41 @@ package serde
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math"
 )
 
 type Serde struct{}
 
+// Serializable objects can be serialized to bytes.
+type Serializable interface {
+	// MarshalAppend marshals the object and appends the resulting bytes to
+	// the provided buffer.
+	MarshalAppend(b []byte) ([]byte, error)
+
+	// Unmarshal unmarshals an object from a buffer. It returns the number
+	// of bytes that were read from the buffer in order to reconstruct the
+	// object.
+	Unmarshal(b []byte) (n int, err error)
+}
+
 // Helpers to write composite types serializers and deserializers.
+
+func SerializeSerializable[T Serializable](x T, b []byte) []byte {
+	b, err := x.MarshalAppend(b)
+	if err != nil {
+		panic(fmt.Errorf("serializing %T: %w", x, err))
+	}
+	return b
+}
+
+func DeserializeSerializable[T Serializable](x T, b []byte) []byte {
+	n, err := x.Unmarshal(b)
+	if err != nil {
+		panic(fmt.Errorf("deserializing %T: %w", x, err))
+	}
+	return b[n:]
+}
 
 func SerializeSliceSize[T any](x []T, b []byte) []byte {
 	return binary.AppendVarint(b, int64(len(x)))

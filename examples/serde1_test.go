@@ -2,6 +2,7 @@ package examples
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -25,13 +26,19 @@ func TestStruct1(t *testing.T) {
 		Float64:    420.110,
 		Complex64:  42 + 11i,
 		Complex128: 420 + 110i,
+
+		FooSer: Foo{t: time.Now()},
 	}
 
 	var b []byte
 	b = Serialize_Struct1(s, b)
 	s2, b := Deserialize_Struct1(b)
 
-	if diff := cmp.Diff(s, s2); diff != "" {
+	opts := []cmp.Option{
+		cmp.AllowUnexported(Foo{}),
+	}
+
+	if diff := cmp.Diff(s, s2, opts...); diff != "" {
 		t.Fatalf("mismatch (-want +got):\n%s", diff)
 	}
 

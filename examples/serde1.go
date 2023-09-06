@@ -1,5 +1,27 @@
 package examples
 
+import "time"
+
+type Foo struct {
+	t time.Time
+}
+
+func (f *Foo) MarshalAppend(b []byte) ([]byte, error) {
+	out := f.t.Format(time.RFC3339Nano)
+	return append(b, []byte(out)...), nil
+}
+
+func (f *Foo) Unmarshal(b []byte) (int, error) {
+	n := len(time.RFC3339Nano)
+	v := string(b[:n])
+	t, err := time.Parse(time.RFC3339Nano, v)
+	if err != nil {
+		return n, err
+	}
+	f.t = t
+	return n, nil
+}
+
 type Struct1 struct {
 	Str  string
 	Int  int64
@@ -18,4 +40,6 @@ type Struct1 struct {
 	Float64    float64
 	Complex64  complex64
 	Complex128 complex128
+
+	FooSer Foo
 }
