@@ -1,9 +1,10 @@
-package testdata
+package main
 
 import (
 	"testing"
 
 	"github.com/stealthrocket/coroutine"
+	"github.com/stealthrocket/coroutine/coroc/testdata"
 )
 
 func TestCoroutine(t *testing.T) {
@@ -15,13 +16,13 @@ func TestCoroutine(t *testing.T) {
 	}{
 		{
 			name:   "identity",
-			coro:   Identity,
+			coro:   testdata.Identity,
 			arg:    11,
 			yields: []int{11},
 		},
 		{
 			name:   "square generator",
-			coro:   SquareGenerator,
+			coro:   testdata.SquareGenerator,
 			arg:    4,
 			yields: []int{1, 4, 9, 16},
 		},
@@ -45,7 +46,7 @@ func TestCoroutine(t *testing.T) {
 				yield++
 
 				// If supported, serialize => deserialize the context
-				//before resuming.
+				// before resuming.
 				assertSerializable(t, g)
 			}
 			if yield < len(test.yields) {

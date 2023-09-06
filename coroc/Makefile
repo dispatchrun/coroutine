@@ -1,14 +1,14 @@
 GO ?= go
 
-generate: coroc
-	PATH="$(PWD):$$PATH" $(GO) generate ./
-
-coroc:
-	$(GO) build -o $@ ../cmd/coroc
-
 test: generate
 	$(GO) test ./
 	$(GO) test -tags durable ./
+
+generate: coroc
+	PATH="$(PWD):$$PATH" $(GO) generate ./testdata
+
+coroc:
+	$(GO) build -o $@ .
 
 clean:
 	$(RM) coroc

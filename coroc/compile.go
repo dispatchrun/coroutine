@@ -1,4 +1,4 @@
-package coroc
+package main
 
 import (
 	"fmt"
@@ -8,8 +8,6 @@ import (
 
 	"golang.org/x/tools/go/packages"
 )
-
-const coroutinePackage = "github.com/stealthrocket/coroutine"
 
 // Compile compiles coroutines in one or more packages.
 //

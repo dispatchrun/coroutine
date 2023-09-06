@@ -4,8 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-
-	"github.com/stealthrocket/coroutine/internal/coroc"
 )
 
 const usage = `
@@ -43,5 +41,5 @@ func run() error {
 		}
 	}
 
-	return coroc.Compile(path)
+	return Compile(path)
 }
