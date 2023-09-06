@@ -1,16 +1,47 @@
 package examples
 
 import (
+	"log/slog"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
 
+func enableDebugLogs() {
+	removeTime := func(groups []string, a slog.Attr) slog.Attr {
+		if a.Key == slog.TimeKey && len(groups) == 0 {
+			return slog.Attr{}
+		}
+		return a
+	}
+
+	var programLevel = new(slog.LevelVar)
+	h := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level:       programLevel,
+		ReplaceAttr: removeTime,
+	})
+	slog.SetDefault(slog.New(h))
+	programLevel.Set(slog.LevelDebug)
+}
+
 func TestStruct1(t *testing.T) {
+	enableDebugLogs()
+
 	str := "pointed at"
 	myint := 999
 	myintptr := &myint
+
+	bounce1 := &Bounce{
+		Value: 1,
+	}
+	bounce2 := &Bounce{
+		Value: 2,
+	}
+	bounce1.Other = bounce2
+	bounce2.Other = bounce1
+
 	s := Struct1{
 		Str:  "hello",
 		Int:  42,
@@ -44,6 +75,8 @@ func TestStruct1(t *testing.T) {
 			A: 99,
 			B: "hello",
 		},
+
+		Bounce1: bounce1,
 	}
 
 	var b []byte

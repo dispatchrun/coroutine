@@ -230,11 +230,16 @@ func (g *generator) Pointer(t *types.Pointer, name string) locations {
 	g.W(`if p != nil {`)
 	g.W(`return (%s)(p), b`, name)
 	g.W(`}`)
+	// Little dance to create the placeholder pointer for circular
+	// references. Would be better if deserialization functions took a
+	// pointer argument, which is a TODO.
 	g.W(`var x %s`, ptype)
+	g.W(`var xx %s`, ptype)
+	g.W(`pxx := &xx`)
+	g.W(`d.Store(i, unsafe.Pointer(pxx))`)
 	g.deserializeCallForLoc(ploc)
-	g.W(`z := &x`)
-	g.W(`d.Store(i, unsafe.Pointer(z))`)
-	g.W(`return z, b`)
+	g.W(`*pxx=x`)
+	g.W(`return pxx, b`)
 	g.W(`}`)
 	g.W(``)
 

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math"
 	"unsafe"
+
+	"log/slog"
 )
 
 // ID is the unique ID of a pointer in a serialized format.
@@ -20,6 +22,8 @@ func (d *Deserializer) ReadPtr(b []byte) (unsafe.Pointer, ID, []byte) {
 	x, n := binary.Varint(b)
 	i := ID(x)
 	p := d.ptrs[i]
+
+	slog.Debug("Deserializer ReadPtr", "i", i, "p", p, "n", n)
 	return p, i, b[n:]
 }
 
@@ -45,7 +49,9 @@ type Serializer struct {
 }
 
 func (s *Serializer) WritePtr(p unsafe.Pointer, b []byte) (bool, []byte) {
+	off := len(b)
 	if p == nil {
+		slog.Debug("Serializer WritePtr wrote <nil> pointer", "offset", off)
 		return true, binary.AppendVarint(b, 0)
 	}
 	i, ok := s.ptrs[p]
@@ -53,6 +59,7 @@ func (s *Serializer) WritePtr(p unsafe.Pointer, b []byte) (bool, []byte) {
 		i = ID(len(s.ptrs) + 1)
 		s.ptrs[p] = i
 	}
+	slog.Debug("Serializer WritePtr", "i", i, "p", p, "offset", off)
 	return ok, binary.AppendVarint(b, int64(i))
 }
 
@@ -152,11 +159,16 @@ func DeserializeUint8(b []byte) (uint8, []byte) {
 }
 
 func SerializeInt(x int, b []byte) []byte {
+	slog.Debug("SerializeInt", "x", x, "offset", len(b))
 	return binary.LittleEndian.AppendUint64(b, uint64(x))
 }
 
 func DeserializeInt(b []byte) (int, []byte) {
-	return int(binary.LittleEndian.Uint64(b[:8])), b[8:]
+	slog.Debug("DeserializeInt", "offset", len(b))
+	r := int(binary.LittleEndian.Uint64(b[:8]))
+	slog.Debug("DeserializeInt", "result", r)
+
+	return r, b[8:]
 }
 
 func SerializeInt64(x int64, b []byte) []byte {

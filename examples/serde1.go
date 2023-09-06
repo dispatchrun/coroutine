@@ -27,6 +27,11 @@ type Inner struct {
 	B string
 }
 
+type Bounce struct {
+	Value int
+	Other *Bounce
+}
+
 type Struct1 struct {
 	Str  string
 	Int  int
@@ -53,4 +58,6 @@ type Struct1 struct {
 
 	InnerV Inner
 	InnerP *Inner
+
+	Bounce1 *Bounce
 }
