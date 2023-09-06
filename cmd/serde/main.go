@@ -226,8 +226,8 @@ func (g *generator) Pointer(t *types.Pointer, name string) locations {
 
 	g.W(`func %s(d *serde.Deserializer, b []byte) (%s, []byte) {`, loc.deserializer.name, name)
 	g.W(`d = serde.EnsureDeserializer(d)`)
-	g.W(`p, i,  b := d.ReadPtr(b)`)
-	g.W(`if p != nil {`)
+	g.W(`p, i, b := d.ReadPtr(b)`)
+	g.W(`if p != nil || i == 0 {`)
 	g.W(`return (%s)(p), b`, name)
 	g.W(`}`)
 	// Little dance to create the placeholder pointer for circular

@@ -1,24 +1,35 @@
 package examples
 
-import "time"
+import (
+	"encoding/binary"
+	"log/slog"
+	"time"
+)
 
 type Foo struct {
 	t time.Time
 }
 
 func (f *Foo) MarshalAppend(b []byte) ([]byte, error) {
-	out := f.t.Format(time.RFC3339Nano)
-	return append(b, []byte(out)...), nil
+	p := f.t.Format(time.RFC3339Nano)
+	slog.Debug("Foo Marshal", "offset", len(b), "size", len(p))
+	b = binary.AppendVarint(b, int64(len(p)))
+	slog.Debug("Foo Marshal date", "offset", len(b))
+	return append(b, []byte(p)...), nil
 }
 
 func (f *Foo) Unmarshal(b []byte) (int, error) {
-	n := len(time.RFC3339Nano)
-	v := string(b[:n])
+	x, n := binary.Varint(b)
+	slog.Debug("Foo Unmarshal", "offset", len(b), "size", x, "len", n)
+	b = b[n:]
+	v := string(b[:x])
+	n += int(x)
 	t, err := time.Parse(time.RFC3339Nano, v)
 	if err != nil {
 		return n, err
 	}
 	f.t = t
+	slog.Debug("Foo Unmarshal", "total", n)
 	return n, nil
 }
 
