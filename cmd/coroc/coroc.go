@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/stealthrocket/coroutine/internal/coroc"
 )
@@ -38,7 +37,7 @@ func run() error {
 		// working directory will be set to the directory that
 		// contained the file.
 		if gofile := os.Getenv("GOFILE"); gofile != "" {
-			path = filepath.Join(".", gofile)
+			path = gofile
 		} else {
 			path = "."
 		}
