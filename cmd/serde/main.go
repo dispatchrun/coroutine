@@ -469,6 +469,8 @@ func (g *generator) Basic(t *types.Basic, name string) locations {
 		return g.builtin(t, serde.SerializeString, serde.DeserializeString)
 	case types.Bool:
 		return g.builtin(t, serde.SerializeBool, serde.DeserializeBool)
+	case types.Int:
+		return g.builtin(t, serde.SerializeInt, serde.DeserializeInt)
 	case types.Int64:
 		return g.builtin(t, serde.SerializeInt64, serde.DeserializeInt64)
 	case types.Int32:

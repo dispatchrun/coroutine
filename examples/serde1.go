@@ -24,7 +24,7 @@ func (f *Foo) Unmarshal(b []byte) (int, error) {
 
 type Struct1 struct {
 	Str  string
-	Int  int64
+	Int  int
 	Ints []int64
 
 	Bool       bool
@@ -43,4 +43,5 @@ type Struct1 struct {
 
 	FooSer Foo
 	StrPtr *string
+	//	IntPtr *int
 }

@@ -151,6 +151,14 @@ func DeserializeUint8(b []byte) (uint8, []byte) {
 	return uint8(b[0]), b[1:]
 }
 
+func SerializeInt(x int, b []byte) []byte {
+	return binary.LittleEndian.AppendUint64(b, uint64(x))
+}
+
+func DeserializeInt(b []byte) (int, []byte) {
+	return int(binary.LittleEndian.Uint64(b[:8])), b[8:]
+}
+
 func SerializeInt64(x int64, b []byte) []byte {
 	return binary.LittleEndian.AppendUint64(b, uint64(x))
 }
