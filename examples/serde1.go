@@ -41,7 +41,8 @@ type Struct1 struct {
 	Complex64  complex64
 	Complex128 complex128
 
-	FooSer Foo
-	StrPtr *string
-	//	IntPtr *int
+	FooSer    Foo
+	StrPtr    *string
+	IntPtr    *int
+	IntPtrPtr **int
 }

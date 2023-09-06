@@ -9,7 +9,8 @@ import (
 
 func TestStruct1(t *testing.T) {
 	str := "pointed at"
-	//	myint := 999
+	myint := 999
+	myintptr := &myint
 	s := Struct1{
 		Str:  "hello",
 		Int:  42,
@@ -29,9 +30,10 @@ func TestStruct1(t *testing.T) {
 		Complex64:  42 + 11i,
 		Complex128: 420 + 110i,
 
-		FooSer: Foo{t: time.Now()},
-		StrPtr: &str,
-		//		IntPtr: &myint,
+		FooSer:    Foo{t: time.Now()},
+		StrPtr:    &str,
+		IntPtr:    &myint,
+		IntPtrPtr: &myintptr,
 	}
 
 	var b []byte
