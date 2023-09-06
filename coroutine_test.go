@@ -32,7 +32,7 @@ func TestCoroutine(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			g := coroutine.New(func(*coroutine.Context[int, any]) {
+			g := coroutine.New[int, any](func() {
 				test.coro(test.arg)
 			})
 
