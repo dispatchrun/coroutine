@@ -141,7 +141,8 @@ func (g *generator) W(f string, args ...any) {
 
 // Generate the code for a given typedef
 func (g *generator) Typedef(t typedef) {
-	g.Type(t.obj.Type())
+	typeName := g.TypeNameFor(t.obj.Type())
+	g.Type(t.obj.Type(), typeName)
 }
 
 func (g *generator) WriteTo(w io.Writer) (int64, error) {
@@ -161,24 +162,25 @@ func (g *generator) WriteTo(w io.Writer) (int64, error) {
 	return int64(n) + int64(n2), err
 }
 
-func (g *generator) Type(t types.Type) locations {
+func (g *generator) Type(t types.Type, name string) locations {
 	switch x := t.(type) {
 	case *types.Basic:
-		return g.Basic(x)
+		return g.Basic(x, name)
 	case *types.Struct:
-		return g.Struct(x)
+		return g.Struct(x, name)
 	case *types.Named:
-		return g.Named(x)
+		return g.Named(x, name)
 	default:
 		panic(fmt.Errorf("type generator not implemented: %s (%T)", t, t))
 	}
 }
 
-func (g *generator) Named(t *types.Named) locations {
-	return g.Type(t.Underlying())
+func (g *generator) Named(t *types.Named, name string) locations {
+	typeName := g.TypeNameFor(t.Obj().Type())
+	return g.Type(t.Underlying(), typeName)
 }
 
-func (g *generator) Struct(t *types.Struct) locations {
+func (g *generator) Struct(t *types.Struct, name string) locations {
 	if loc, ok := g.get(t); ok {
 		return loc
 	}
@@ -186,15 +188,15 @@ func (g *generator) Struct(t *types.Struct) locations {
 	loc := g.newGenLocation(t)
 
 	// Generate a new function to serialize this struct type.
-	typeName := g.TypeNameFor(t) // TODO: what if it's not named?
-	g.W(`func %s(x %s, b []byte) []byte {`, loc.serializer.name, typeName)
+	g.W(`func %s(x %s, b []byte) []byte {`, loc.serializer.name, name)
 	// TODO: private fields
 	n := t.NumFields()
 	for i := 0; i < n; i++ {
 		f := t.Field(i)
 		ft := f.Type()
 
-		floc := g.Type(ft)
+		typeName := g.TypeNameFor(ft)
+		floc := g.Type(ft, typeName)
 
 		g.W(`{`)
 		g.W(`x := x.%s`, f.Name())
@@ -205,17 +207,18 @@ func (g *generator) Struct(t *types.Struct) locations {
 	g.W(`}`)
 	g.W(``)
 
-	g.W(`func %s(b []byte) (%s, []byte) {`, loc.deserializer.name, typeName)
-	g.W(`var z %s`, typeName)
+	g.W(`func %s(b []byte) (%s, []byte) {`, loc.deserializer.name, name)
+	g.W(`var z %s`, name)
 	// TODO: private fields
 	for i := 0; i < n; i++ {
 		f := t.Field(i)
 		ft := f.Type()
 
-		floc := g.Type(ft)
+		typeName := g.TypeNameFor(ft)
+		floc := g.Type(ft, typeName)
 
 		g.W(`{`)
-		g.W(`var x %s`, g.TypeNameFor(ft))
+		g.W(`var x %s`, typeName)
 		g.deserializeCallForLoc(floc)
 		g.W(`z.%s = x`, f.Name())
 		g.W(`}`)
@@ -274,7 +277,7 @@ func (g *generator) newGenLocation(t types.Type) locations {
 	return loc
 }
 
-func (g *generator) Basic(t *types.Basic) locations {
+func (g *generator) Basic(t *types.Basic, name string) locations {
 	g.ensureImport("serde", "github.com/stealthrocket/coroutine/serde")
 	nameof := func(x interface{}) string {
 		full := runtime.FuncForPC(reflect.ValueOf(x).Pointer()).Name()
