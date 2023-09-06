@@ -1,5 +1,3 @@
-//go:build !durable
-
 #include "go_asm.h"
 #include "textflag.h"
 

@@ -15,14 +15,20 @@ func (g Generator[R, S]) Send(v S) {
 }
 
 func (g Generator[R, S]) Next() (hasNext bool) {
+	goroutine := getg()
+	storeContext(goroutine, g.ctx)
+
 	defer func() {
+		clearContext(goroutine)
+
 		if g.ctx.Unwinding() {
 			recover()
 			hasNext = true
 		}
 	}()
+
 	g.ctx.Stack.FP = -1
-	g.ctx.Func(g.ctx)
+	g.ctx.Func()
 	return false
 }
 
@@ -30,6 +36,6 @@ func (g Generator[R, S]) Context() *Context[R, S] {
 	return g.ctx
 }
 
-func New[R, S any](f func(*Context[R, S])) Generator[R, S] {
+func New[R, S any](f func()) Generator[R, S] {
 	return Generator[R, S]{ctx: &Context[R, S]{Func: f}}
 }

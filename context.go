@@ -16,11 +16,3 @@ func (c *Context[R, S]) Yield(v R) S {
 	<-c.next
 	return c.send
 }
-
-func Yield[R, S any](v R) S {
-	if c := loadContext(getg()); c != nil {
-		return c.(*Context[R, S]).Yield(v)
-	} else {
-		panic("coroutine.Yield: not called from a coroutine stack")
-	}
-}

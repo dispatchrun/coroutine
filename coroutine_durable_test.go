@@ -12,7 +12,7 @@ import (
 func TestCoroutine(t *testing.T) {
 	for _, test := range []struct {
 		name   string
-		coro   func(*coroutine.Context[int, any], int)
+		coro   func(int)
 		arg    int
 		yields []int
 	}{
@@ -31,8 +31,8 @@ func TestCoroutine(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			g := coroutine.New(func(c *coroutine.Context[int, any]) {
-				test.coro(c, test.arg)
+			g := coroutine.New[int, any](func() {
+				test.coro(test.arg)
 			})
 
 			var yield int
@@ -77,21 +77,23 @@ func TestCoroutine(t *testing.T) {
 	}
 }
 
-func identity(c *coroutine.Context[int, any], n int) {
+func identity(n int) {
 	// func identity(n int) {
 	//   yield(n)
 	// }
+	c := coroutine.LoadContext[int, any]()
 	c.Push()
 	c.Yield(n)
 	c.Pop()
 }
 
-func squareGenerator(c *coroutine.Context[int, any], n int) {
+func squareGenerator(n int) {
 	// func squareGenerator(n int) {
 	//   for i := 1; i <= n; i++ {
 	//     yield(i * i)
 	//   }
 	// }
+	c := coroutine.LoadContext[int, any]()
 
 	// new stack frame, or reuse current frame on resume
 	frame := c.Push()
