@@ -16,7 +16,38 @@ import (
 // multiple packages (for example, /path/to/package/...).
 // The path can be absolute or relative (to the current working
 // directory).
-func Compile(path string) error {
+func Compile(path string, options ...CompileOption) error {
+	c := &compiler{
+		outputFilename: "coroc_generated.go",
+	}
+	for _, option := range options {
+		option(c)
+	}
+	return c.compile(path)
+}
+
+// CompileOption configures the compiler.
+type CompileOption func(*compiler)
+
+// WithOutputFilename instructs the compiler to write generated code
+// to a file with the specified name within each package that contains
+// coroutines.
+func WithOutputFilename(outputFilename string) CompileOption {
+	return func(c *compiler) { c.outputFilename = outputFilename }
+}
+
+// WithBuildTags instructs the compiler to attach the specified build
+// tags to generated files.
+func WithBuildTags(buildTags string) CompileOption {
+	return func(c *compiler) { c.buildTags = buildTags }
+}
+
+type compiler struct {
+	outputFilename string
+	buildTags      string
+}
+
+func (c *compiler) compile(path string) error {
 	if path != "" && !strings.HasSuffix(path, "...") {
 		s, err := os.Stat(path)
 		if err != nil {

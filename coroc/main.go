@@ -13,7 +13,11 @@ USAGE:
   coroc [OPTIONS] [PATH]
 
 OPTIONS:
-  -h, --help     Show this help information
+      --output <FILENAME>  Name of the Go file to generate in each package
+
+      --tags   <TAGS...>   Build tags to set on generated files
+
+  -h, --help               Show this help information
 `
 
 func main() {
@@ -24,6 +28,9 @@ func main() {
 }
 
 func run() error {
+	outputFilename := flag.String("output", "", "")
+	buildTags := flag.String("tags", "", "")
+
 	flag.Usage = func() { println(usage[1:]) }
 	flag.Parse()
 
@@ -41,5 +48,13 @@ func run() error {
 		}
 	}
 
-	return Compile(path)
+	var options []CompileOption
+	if *outputFilename != "" {
+		options = append(options, WithOutputFilename(*outputFilename))
+	}
+	if *buildTags != "" {
+		options = append(options, WithBuildTags(*buildTags))
+	}
+
+	return Compile(path, options...)
 }
