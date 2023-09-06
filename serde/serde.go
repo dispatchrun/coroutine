@@ -4,9 +4,66 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"unsafe"
 )
 
-type Serde struct{}
+// ID is the unique ID of a pointer in a serialized format.
+type ID int64
+
+// Deserializer contains the state of the deserializer.
+type Deserializer struct {
+	// TODO: make it a slice
+	ptrs map[ID]unsafe.Pointer
+}
+
+func (d *Deserializer) ReadPtr(b []byte) (unsafe.Pointer, ID, []byte) {
+	x, n := binary.Varint(b)
+	i := ID(x)
+	p := d.ptrs[i]
+	return p, i, b[n:]
+}
+
+func (d *Deserializer) Store(i ID, p unsafe.Pointer) {
+	if d.ptrs[i] != nil {
+		panic(fmt.Errorf("trying to overwirte known ID %d with %p", i, p))
+	}
+	d.ptrs[i] = p
+}
+
+func EnsureDeserializer(d *Deserializer) *Deserializer {
+	if d == nil {
+		d = &Deserializer{
+			ptrs: make(map[ID]unsafe.Pointer),
+		}
+	}
+	return d
+}
+
+// Serializer contains the state of the serializer.
+type Serializer struct {
+	ptrs map[unsafe.Pointer]ID
+}
+
+func (s *Serializer) WritePtr(p unsafe.Pointer, b []byte) (bool, []byte) {
+	if p == nil {
+		return true, binary.AppendVarint(b, 0)
+	}
+	i, ok := s.ptrs[p]
+	if !ok {
+		i = ID(len(s.ptrs) + 1)
+		s.ptrs[p] = i
+	}
+	return ok, binary.AppendVarint(b, int64(i))
+}
+
+func EnsureSerializer(s *Serializer) *Serializer {
+	if s == nil {
+		s = &Serializer{
+			ptrs: make(map[unsafe.Pointer]ID),
+		}
+	}
+	return s
+}
 
 // Serializable objects can be serialized to bytes.
 type Serializable interface {

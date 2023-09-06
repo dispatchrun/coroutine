@@ -42,4 +42,5 @@ type Struct1 struct {
 	Complex128 complex128
 
 	FooSer Foo
+	StrPtr *string
 }

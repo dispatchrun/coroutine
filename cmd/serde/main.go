@@ -117,10 +117,9 @@ func generate(typeName string, patterns []string, output string) error {
 }
 
 type location struct {
-	//pkg    *types.Package
-	pkg    string
-	name   string
-	method bool
+	pkg      string
+	name     string
+	terminal bool // if true, doesn't need the serializer/deserializer argument
 }
 
 type locations struct {
@@ -199,9 +198,47 @@ func (g *generator) Type(t types.Type, name string) locations {
 		return g.Named(x, name)
 	case *types.Slice:
 		return g.Slice(x, name)
+	case *types.Pointer:
+		return g.Pointer(x, name)
 	default:
 		panic(fmt.Errorf("type generator not implemented: %s (%T)", t, t))
 	}
+}
+
+func (g *generator) Pointer(t *types.Pointer, name string) locations {
+	g.ensureImport("unsafe", "unsafe")
+	loc := g.newGenLocation(t, name)
+
+	pt := t.Elem()
+	ploc := g.Type(pt, name)
+	ptype := g.TypeNameFor(pt)
+
+	g.W(`func %s(s *serde.Serializer, z %s, b []byte) []byte {`, loc.serializer.name, name)
+	g.W(`s = serde.EnsureSerializer(s)`)
+	g.W(`ok, b := s.WritePtr(unsafe.Pointer(z), b)`)
+	g.W(`if !ok {`)
+	g.W(`x := *z`)
+	g.serializeCallForLoc(ploc)
+	g.W(`}`)
+	g.W(`return b`)
+	g.W(`}`)
+	g.W(``)
+
+	g.W(`func %s(d *serde.Deserializer, b []byte) (%s, []byte) {`, loc.deserializer.name, name)
+	g.W(`d = serde.EnsureDeserializer(d)`)
+	g.W(`p, i,  b := d.ReadPtr(b)`)
+	g.W(`if p != nil {`)
+	g.W(`return (%s)(p), b`, name)
+	g.W(`}`)
+	g.W(`var x %s`, ptype)
+	g.deserializeCallForLoc(ploc)
+	g.W(`z := &x`)
+	g.W(`d.Store(i, unsafe.Pointer(z))`)
+	g.W(`return z, b`)
+	g.W(`}`)
+	g.W(``)
+
+	return loc
 }
 
 func (g *generator) Serializable(t types.Type, name string) locations {
@@ -216,16 +253,21 @@ func (g *generator) SerializableToPtr(t types.Type, name string) locations {
 	ploc := g.Type(types.NewPointer(t), name)
 
 	// generate wrappers to use the pointer type
-	g.W(`func %s(z %s, b []byte) []byte {`, loc.serializer.name, name)
+	g.W(`func %s(s *serde.Serializer, z %s, b []byte) []byte {`, loc.serializer.name, name)
+	g.W(`s = serde.EnsureSerializer(s)`)
 	g.W(`x := &z`)
 	g.serializeCallForLoc(ploc)
 	g.W(`return b`)
 	g.W(`}`)
 	g.W(``)
 
-	g.W(`func %s(b []byte) (%s, []byte) {`, loc.deserializer.name, name)
+	g.W(`func %s(d *serde.Deserializer, b []byte) (%s, []byte) {`, loc.deserializer.name, name)
+	g.W(`d = serde.EnsureDeserializer(d)`)
 	g.W(`var z %s`, name)
 	g.W(`x := &z`)
+	// This is a special call because it takes a pointer as target instead
+	// of returning the value.
+	// TODO: make all signatures like that.
 	g.W(`b = serde.DeserializeSerializable(x, b)`)
 	g.W(`return z, b`)
 	g.W(`}`)
@@ -241,7 +283,7 @@ func (g *generator) Slice(t *types.Slice, name string) locations {
 	typeName := g.TypeNameFor(et)
 	eloc := g.Type(et, typeName)
 
-	g.W(`func %s(x %s, b []byte) []byte {`, loc.serializer.name, name)
+	g.W(`func %s(s *serde.Serializer, x %s, b []byte) []byte {`, loc.serializer.name, name)
 	g.W(`b = serde.SerializeSliceSize(x, b)`)
 	g.W(`for _, x := range x {`)
 	g.serializeCallForLoc(eloc)
@@ -250,7 +292,7 @@ func (g *generator) Slice(t *types.Slice, name string) locations {
 	g.W(`}`)
 	g.W(``)
 
-	g.W(`func %s(b []byte) (%s, []byte) {`, loc.deserializer.name, name)
+	g.W(`func %s(d *serde.Deserializer, b []byte) (%s, []byte) {`, loc.deserializer.name, name)
 	g.W(`n, b := serde.DeserializeSliceSize(b)`)
 	g.W(`var z %s`, name)
 	g.W(`for i := 0; i < n; i++ {`)
@@ -284,7 +326,8 @@ func (g *generator) Struct(t *types.Struct, name string) locations {
 	}
 
 	// Generate a new function to serialize this struct type.
-	g.W(`func %s(x %s, b []byte) []byte {`, loc.serializer.name, name)
+	g.W(`func %s(s *serde.Serializer, x %s, b []byte) []byte {`, loc.serializer.name, name)
+	g.W(`s = serde.EnsureSerializer(s)`)
 	// TODO: private fields
 	for i := 0; i < n; i++ {
 		f := t.Field(i)
@@ -302,7 +345,8 @@ func (g *generator) Struct(t *types.Struct, name string) locations {
 	g.W(`}`)
 	g.W(``)
 
-	g.W(`func %s(b []byte) (%s, []byte) {`, loc.deserializer.name, name)
+	g.W(`func %s(d *serde.Deserializer, b []byte) (%s, []byte) {`, loc.deserializer.name, name)
+	g.W(`d = serde.EnsureDeserializer(d)`)
 	g.W(`var z %s`, name)
 	// TODO: private fields
 	for i := 0; i < n; i++ {
@@ -327,29 +371,31 @@ func (g *generator) Struct(t *types.Struct, name string) locations {
 
 func (g *generator) serializeCallForLoc(loc locations) {
 	l := loc.serializer
-	if l.method && l.pkg != "" {
-		panic("cannot have both a package prefix and be a method")
+
+	args := "s, x, b"
+	if l.terminal {
+		args = "x, b"
 	}
-	if l.method {
-		g.W(`b = x.%s(b)`, l.name)
-	} else if l.pkg != "" {
-		g.W(`b = %s.%s(x, b)`, l.pkg, l.name)
+
+	if l.pkg != "" {
+		g.W(`b = %s.%s(%s)`, l.pkg, l.name, args)
 	} else {
-		g.W(`b = %s(x, b)`, l.name)
+		g.W(`b = %s(%s)`, l.name, args)
 	}
 }
 
 func (g *generator) deserializeCallForLoc(loc locations) {
 	l := loc.deserializer
-	if l.method && l.pkg != "" {
-		panic("cannot have both a package prefix and be a method")
+
+	args := "d, b"
+	if l.terminal {
+		args = "b"
 	}
-	if l.method {
-		g.W(`b = x.%s(b)`, l.name)
-	} else if l.pkg != "" {
-		g.W(`x, b = %s.%s(b)`, l.pkg, l.name)
+
+	if l.pkg != "" {
+		g.W(`x, b = %s.%s(%s)`, l.pkg, l.name, args)
 	} else {
-		g.W(`x, b = %s(b)`, l.name)
+		g.W(`x, b = %s(%s)`, l.name, args)
 	}
 }
 
@@ -370,10 +416,12 @@ func (g *generator) newGenLocation(t types.Type, name string) locations {
 	}
 	loc := locations{
 		serializer: location{
-			name: "Serialize_" + name,
+			name:     "Serialize_" + name,
+			terminal: false,
 		},
 		deserializer: location{
-			name: "Deserialize_" + name,
+			name:     "Deserialize_" + name,
+			terminal: false,
 		},
 	}
 	g.setLocation(t, loc)
@@ -398,8 +446,16 @@ func (g *generator) builtin(t types.Type, ser, des interface{}) locations {
 		return full[strings.LastIndexByte(full, '.')+1:]
 	}
 	l := locations{
-		serializer:   location{pkg: "serde", name: nameof(ser)},
-		deserializer: location{pkg: "serde", name: nameof(des)},
+		serializer: location{
+			pkg:      "serde",
+			name:     nameof(ser),
+			terminal: true,
+		},
+		deserializer: location{
+			pkg:      "serde",
+			name:     nameof(des),
+			terminal: true,
+		},
 	}
 	g.setLocation(t, l)
 	return l

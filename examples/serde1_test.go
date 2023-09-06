@@ -8,6 +8,7 @@ import (
 )
 
 func TestStruct1(t *testing.T) {
+	str := "pointed at"
 	s := Struct1{
 		Str:  "hello",
 		Int:  42,
@@ -28,11 +29,12 @@ func TestStruct1(t *testing.T) {
 		Complex128: 420 + 110i,
 
 		FooSer: Foo{t: time.Now()},
+		StrPtr: &str,
 	}
 
 	var b []byte
-	b = Serialize_Struct1(s, b)
-	s2, b := Deserialize_Struct1(b)
+	b = Serialize_Struct1(nil, s, b)
+	s2, b := Deserialize_Struct1(nil, b)
 
 	opts := []cmp.Option{
 		cmp.AllowUnexported(Foo{}),
