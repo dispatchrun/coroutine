@@ -1,28 +1,38 @@
 package examples
 
 import (
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestStruct1(t *testing.T) {
 	s := Struct1{
-		Str: "hello",
-		Int: 42,
+		Str:  "hello",
+		Int:  42,
+		Ints: []int64{1, 2, 3},
+
+		Bool:       true,
+		Uint64:     11,
+		Uint32:     22,
+		Uint16:     33,
+		Uint8:      44,
+		Int64:      -11,
+		Int32:      -22,
+		Int16:      -33,
+		Int8:       -44,
+		Float32:    42.11,
+		Float64:    420.110,
+		Complex64:  42 + 11i,
+		Complex128: 420 + 110i,
 	}
 
 	var b []byte
-	b = Serialize_gen0(s, b)
-	s2, b := Deserialize_gen0(b)
+	b = Serialize_Struct1(s, b)
+	s2, b := Deserialize_Struct1(b)
 
-	if s != s2 {
-		t.Fatal("s != s2")
-	}
-	t1 := reflect.TypeOf(s)
-	t2 := reflect.TypeOf(s2)
-
-	if t1 != t2 {
-		t.Fatalf("reflect types don't match: %s; expected %s", t2, t1)
+	if diff := cmp.Diff(s, s2); diff != "" {
+		t.Fatalf("mismatch (-want +got):\n%s", diff)
 	}
 
 	if len(b) > 0 {

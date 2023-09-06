@@ -65,9 +65,6 @@ func generate(typeName string, patterns []string, output string) error {
 		return fmt.Errorf("could not find type definition")
 	}
 
-	//	fmt.Println("target definition at:", td.pkg.Fset.Position(td.obj.Pos()))
-
-	//	fmt.Println(td.TargetFile())
 	output = td.TargetFile()
 
 	g := generator{
@@ -170,9 +167,46 @@ func (g *generator) Type(t types.Type, name string) locations {
 		return g.Struct(x, name)
 	case *types.Named:
 		return g.Named(x, name)
+	case *types.Slice:
+		return g.Slice(x, name)
 	default:
 		panic(fmt.Errorf("type generator not implemented: %s (%T)", t, t))
 	}
+}
+
+func (g *generator) Slice(t *types.Slice, name string) locations {
+	if loc, ok := g.get(t); ok {
+		return loc
+	}
+
+	loc := g.newGenLocation(t, name)
+
+	et := t.Elem()
+	typeName := g.TypeNameFor(et)
+	eloc := g.Type(et, typeName)
+
+	g.W(`func %s(x %s, b []byte) []byte {`, loc.serializer.name, name)
+	g.W(`b = serde.SerializeSliceSize(x, b)`)
+	g.W(`for _, x := range x {`)
+	g.serializeCallForLoc(eloc)
+	g.W(`}`)
+	g.W(`return b`)
+	g.W(`}`)
+	g.W(``)
+
+	g.W(`func %s(b []byte) (%s, []byte) {`, loc.deserializer.name, name)
+	g.W(`n, b := serde.DeserializeSliceSize(b)`)
+	g.W(`var z %s`, name)
+	g.W(`for i := 0; i < n; i++ {`)
+	g.W(`var x %s`, typeName)
+	g.deserializeCallForLoc(eloc)
+	g.W(`z = append(z, x)`)
+	g.W(`}`)
+	g.W(`return z, b`)
+	g.W(`}`)
+	g.W(``)
+
+	return loc
 }
 
 func (g *generator) Named(t *types.Named, name string) locations {
@@ -185,12 +219,19 @@ func (g *generator) Struct(t *types.Struct, name string) locations {
 		return loc
 	}
 
-	loc := g.newGenLocation(t)
+	loc := g.newGenLocation(t, name)
+
+	n := t.NumFields()
+	for i := 0; i < n; i++ {
+		f := t.Field(i)
+		ft := f.Type()
+		typeName := g.TypeNameFor(ft)
+		g.Type(ft, typeName)
+	}
 
 	// Generate a new function to serialize this struct type.
 	g.W(`func %s(x %s, b []byte) []byte {`, loc.serializer.name, name)
 	// TODO: private fields
-	n := t.NumFields()
 	for i := 0; i < n; i++ {
 		f := t.Field(i)
 		ft := f.Type()
@@ -258,10 +299,21 @@ func (g *generator) deserializeCallForLoc(loc locations) {
 	}
 }
 
+func isInvalidChar(r rune) bool {
+	valid := (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+	return !valid
+}
+
 // Generate, save, and return a new location for a type with generated
 // serializers.
-func (g *generator) newGenLocation(t types.Type) locations {
-	name := fmt.Sprintf("gen%d", g.known.Len())
+func (g *generator) newGenLocation(t types.Type, name string) locations {
+	//TODO: check name collision
+	if strings.ContainsFunc(name, isInvalidChar) {
+		name = ""
+	}
+	if name == "" {
+		name = fmt.Sprintf("gen%d", g.known.Len())
+	}
 	loc := locations{
 		serializer: location{
 			name: "Serialize_" + name,
@@ -287,15 +339,52 @@ func (g *generator) Basic(t *types.Basic, name string) locations {
 		serializer:   location{pkg: "serde", name: ""},
 		deserializer: location{pkg: "serde", name: ""},
 	}
+
 	switch t.Kind() {
 	case types.Invalid:
 		panic("trying to generate serializer for invalid basic type")
 	case types.String:
 		l.serializer.name = nameof(serde.SerializeString)
 		l.deserializer.name = nameof(serde.DeserializeString)
+	case types.Bool:
+		l.serializer.name = nameof(serde.SerializeBool)
+		l.deserializer.name = nameof(serde.DeserializeBool)
 	case types.Int64:
 		l.serializer.name = nameof(serde.SerializeInt64)
 		l.deserializer.name = nameof(serde.DeserializeInt64)
+	case types.Int32:
+		l.serializer.name = nameof(serde.SerializeInt32)
+		l.deserializer.name = nameof(serde.DeserializeInt32)
+	case types.Int16:
+		l.serializer.name = nameof(serde.SerializeInt16)
+		l.deserializer.name = nameof(serde.DeserializeInt16)
+	case types.Int8:
+		l.serializer.name = nameof(serde.SerializeInt8)
+		l.deserializer.name = nameof(serde.DeserializeInt8)
+	case types.Uint64:
+		l.serializer.name = nameof(serde.SerializeUint64)
+		l.deserializer.name = nameof(serde.DeserializeUint64)
+	case types.Uint32:
+		l.serializer.name = nameof(serde.SerializeUint32)
+		l.deserializer.name = nameof(serde.DeserializeUint32)
+	case types.Uint16:
+		l.serializer.name = nameof(serde.SerializeUint16)
+		l.deserializer.name = nameof(serde.DeserializeUint16)
+	case types.Uint8:
+		l.serializer.name = nameof(serde.SerializeUint8)
+		l.deserializer.name = nameof(serde.DeserializeUint8)
+	case types.Float32:
+		l.serializer.name = nameof(serde.SerializeFloat32)
+		l.deserializer.name = nameof(serde.DeserializeFloat32)
+	case types.Float64:
+		l.serializer.name = nameof(serde.SerializeFloat64)
+		l.deserializer.name = nameof(serde.DeserializeFloat64)
+	case types.Complex64:
+		l.serializer.name = nameof(serde.SerializeComplex64)
+		l.deserializer.name = nameof(serde.DeserializeComplex64)
+	case types.Complex128:
+		l.serializer.name = nameof(serde.SerializeComplex128)
+		l.deserializer.name = nameof(serde.DeserializeComplex128)
 	default:
 		panic(fmt.Errorf("basic type kind %s not handled", basicKindString(t)))
 	}
