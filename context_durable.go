@@ -76,4 +76,9 @@ func (c *Context[R, S]) Unwinding() bool {
 	return len(c.Frames) > 0 && c.Top().Resume
 }
 
+// Rewinding returns true if the coroutine is currently rewinding its stack.
+func (c *Context[R, S]) Rewinding() bool {
+	return len(c.Frames) > 0 && c.Top().Resume
+}
+
 type unwind struct{}

@@ -2,9 +2,11 @@
 
 package testdata
 
-import "github.com/stealthrocket/coroutine"
+import (
+	"github.com/stealthrocket/coroutine"
+)
 
-//go:generate coroc
+//go:generate coroc --output coroutine_durable.go --tags durable
 
 func Identity(n int) {
 	coroutine.Yield[int, any](n)
