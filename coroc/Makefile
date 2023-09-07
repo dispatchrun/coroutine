@@ -11,6 +11,6 @@ coroc:
 	$(GO) build -o $@ .
 
 clean:
-	$(RM) coroc
+	$(RM) coroc testdata/coroutine_durable.go
 
 .PHONY: clean generate
