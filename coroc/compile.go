@@ -286,7 +286,6 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 		write("]()\n\n")
 
 		write("\t_f := _c.Push()\n")
-		write("\tdefer _c.Pop()\n\n")
 
 		// Scan for variables.
 		objectVars := map[*ast.Object]*ast.Ident{}
@@ -419,6 +418,8 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 			write("))\n")
 			storageID++
 		}
+		write("\t\t} else {\n")
+		write("\t\t\t_c.Pop()\n")
 		write("\t\t}\n")
 		write("\t}()\n\n")
 

@@ -12,8 +12,6 @@ func Identity(n int) {
 	_c := coroutine.LoadContext[int, any]()
 
 	_f := _c.Push()
-	defer _c.Pop()
-
 	if _c.Rewinding() {
 		n = int(_f.Get(0).(coroutine.Int))
 	}
@@ -21,6 +19,8 @@ func Identity(n int) {
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, coroutine.Int(n))
+		} else {
+			_c.Pop()
 		}
 	}()
 
@@ -31,8 +31,6 @@ func SquareGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
 
 	_f := _c.Push()
-	defer _c.Pop()
-
 	var (
 		_v0 int
 	)
@@ -46,6 +44,8 @@ func SquareGenerator(n int) {
 		if _c.Unwinding() {
 			_f.Set(0, coroutine.Int(n))
 			_f.Set(1, coroutine.Int(_v0))
+		} else {
+			_c.Pop()
 		}
 	}()
 
