@@ -99,6 +99,8 @@ func TestStruct1(t *testing.T) {
 		},
 
 		Bounce1: bounce1,
+
+		MapStrStr: map[string]string{"one": "un", "two": "deux", "three": "trois"},
 	}
 
 	var b []byte

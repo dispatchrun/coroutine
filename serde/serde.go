@@ -102,11 +102,26 @@ func DeserializeSerializable[T Serializable](x T, b []byte) []byte {
 	return b[n:]
 }
 
-func SerializeSliceSize[T any](x []T, b []byte) []byte {
-	return binary.AppendVarint(b, int64(len(x)))
+func SerializeSize(x int, b []byte) []byte {
+	return binary.AppendVarint(b, int64(x))
 }
 
-func DeserializeSliceSize(b []byte) (int, []byte) {
+func DeserializeSize(b []byte) (int, []byte) {
+	l, n := binary.Varint(b)
+	return int(l), b[n:]
+}
+
+// Map size is special because we want to distinguish an initialized empty map
+// from a a nil map.
+func SerializeMapSize[K comparable, V any](x map[K]V, b []byte) []byte {
+	size := len(x)
+	if x == nil {
+		size = -1
+	}
+	return binary.AppendVarint(b, int64(size))
+}
+
+func DeserializeMapSize(b []byte) (int, []byte) {
 	l, n := binary.Varint(b)
 	return int(l), b[n:]
 }

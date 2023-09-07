@@ -71,4 +71,6 @@ type Struct1 struct {
 	InnerP *Inner
 
 	Bounce1 *Bounce
+
+	MapStrStr map[string]string
 }

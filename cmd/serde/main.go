@@ -200,9 +200,69 @@ func (g *generator) Type(t types.Type, name string) locations {
 		return g.Slice(x, name)
 	case *types.Pointer:
 		return g.Pointer(x, name)
+	case *types.Map:
+		return g.Map(x, name)
 	default:
 		panic(fmt.Errorf("type generator not implemented: %s (%T)", t, t))
 	}
+}
+
+func (g *generator) Map(t *types.Map, name string) locations {
+	loc := g.newGenLocation(t, name)
+
+	kt := t.Key()
+	kname := g.TypeNameFor(kt)
+	kloc := g.Type(kt, kname)
+
+	vt := t.Elem()
+	vname := g.TypeNameFor(vt)
+	vloc := g.Type(vt, vname)
+
+	g.W(`func %s(s *serde.Serializer, z %s, b []byte) []byte {`, loc.serializer.name, name)
+	g.W(`s = serde.EnsureSerializer(s)`)
+	g.W(`b = serde.SerializeMapSize(z, b)`)
+	g.W(`for k, v := range z {`)
+	g.W(`{`)
+	g.W(`x := k`)
+	g.serializeCallForLoc(kloc)
+	g.W(`}`)
+
+	g.W(`{`)
+	g.W(`x := v`)
+	g.serializeCallForLoc(vloc)
+	g.W(`}`)
+
+	g.W(`}`)
+
+	g.W(`return b`)
+	g.W(`}`)
+	g.W(``)
+
+	g.W(`func %s(d *serde.Deserializer, b []byte) (%s, []byte) {`, loc.deserializer.name, name)
+	g.W(`d = serde.EnsureDeserializer(d)`)
+	g.W(`n, b := serde.DeserializeMapSize(b)`)
+	g.W(`var z %s`, name)
+	g.W(`if n < 0 { return z, b }`)
+	g.W(`z = make(%s, n)`, name)
+	g.W(`var k %s`, kname)
+	g.W(`var v %s`, vname)
+	g.W(`for i := 0; i < n; i++ {`)
+	g.W(`{`)
+	g.W(`var x %s`, kname)
+	g.deserializeCallForLoc(kloc)
+	g.W(`k = x`)
+	g.W(`}`)
+	g.W(`{`)
+	g.W(`var x %s`, vname)
+	g.deserializeCallForLoc(vloc)
+	g.W(`v = x`)
+	g.W(`}`)
+	g.W(`z[k] = v`)
+	g.W(`}`)
+	g.W(`return z, b`)
+	g.W(`}`)
+
+	return loc
 }
 
 func (g *generator) Pointer(t *types.Pointer, name string) locations {
@@ -289,7 +349,8 @@ func (g *generator) Slice(t *types.Slice, name string) locations {
 	eloc := g.Type(et, typeName)
 
 	g.W(`func %s(s *serde.Serializer, x %s, b []byte) []byte {`, loc.serializer.name, name)
-	g.W(`b = serde.SerializeSliceSize(x, b)`)
+	g.W(`s = serde.EnsureSerializer(s)`)
+	g.W(`b = serde.SerializeSize(len(x), b)`)
 	g.W(`for _, x := range x {`)
 	g.serializeCallForLoc(eloc)
 	g.W(`}`)
@@ -298,7 +359,8 @@ func (g *generator) Slice(t *types.Slice, name string) locations {
 	g.W(``)
 
 	g.W(`func %s(d *serde.Deserializer, b []byte) (%s, []byte) {`, loc.deserializer.name, name)
-	g.W(`n, b := serde.DeserializeSliceSize(b)`)
+	g.W(`d = serde.EnsureDeserializer(d)`)
+	g.W(`n, b := serde.DeserializeSize(b)`)
 	g.W(`var z %s`, name)
 	g.W(`for i := 0; i < n; i++ {`)
 	g.W(`var x %s`, typeName)
