@@ -2,7 +2,9 @@
 
 package testdata
 
-import "github.com/stealthrocket/coroutine"
+import (
+	"github.com/stealthrocket/coroutine"
+)
 
 //go:generate coroc --output coroutine_durable.go --tags durable
 
