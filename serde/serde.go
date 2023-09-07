@@ -4,16 +4,43 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"reflect"
 	"unsafe"
 
 	"log/slog"
 )
 
-// ID is the unique ID of a pointer in a serialized format.
+// ID is the unique ID of a pointer or type in the serialized format.
 type ID int64
+
+type TypeMap struct {
+	byID   map[ID]reflect.Type
+	byType map[reflect.Type]ID
+}
+
+func NewTypeMap(types ...reflect.Type) *TypeMap {
+	x := &TypeMap{
+		byID:   make(map[ID]reflect.Type, len(types)),
+		byType: make(map[reflect.Type]ID, len(types)),
+	}
+	for i, t := range types {
+		id := ID(i)
+		x.byID[id] = t
+		x.byType[t] = id
+	}
+	return x
+}
+
+func (t *TypeMap) Add(x reflect.Type) ID {
+	i := ID(len(t.byID))
+	t.byID[i] = x
+	t.byType[x] = i
+	return i
+}
 
 // Deserializer contains the state of the deserializer.
 type Deserializer struct {
+	types *TypeMap
 	// TODO: make it a slice
 	ptrs map[ID]unsafe.Pointer
 }
@@ -45,7 +72,8 @@ func EnsureDeserializer(d *Deserializer) *Deserializer {
 
 // Serializer contains the state of the serializer.
 type Serializer struct {
-	ptrs map[unsafe.Pointer]ID
+	types *TypeMap
+	ptrs  map[unsafe.Pointer]ID
 }
 
 func (s *Serializer) WritePtr(p unsafe.Pointer, b []byte) (bool, []byte) {

@@ -89,6 +89,7 @@ func generate(typeName string, patterns []string, output string) error {
 	}
 
 	g.Typedef(td)
+	g.AllTypes(pkgs)
 
 	var buf bytes.Buffer
 	n, err := g.WriteTo(&buf)
@@ -156,6 +157,68 @@ func (g *generator) W(f string, args ...any) {
 func (g *generator) Typedef(t typedef) {
 	typeName := g.TypeNameFor(t.obj.Type())
 	g.Type(t.obj.Type(), typeName)
+}
+
+func (g *generator) AllTypes(pkgs []*packages.Package) {
+	// Generate a reflect.Type <> ID mapping.
+	//	s := typeutil.Map{}
+	s := map[string]struct{}{}
+	ps := map[string]struct{}{}
+
+	var findTypes func(p *packages.Package)
+	findTypes = func(p *packages.Package) {
+		if _, ok := ps[p.ID]; ok {
+			return
+		}
+		ps[p.ID] = struct{}{}
+
+		for _, o := range p.TypesInfo.Defs {
+			if o == nil {
+				continue
+			}
+			t := derefType(o.Type())
+			if isFunc(t) {
+				continue
+			}
+			name := g.TypeNameFor(t)
+			s[name] = struct{}{}
+		}
+
+		for _, i := range p.Imports {
+			findTypes(i)
+		}
+	}
+
+	for _, pkg := range pkgs {
+		findTypes(pkg)
+	}
+
+	g.W(`var _typemap *serde.TypeMap = serde.NewTypeMap(`)
+	for k := range s {
+		// TODO: find a way to avoid the allocations
+		g.W(`reflect.TypeOf(new(%s)).Elem(),`, k)
+	}
+	g.W(`)`)
+}
+
+func derefType(t types.Type) types.Type {
+	switch x := t.(type) {
+	case *types.Pointer:
+		return derefType(x.Elem())
+	default:
+		return t
+	}
+}
+
+func isFunc(t types.Type) bool {
+	switch t.(type) {
+	case *types.Signature:
+		return true
+	case *types.Named:
+		return isFunc(t.Underlying())
+	default:
+		return false
+	}
 }
 
 func (g *generator) WriteTo(w io.Writer) (int64, error) {
