@@ -17,3 +17,11 @@ func SquareGenerator(n int) {
 		coroutine.Yield[int, any](i * i)
 	}
 }
+
+func EvenSquareGenerator(n int) {
+	for i := 1; i <= n; i++ {
+		if mod2 := i % 2; mod2 == 0 {
+			coroutine.Yield[int, any](i * i)
+		}
+	}
+}

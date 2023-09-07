@@ -17,7 +17,16 @@ func desugar(stmts []ast.Stmt) (desugared []ast.Stmt) {
 		switch s := stmt.(type) {
 		case *ast.BlockStmt:
 			s.List = desugar(s.List)
+		case *ast.IfStmt:
+			s.Body.List = desugar(s.Body.List)
+			if s.Init != nil {
+				desugared = append(desugared, s.Init)
+				s.Init = nil
+				desugared = append(desugared, s)
+				continue
+			}
 		case *ast.ForStmt:
+			s.Body.List = desugar(s.Body.List)
 			if s.Init != nil {
 				desugared = append(desugared, s.Init)
 				s.Init = nil
@@ -90,6 +99,8 @@ func trackSpans0(stmt ast.Stmt, spans map[ast.Stmt]span, nextID int) int {
 		for _, child := range s.List {
 			nextID = trackSpans0(child, spans, nextID)
 		}
+	case *ast.IfStmt:
+		nextID = trackSpans0(s.Body, spans, nextID)
 	case *ast.ForStmt:
 		nextID = trackSpans0(s.Body, spans, nextID)
 	default:

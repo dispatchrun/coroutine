@@ -161,7 +161,9 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 		ast.Inspect(fn, func(node ast.Node) bool {
 			switch n := node.(type) {
 			case *ast.IfStmt:
-				err = fmt.Errorf("not implemented: if")
+				if n.Else != nil {
+					err = fmt.Errorf("not implemented: if else")
+				}
 			case *ast.DeferStmt:
 				err = fmt.Errorf("not implemented: defer")
 			case *ast.GoStmt:
@@ -506,6 +508,14 @@ func (c *compiler) compileStatement(stmt ast.Stmt, spans map[ast.Stmt]span) ast.
 			})
 		}
 		return &ast.SwitchStmt{Body: &ast.BlockStmt{List: cases}}
+
+	case *ast.IfStmt:
+		ifBodyStmt := c.compileStatement(s.Body, spans)
+		ifBody, ok := ifBodyStmt.(*ast.BlockStmt)
+		if !ok {
+			ifBody = &ast.BlockStmt{List: []ast.Stmt{ifBodyStmt}}
+		}
+		return &ast.IfStmt{Cond: s.Cond, Body: ifBody}
 
 	case *ast.ForStmt:
 		forBodyStmt := c.compileStatement(s.Body, spans)

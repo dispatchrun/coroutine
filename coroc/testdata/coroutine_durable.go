@@ -45,3 +45,37 @@ func SquareGenerator(n int) {
 		}
 	}
 }
+
+func EvenSquareGenerator(n int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f := _c.Push()
+	var (
+		_v0 int
+		_v1 int
+	)
+	if _c.Rewinding() {
+		n = int(_f.Get(0).(coroutine.Int))
+		_v0 = int(_f.Get(1).(coroutine.Int))
+		_v1 = int(_f.Get(2).(coroutine.Int))
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, coroutine.Int(n))
+			_f.Set(1, coroutine.Int(_v0))
+			_f.Set(2, coroutine.Int(_v1))
+		}
+	}()
+	switch {
+	case _f.IP < 1:
+		_v0 = 1
+		_f.IP = 1
+		fallthrough
+	case _f.IP < 3:
+		for ; _v0 <= n; _v0++ {
+			_v1 = _v0 % 2
+			if _v1 == 0 {
+				coroutine.Yield[int, any](_v0 * _v0)
+			}
+		}
+	}
+}
