@@ -196,6 +196,19 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 				} else if n.Label != nil {
 					err = fmt.Errorf("not implemented: labeled branch")
 				}
+			case *ast.ForStmt:
+				// Since we aren't desugaring for loop post iteration
+				// statements yet, check that it's a simple increment
+				// or decrement.
+				switch p := n.Post.(type) {
+				case nil:
+				case *ast.IncDecStmt:
+					if _, ok := p.X.(*ast.Ident); !ok {
+						err = fmt.Errorf("not implemented: for post inc/dec %T", p.X)
+					}
+				default:
+					err = fmt.Errorf("not implemented: for post %T", p)
+				}
 			}
 			return err == nil
 		})
