@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"bufio"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -113,6 +112,10 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 	// are those that *may* yield, or those that are explicitly
 	// whitelisted by the user (either via command-line opt-in, or by
 	// annotating the function with some comment directive).
+	type coroutineCandidate struct {
+		FuncDecl  *ast.FuncDecl
+		YieldType []ast.Expr
+	}
 	var candidates []coroutineCandidate
 	for _, f := range p.Syntax {
 		for _, decl := range f.Decls {
@@ -233,224 +236,245 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 		}
 	}
 
-	// TODO: scan decls to find usages of imports
+	// Generate the coroutine AST.
+	gen := &ast.File{
+		Name: ast.NewIdent(p.Name),
+	}
+	gen.Decls = append(gen.Decls, &ast.GenDecl{
+		Tok: token.IMPORT,
+		Specs: []ast.Spec{
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{Kind: token.STRING, Value: strconv.Quote(coroutinePackage)},
+			},
+		},
+	})
+	for _, candidate := range candidates {
+		fn, yieldType := candidate.FuncDecl, candidate.YieldType
+		gen.Decls = append(gen.Decls, c.compileFunction(p, fn, yieldType))
+	}
 
+	// Get ready to write.
 	packageDir := filepath.Dir(p.GoFiles[0])
 	outputPath := filepath.Join(packageDir, c.outputFilename)
-
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
 		return fmt.Errorf("os.Create %q: %w", outputPath, err)
 	}
 	defer outputFile.Close()
 
-	w := bufio.NewWriter(outputFile)
-	var writeErr error
-	write := func(s string) {
-		if writeErr != nil {
-			return
-		}
-		_, writeErr = w.WriteString(s)
-	}
-	format := func(n ast.Node) {
-		if writeErr != nil {
-			return
-		}
-		writeErr = format.Node(w, c.fset, n)
-	}
-
-	write(doNotEdit)
-	write("\n\n")
+	// Comments are awkward to attach to the tree (they rely on token.Pos, which
+	// is coupled to a token.FileSet). Instead, just write out the raw strings.
+	var b strings.Builder
+	b.WriteString(doNotEdit)
+	b.WriteString("\n\n")
 	if c.buildTags != "" {
-		write(`//go:build `)
-		write(c.buildTags)
-		write("\n\n")
+		b.WriteString(`//go:build `)
+		b.WriteString(c.buildTags)
+		b.WriteString("\n\n")
 	}
-	write("package ")
-	write(p.Name)
-	write("\n\nimport (\n")
-
-	// TODO: add std imports
-
-	write("\t\"")
-	write(coroutinePackage)
-	write("\"\n")
-
-	// TODO: add remaining non-std imports
-
-	write(")\n\n")
-
-	for _, candidate := range candidates {
-		fn, yieldType := candidate.FuncDecl, candidate.YieldType
-
-		// Write out the coroutine function. At this stage, use the same name
-		// as the source function, and require that the caller use build tags
-		// to disambiguate function calls.
-		body := fn.Body
-		fn.Body = nil
-		format(fn)
-		fn.Body = body
-		write(" {\n")
-
-		write("\t_c := coroutine.LoadContext[")
-		format(yieldType[0])
-		write(", ")
-		format(yieldType[1])
-		write("]()\n\n")
-
-		write("\t_f := _c.Push()\n")
-
-		// Scan for variables.
-		objectVars := map[*ast.Object]*ast.Ident{}
-		var varsTypes []types.Type
-		ast.Inspect(fn.Body, func(node ast.Node) bool {
-			switch n := node.(type) {
-			case *ast.AssignStmt:
-				name := n.Lhs[0].(*ast.Ident)
-				if n.Tok == token.DEFINE {
-					n.Tok = token.ASSIGN
-				}
-				if name.Obj == nil {
-					return true
-				}
-				if _, ok := objectVars[name.Obj]; ok {
-					return true
-				}
-				id := len(varsTypes)
-				objectVars[name.Obj] = ast.NewIdent("_v" + strconv.Itoa(id))
-				varsTypes = append(varsTypes, p.TypesInfo.TypeOf(name))
-			}
-			return true
-		})
-		ast.Inspect(fn.Body, func(node ast.Node) bool {
-			if ident, ok := node.(*ast.Ident); ok {
-				if replacement, ok := objectVars[ident.Obj]; ok {
-					ident.Name = replacement.Name
-				}
-			}
-			return true
-		})
-
-		// Declare variables upfront.
-		if len(varsTypes) > 0 {
-			write("\tvar (\n")
-			for id, t := range varsTypes {
-				write("\t\t_v")
-				write(strconv.Itoa(id))
-				write(" ")
-				write(t.String())
-				write("\n")
-			}
-			write("\t)\n\n")
-		}
-
-		// Restore state.
-		// As an optimization, only those variables still in scope for a
-		// particular f.IP need to be restored.
-		write("\tif _c.Rewinding() {\n")
-		var storageID int
-		if fn.Type.Params != nil {
-			for _, param := range fn.Type.Params.List {
-				for _, name := range param.Names {
-					write("\t\t")
-					write(name.Name)
-					write(" = int(_f.Get(")
-					write(strconv.Itoa(storageID))
-					write(").(coroutine.Int))\n")
-					storageID++
-				}
-			}
-		}
-		if fn.Type.Results != nil {
-			// Named return values could be used as scratch space at any point
-			// during execution, so they need to be saved/restored.
-			for _, param := range fn.Type.Params.List {
-				for _, name := range param.Names {
-					write("\t\t")
-					write(name.Name)
-					write(" = int(_f.Get(")
-					write(strconv.Itoa(storageID))
-					write(").(coroutine.Int))\n")
-					storageID++
-				}
-			}
-		}
-		for id, t := range varsTypes {
-			if t.String() != "int" {
-				panic("not implemented")
-			}
-			write("\t\t")
-			write("_v")
-			write(strconv.Itoa(id))
-			write(" = int(_f.Get(")
-			write(strconv.Itoa(storageID))
-			write(").(coroutine.Int))\n")
-			storageID++
-		}
-		write("\t}\n")
-
-		// Save state when unwinding.
-		// As an optimization, only those variables still in scope for a
-		// particular f.IP need to be saved.
-		write("\n")
-		write("\tdefer func() {\n")
-		write("\t\tif _c.Unwinding() {\n")
-		storageID = 0
-		if fn.Type.Params != nil {
-			for _, param := range fn.Type.Params.List {
-				for _, name := range param.Names {
-					write("\t\t\t")
-					write("_f.Set(")
-					write(strconv.Itoa(storageID))
-					write(", coroutine.Int(")
-					write(name.Name)
-					write("))\n")
-					storageID++
-				}
-			}
-		}
-		if fn.Type.Results != nil {
-			for _, param := range fn.Type.Params.List {
-				for _, name := range param.Names {
-					write("\t\t\t")
-					write("_f.Set(")
-					write(strconv.Itoa(storageID))
-					write(", coroutine.Int(")
-					write(name.Name)
-					write("))\n")
-					storageID++
-				}
-			}
-		}
-		for id := range varsTypes {
-			write("\t\t\t")
-			write("_f.Set(")
-			write(strconv.Itoa(storageID))
-			write(", coroutine.Int(_v")
-			write(strconv.Itoa(id))
-			write("))\n")
-			storageID++
-		}
-		write("\t\t} else {\n")
-		write("\t\t\t_c.Pop()\n")
-		write("\t\t}\n")
-		write("\t}()\n\n")
-
-		fn.Body.List = desugar(fn.Body.List)
-
-		spans := trackSpans(fn.Body)
-		dispatch(fn.Body, spans, write, format, "\t")
-
-		write("}\n\n")
-	}
-
-	if writeErr != nil {
-		return writeErr
-	}
-	if err := w.Flush(); err != nil {
+	if _, err := outputFile.WriteString(b.String()); err != nil {
 		return err
 	}
+
+	// Format/write the remainder of the AST.
+	if err := format.Node(outputFile, c.fset, gen); err != nil {
+		return err
+	}
+
 	return outputFile.Close()
+}
+
+func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldType []ast.Expr) *ast.FuncDecl {
+	// Generate the coroutine function. At this stage, use the same name
+	// as the source function (and require that the caller use build tags
+	// to disambiguate function calls).
+	gen := &ast.FuncDecl{
+		Name: fn.Name,
+		Type: fn.Type,
+		Body: &ast.BlockStmt{},
+	}
+
+	ctx := ast.NewIdent("_c")
+	frame := ast.NewIdent("_f")
+
+	// _c := coroutine.LoadContext[R, S]()
+	gen.Body.List = append(gen.Body.List, &ast.AssignStmt{
+		Lhs: []ast.Expr{ctx},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: &ast.IndexListExpr{
+					X: &ast.SelectorExpr{
+						X:   ast.NewIdent("coroutine"),
+						Sel: ast.NewIdent("LoadContext"),
+					},
+					Indices: yieldType,
+				},
+			},
+		},
+	})
+
+	// _f := _c.Push()
+	gen.Body.List = append(gen.Body.List, &ast.AssignStmt{
+		Lhs: []ast.Expr{frame},
+		Tok: token.DEFINE,
+		Rhs: []ast.Expr{
+			&ast.CallExpr{
+				Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Push")},
+			},
+		},
+	})
+
+	// Scan for variables defined within the function.
+	objectVars := map[*ast.Object]*ast.Ident{}
+	var varsTypes []types.Type
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.AssignStmt:
+			name := n.Lhs[0].(*ast.Ident)
+			if n.Tok == token.DEFINE {
+				n.Tok = token.ASSIGN
+			}
+			if name.Obj == nil {
+				return true
+			}
+			if _, ok := objectVars[name.Obj]; ok {
+				return true
+			}
+			id := len(varsTypes)
+			objectVars[name.Obj] = ast.NewIdent("_v" + strconv.Itoa(id))
+			varsTypes = append(varsTypes, p.TypesInfo.TypeOf(name))
+		}
+		return true
+	})
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		if ident, ok := node.(*ast.Ident); ok {
+			if replacement, ok := objectVars[ident.Obj]; ok {
+				ident.Name = replacement.Name
+			}
+		}
+		return true
+	})
+
+	// Declare variables upfront.
+	if len(varsTypes) > 0 {
+		varDecl := &ast.GenDecl{
+			Tok: token.VAR,
+		}
+		for id, t := range varsTypes {
+			// TODO
+			//	write("\t\t_v")
+			//	write(strconv.Itoa(id))
+			//	write(" ")
+			//	write(t.String())
+			//	write("\n")
+			_ = id
+			_ = t
+		}
+		_ = varDecl
+		//gen.Body.List = append(gen.Body.List, &ast.DeclStmt{Decl: varDecl})
+	}
+	//
+	//// Restore state.
+	//// As an optimization, only those variables still in scope for a
+	//// particular f.IP need to be restored.
+	//write("\tif _c.Rewinding() {\n")
+	//var storageID int
+	//if fn.Type.Params != nil {
+	//	for _, param := range fn.Type.Params.List {
+	//		for _, name := range param.Names {
+	//			write("\t\t")
+	//			write(name.Name)
+	//			write(" = int(_f.Get(")
+	//			write(strconv.Itoa(storageID))
+	//			write(").(coroutine.Int))\n")
+	//			storageID++
+	//		}
+	//	}
+	//}
+	//if fn.Type.Results != nil {
+	//	// Named return values could be used as scratch space at any point
+	//	// during execution, so they need to be saved/restored.
+	//	for _, param := range fn.Type.Params.List {
+	//		for _, name := range param.Names {
+	//			write("\t\t")
+	//			write(name.Name)
+	//			write(" = int(_f.Get(")
+	//			write(strconv.Itoa(storageID))
+	//			write(").(coroutine.Int))\n")
+	//			storageID++
+	//		}
+	//	}
+	//}
+	//for id, t := range varsTypes {
+	//	if t.String() != "int" {
+	//		panic("not implemented")
+	//	}
+	//	write("\t\t")
+	//	write("_v")
+	//	write(strconv.Itoa(id))
+	//	write(" = int(_f.Get(")
+	//	write(strconv.Itoa(storageID))
+	//	write(").(coroutine.Int))\n")
+	//	storageID++
+	//}
+	//write("\t}\n")
+	//
+	//// Save state when unwinding.
+	//// As an optimization, only those variables still in scope for a
+	//// particular f.IP need to be saved.
+	//write("\n")
+	//write("\tdefer func() {\n")
+	//write("\t\tif _c.Unwinding() {\n")
+	//storageID = 0
+	//if fn.Type.Params != nil {
+	//	for _, param := range fn.Type.Params.List {
+	//		for _, name := range param.Names {
+	//			write("\t\t\t")
+	//			write("_f.Set(")
+	//			write(strconv.Itoa(storageID))
+	//			write(", coroutine.Int(")
+	//			write(name.Name)
+	//			write("))\n")
+	//			storageID++
+	//		}
+	//	}
+	//}
+	//if fn.Type.Results != nil {
+	//	for _, param := range fn.Type.Params.List {
+	//		for _, name := range param.Names {
+	//			write("\t\t\t")
+	//			write("_f.Set(")
+	//			write(strconv.Itoa(storageID))
+	//			write(", coroutine.Int(")
+	//			write(name.Name)
+	//			write("))\n")
+	//			storageID++
+	//		}
+	//	}
+	//}
+	//for id := range varsTypes {
+	//	write("\t\t\t")
+	//	write("_f.Set(")
+	//	write(strconv.Itoa(storageID))
+	//	write(", coroutine.Int(_v")
+	//	write(strconv.Itoa(id))
+	//	write("))\n")
+	//	storageID++
+	//}
+	//write("\t\t} else {\n")
+	//write("\t\t\t_c.Pop()\n")
+	//write("\t\t}\n")
+	//write("\t}()\n\n")
+	//
+	//fn.Body.List = desugar(fn.Body.List)
+	//
+	//spans := trackSpans(fn.Body)
+	//dispatch(fn.Body, spans, write, format, "\t")
+	//
+	//write("}\n\n")
+
+	return gen
 }
 
 func dispatch(stmt ast.Stmt, spans map[ast.Stmt]span, write func(string), format func(ast.Node), indent string) {
@@ -506,11 +530,6 @@ func dispatch(stmt ast.Stmt, spans map[ast.Stmt]span, write func(string), format
 		format(s)
 		write("\n")
 	}
-}
-
-type coroutineCandidate struct {
-	FuncDecl  *ast.FuncDecl
-	YieldType []ast.Expr
 }
 
 // This matches the pattern suggested in "go help generate".
