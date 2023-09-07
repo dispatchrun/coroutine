@@ -129,7 +129,7 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 				continue
 			}
 			var yieldType []ast.Expr
-			ScanYields(p, fn.Body, func(t []ast.Expr) bool {
+			scanYields(p, fn.Body, func(t []ast.Expr) bool {
 				if yieldType == nil {
 					yieldType = t
 				} else {
@@ -423,6 +423,8 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 		write("\t\t}\n")
 		write("\t}()\n\n")
 
+		fn.Body.List = desugar(fn.Body.List)
+
 		spans := map[ast.Stmt]span{}
 		findSpans(fn.Body, spans, 0)
 		dispatch(fn.Body, spans, write, format, "\t")
@@ -449,11 +451,7 @@ func findSpans(stmt ast.Stmt, spans map[ast.Stmt]span, nextID int) int {
 			nextID = findSpans(child, spans, nextID)
 		}
 	case *ast.ForStmt:
-		if s.Init != nil {
-			nextID = findSpans(s.Init, spans, nextID)
-		}
 		nextID = findSpans(s.Body, spans, nextID)
-		// TODO: desugar s.Post
 	default:
 		nextID++
 	}
@@ -492,30 +490,23 @@ func dispatch(stmt ast.Stmt, spans map[ast.Stmt]span, write func(string), format
 		write(indent)
 		write("}\n")
 	case *ast.ForStmt:
-		if init := s.Init; init != nil {
-			s.Init = nil
-			desugared := &ast.BlockStmt{List: []ast.Stmt{
-				init,
-				s,
-			}}
-			dispatch(desugared, spans, write, format, indent)
-			s.Init = init
-		} else {
-			write(indent)
-			write("for ")
-			if s.Post != nil {
-				write("; ")
-				format(s.Cond)
-				write("; ")
-				format(s.Post)
-			} else {
-				format(s.Cond)
-			}
-			write(" {\n")
-			dispatch(s.Body, spans, write, format, indent+"\t")
-			write(indent)
-			write("}\n")
+		if s.Init != nil {
+			panic("bug: for loop not desugared")
 		}
+		write(indent)
+		write("for ")
+		if s.Post != nil {
+			write("; ")
+			format(s.Cond)
+			write("; ")
+			format(s.Post)
+		} else {
+			format(s.Cond)
+		}
+		write(" {\n")
+		dispatch(s.Body, spans, write, format, indent+"\t")
+		write(indent)
+		write("}\n")
 	default:
 		write(indent)
 		format(s)

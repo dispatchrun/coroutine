@@ -12,7 +12,25 @@ const (
 	coroutineYield   = "Yield"
 )
 
-func ScanYields(p *packages.Package, n ast.Node, fn func(types []ast.Expr) bool) {
+func desugar(stmts []ast.Stmt) (desugared []ast.Stmt) {
+	for _, stmt := range stmts {
+		switch s := stmt.(type) {
+		case *ast.BlockStmt:
+			s.List = desugar(s.List)
+		case *ast.ForStmt:
+			if s.Init != nil {
+				desugared = append(desugared, s.Init)
+				s.Init = nil
+				desugared = append(desugared, s)
+				continue
+			}
+		}
+		desugared = append(desugared, stmt)
+	}
+	return
+}
+
+func scanYields(p *packages.Package, n ast.Node, fn func(types []ast.Expr) bool) {
 	ast.Inspect(n, func(node ast.Node) bool {
 		if indexListExpr, ok := node.(*ast.IndexListExpr); ok {
 			if yieldTypes, ok := unpackYield(p, indexListExpr); ok {
