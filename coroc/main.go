@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/stealthrocket/coroutine/coroc/compiler"
 )
 
 const usage = `
@@ -48,13 +50,13 @@ func run() error {
 		}
 	}
 
-	var options []CompileOption
+	var options []compiler.CompileOption
 	if *outputFilename != "" {
-		options = append(options, WithOutputFilename(*outputFilename))
+		options = append(options, compiler.WithOutputFilename(*outputFilename))
 	}
 	if *buildTags != "" {
-		options = append(options, WithBuildTags(*buildTags))
+		options = append(options, compiler.WithBuildTags(*buildTags))
 	}
 
-	return Compile(path, options...)
+	return compiler.Compile(path, options...)
 }
