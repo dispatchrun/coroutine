@@ -27,6 +27,12 @@ func TestCoroutineYield(t *testing.T) {
 			arg:    4,
 			yields: []int{1, 4, 9, 16},
 		},
+		{
+			name:   "even square generator",
+			coro:   testdata.EvenSquareGenerator,
+			arg:    6,
+			yields: []int{4, 16, 36},
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			g := coroutine.New[int, any](func() {
