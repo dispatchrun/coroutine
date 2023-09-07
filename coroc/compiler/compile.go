@@ -438,8 +438,7 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 
 		fn.Body.List = desugar(fn.Body.List)
 
-		spans := map[ast.Stmt]span{}
-		findSpans(fn.Body, spans, 0)
+		spans := trackSpans(fn.Body)
 		dispatch(fn.Body, spans, write, format, "\t")
 
 		write("}\n\n")
@@ -452,24 +451,6 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 		return err
 	}
 	return outputFile.Close()
-}
-
-type span struct{ start, end int }
-
-func findSpans(stmt ast.Stmt, spans map[ast.Stmt]span, nextID int) int {
-	startID := nextID
-	switch s := stmt.(type) {
-	case *ast.BlockStmt:
-		for _, child := range s.List {
-			nextID = findSpans(child, spans, nextID)
-		}
-	case *ast.ForStmt:
-		nextID = findSpans(s.Body, spans, nextID)
-	default:
-		nextID++
-	}
-	spans[stmt] = span{startID, nextID}
-	return nextID
 }
 
 func dispatch(stmt ast.Stmt, spans map[ast.Stmt]span, write func(string), format func(ast.Node), indent string) {
