@@ -13,6 +13,10 @@ type Context[R, S any] struct {
 	recv R
 	send S
 
+	// Booleans managing the completion state of the coroutine.
+	done bool
+	stop bool
+
 	// Entry point of the coroutine, this is captured so the associated
 	// generator can call into the coroutine to start or resume it at the
 	// last yield point.
@@ -49,8 +53,14 @@ func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
 
 // TODO: do we have use cases for yielding more than one value?
 func (c *Context[R, S]) Yield(value R) S {
+	if c.stop {
+		panic("cannot yield from a coroutine that has been stopped")
+	}
 	if frame := c.Top(); frame.Resume {
 		frame.Resume = false
+		if c.stop {
+			panic(unwind{})
+		}
 		return c.send
 	} else {
 		var zero S
