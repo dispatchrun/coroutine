@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stealthrocket/coroutine"
-	"github.com/stealthrocket/coroutine/coroc/testdata"
+	. "github.com/stealthrocket/coroutine/coroc/testdata"
 )
 
 func TestCoroutineYield(t *testing.T) {
@@ -17,21 +17,45 @@ func TestCoroutineYield(t *testing.T) {
 	}{
 		{
 			name:   "identity",
-			coro:   testdata.Identity,
+			coro:   Identity,
 			arg:    11,
 			yields: []int{11},
 		},
 		{
 			name:   "square generator",
-			coro:   testdata.SquareGenerator,
+			coro:   SquareGenerator,
 			arg:    4,
 			yields: []int{1, 4, 9, 16},
 		},
 		{
 			name:   "even square generator",
-			coro:   testdata.EvenSquareGenerator,
+			coro:   EvenSquareGenerator,
 			arg:    6,
 			yields: []int{4, 16, 36},
+		},
+		{
+			name:   "nested loops",
+			coro:   NestedLoops,
+			arg:    3,
+			yields: []int{1, 2, 3, 2, 4, 6, 3, 6, 9, 2, 4, 6, 4, 8, 12, 6, 12, 18, 3, 6, 9, 6, 12, 18, 9, 18, 27},
+		},
+		{
+			name:   "fizz buzz (1)",
+			coro:   FizzBuzzIfGenerator,
+			arg:    20,
+			yields: []int{1, 2, Fizz, 4, Buzz, Fizz, 7, 8, Fizz, Buzz, 11, Fizz, 13, 14, FizzBuzz, 16, 17, Fizz, 19, Buzz},
+		},
+		{
+			name:   "fizz buzz (2)",
+			coro:   FizzBuzzSwitchGenerator,
+			arg:    20,
+			yields: []int{1, 2, Fizz, 4, Buzz, Fizz, 7, 8, Fizz, Buzz, 11, Fizz, 13, 14, FizzBuzz, 16, 17, Fizz, 19, Buzz},
+		},
+		{
+			name:   "shadowing",
+			coro:   Shadowing,
+			arg:    0,
+			yields: []int{0, 1, 0, 1, 2, 0, 1, 0},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -65,7 +89,7 @@ func TestCoroutineYield(t *testing.T) {
 
 func TestCoroutineStop(t *testing.T) {
 	coro := coroutine.New[int, any](func() {
-		testdata.SquareGenerator(4)
+		SquareGenerator(4)
 	})
 
 	values := []int{}

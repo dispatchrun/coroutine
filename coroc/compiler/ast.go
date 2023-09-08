@@ -7,18 +7,40 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// desugar recursively desugars a set of statements. The goal is to
-// hoist initialization statements out of branches and loops, so that
-// when resuming a coroutine within that branch or loop the
-// initialization can be skipped. Other types of desugaring may be
-// required in the future.
-func desugar(stmts []ast.Stmt) (desugared []ast.Stmt) {
+// desugar recursively desugars an AST. The goal is to hoist initialization
+// statements out of branches and loops, so that when resuming a coroutine
+// within that branch or loop the initialization can be skipped. Other types
+// of desugaring may be required in the future.
+func desugar(tree ast.Node) {
+	ast.Inspect(tree, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.BlockStmt:
+			n.List = desugar0(n.List)
+		case *ast.CaseClause:
+			n.Body = desugar0(n.Body)
+		}
+		return true
+	})
+}
+
+func desugar0(stmts []ast.Stmt) (desugared []ast.Stmt) {
 	for _, stmt := range stmts {
 		switch s := stmt.(type) {
-		case *ast.BlockStmt:
-			s.List = desugar(s.List)
 		case *ast.IfStmt:
-			s.Body.List = desugar(s.Body.List)
+			// Recursively rewrite `else if init; cond {}` to `else { init; if cond {} }`
+			curr := s
+			for {
+				elseIf, ok := curr.Else.(*ast.IfStmt)
+				if !ok {
+					break
+				}
+				if init := elseIf.Init; init != nil {
+					elseIf.Init = nil
+					curr.Else = &ast.BlockStmt{List: []ast.Stmt{init, elseIf}}
+				}
+				curr = elseIf
+			}
+			// Rewrite `if init; cond {}` to `init; if cond {}`
 			if s.Init != nil {
 				desugared = append(desugared, s.Init)
 				s.Init = nil
@@ -26,7 +48,15 @@ func desugar(stmts []ast.Stmt) (desugared []ast.Stmt) {
 				continue
 			}
 		case *ast.ForStmt:
-			s.Body.List = desugar(s.Body.List)
+			// Rewrite `for init; cond; post {}` to `init; for ; cond; post {}`
+			if s.Init != nil {
+				desugared = append(desugared, s.Init)
+				s.Init = nil
+				desugared = append(desugared, s)
+				continue
+			}
+		case *ast.SwitchStmt:
+			// Rewrite `switch init; cond {}` to `init; switch cond {}`
 			if s.Init != nil {
 				desugared = append(desugared, s.Init)
 				s.Init = nil
@@ -83,12 +113,13 @@ func scanYields(p *packages.Package, tree ast.Node, fn func(types []ast.Expr) bo
 
 type span struct{ start, end int }
 
-// trackSpans assigns an integer ID to each leaf statement in the tree using
-// a post-order traversal, and then assigns a "span" to all statements in the
-// tree which is equal to the half-open range of IDs seen in that subtree.
+// trackSpans assigns a non-zero monotonically increasing integer ID to each
+// leaf statement in the tree using a post-order traversal, and then assigns
+// a "span" to all statements in the tree which is equal to the half-open
+// range of IDs seen in that subtree.
 func trackSpans(stmt ast.Stmt) map[ast.Stmt]span {
 	spans := map[ast.Stmt]span{}
-	trackSpans0(stmt, spans, 0)
+	trackSpans0(stmt, spans, 1)
 	return spans
 }
 
@@ -101,8 +132,17 @@ func trackSpans0(stmt ast.Stmt, spans map[ast.Stmt]span, nextID int) int {
 		}
 	case *ast.IfStmt:
 		nextID = trackSpans0(s.Body, spans, nextID)
+		if s.Else != nil {
+			nextID = trackSpans0(s.Else, spans, nextID)
+		}
 	case *ast.ForStmt:
 		nextID = trackSpans0(s.Body, spans, nextID)
+	case *ast.SwitchStmt:
+		nextID = trackSpans0(s.Body, spans, nextID)
+	case *ast.CaseClause:
+		for _, child := range s.Body {
+			nextID = trackSpans0(child, spans, nextID)
+		}
 	default:
 		nextID++ // leaf
 	}

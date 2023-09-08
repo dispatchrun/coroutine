@@ -160,20 +160,12 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 		var err error
 		ast.Inspect(fn, func(node ast.Node) bool {
 			switch n := node.(type) {
-			case *ast.IfStmt:
-				if n.Else != nil {
-					err = fmt.Errorf("not implemented: if else")
-				}
 			case *ast.DeferStmt:
 				err = fmt.Errorf("not implemented: defer")
 			case *ast.GoStmt:
 				err = fmt.Errorf("not implemented: go")
-			case *ast.SendStmt:
-				err = fmt.Errorf("not implemented: chan send")
 			case *ast.LabeledStmt:
 				err = fmt.Errorf("not implemented: labels")
-			case *ast.SwitchStmt:
-				err = fmt.Errorf("not implemented: switch")
 			case *ast.TypeSwitchStmt:
 				err = fmt.Errorf("not implemented: type switch")
 			case *ast.SelectStmt:
@@ -429,7 +421,10 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 		})
 	}
 	gen.Body.List = append(gen.Body.List, &ast.IfStmt{
-		Cond: &ast.CallExpr{Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Rewinding")}},
+		Cond: &ast.BinaryExpr{
+			X:  &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")},
+			Op: token.GTR, /* > */
+			Y:  &ast.BasicLit{Kind: token.INT, Value: "0"}},
 		Body: &ast.BlockStmt{List: restoreStmts},
 	})
 
@@ -467,65 +462,72 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 		},
 	})
 
-	fn.Body.List = desugar(fn.Body.List)
+	desugar(fn.Body)
 
 	spans := trackSpans(fn.Body)
 
-	gen.Body.List = append(gen.Body.List, c.compileStatement(fn.Body, spans))
+	gen.Body.List = append(gen.Body.List, c.compileStatement(fn.Body, spans).(*ast.BlockStmt).List...)
 
 	return gen
 }
 
 func (c *compiler) compileStatement(stmt ast.Stmt, spans map[ast.Stmt]span) ast.Stmt {
-	ip := &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")}
-
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
-		switch len(s.List) {
-		case 0:
-			return s
-		case 1:
-			return s.List[0]
+		switch {
+		case len(s.List) == 1:
+			s.List[0] = c.compileStatement(s.List[0], spans)
+		case len(s.List) > 1:
+			stmt = &ast.BlockStmt{List: []ast.Stmt{c.compileDispatch(s.List, spans)}}
 		}
-		var cases []ast.Stmt
-		for i, child := range s.List {
-			childSpan := spans[child]
-			caseBody := []ast.Stmt{child}
-			if i < len(s.List)-1 {
-				caseBody = append(caseBody,
-					&ast.AssignStmt{
-						Lhs: []ast.Expr{ip},
-						Tok: token.ASSIGN,
-						Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(childSpan.end)}},
-					},
-					&ast.BranchStmt{Tok: token.FALLTHROUGH})
-			}
-			cases = append(cases, &ast.CaseClause{
-				List: []ast.Expr{
-					&ast.BinaryExpr{X: ip, Op: token.LSS /* < */, Y: &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(childSpan.end)}},
-				},
-				Body: caseBody,
-			})
-		}
-		return &ast.SwitchStmt{Body: &ast.BlockStmt{List: cases}}
-
 	case *ast.IfStmt:
-		ifBodyStmt := c.compileStatement(s.Body, spans)
-		ifBody, ok := ifBodyStmt.(*ast.BlockStmt)
-		if !ok {
-			ifBody = &ast.BlockStmt{List: []ast.Stmt{ifBodyStmt}}
-		}
-		return &ast.IfStmt{Cond: s.Cond, Body: ifBody}
-
+		s.Body = c.compileStatement(s.Body, spans).(*ast.BlockStmt)
 	case *ast.ForStmt:
-		forBodyStmt := c.compileStatement(s.Body, spans)
-		forBody, ok := forBodyStmt.(*ast.BlockStmt)
-		if !ok {
-			forBody = &ast.BlockStmt{List: []ast.Stmt{forBodyStmt}}
+		forSpan := spans[s]
+		s.Body = c.compileStatement(s.Body, spans).(*ast.BlockStmt)
+		s.Body.List = append(s.Body.List, &ast.AssignStmt{
+			Lhs: []ast.Expr{&ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")}},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(forSpan.start)}},
+		})
+	case *ast.SwitchStmt:
+		for i, child := range s.Body.List {
+			s.Body.List[i] = c.compileStatement(child, spans)
 		}
-		return &ast.ForStmt{Cond: s.Cond, Post: s.Post, Body: forBody}
-
-	default:
-		return s
+	case *ast.CaseClause:
+		switch {
+		case len(s.Body) == 1:
+			s.Body[0] = c.compileStatement(s.Body[0], spans)
+		case len(s.Body) > 1:
+			s.Body = []ast.Stmt{c.compileDispatch(s.Body, spans)}
+		}
 	}
+	return stmt
+}
+
+func (c *compiler) compileDispatch(stmts []ast.Stmt, spans map[ast.Stmt]span) ast.Stmt {
+	var cases []ast.Stmt
+	for i, child := range stmts {
+		childSpan := spans[child]
+		caseBody := []ast.Stmt{c.compileStatement(child, spans)}
+		if i < len(stmts)-1 {
+			caseBody = append(caseBody,
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{&ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")}},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(childSpan.end)}},
+				},
+				&ast.BranchStmt{Tok: token.FALLTHROUGH})
+		}
+		cases = append(cases, &ast.CaseClause{
+			List: []ast.Expr{
+				&ast.BinaryExpr{
+					X:  &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")},
+					Op: token.LSS, /* < */
+					Y:  &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(childSpan.end)}},
+			},
+			Body: caseBody,
+		})
+	}
+	return &ast.SwitchStmt{Body: &ast.BlockStmt{List: cases}}
 }
