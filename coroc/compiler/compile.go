@@ -166,8 +166,6 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 				err = fmt.Errorf("not implemented: go")
 			case *ast.LabeledStmt:
 				err = fmt.Errorf("not implemented: labels")
-			case *ast.SwitchStmt:
-				err = fmt.Errorf("not implemented: switch")
 			case *ast.TypeSwitchStmt:
 				err = fmt.Errorf("not implemented: type switch")
 			case *ast.SelectStmt:

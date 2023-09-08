@@ -143,7 +143,7 @@ func NestedLoops(n int) {
 	}
 }
 
-func FizzBuzzGenerator(n int) {
+func FizzBuzzIfGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
 	var (
@@ -186,6 +186,42 @@ func FizzBuzzGenerator(n int) {
 	}
 }
 
+func FizzBuzzSwitchGenerator(n int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f := _c.Push()
+	var _v0 int
+	if _f.IP > 0 {
+		n = int(_f.Get(0).(coroutine.Int))
+		_v0 = int(_f.Get(1).(coroutine.Int))
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, coroutine.Int(n))
+			_f.Set(1, coroutine.Int(_v0))
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		_v0 = 1
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 6:
+		for ; _v0 <= n; _v0++ {
+			switch {
+			case _v0%3 == 0 && _v0%5 == 0:
+				coroutine.Yield[int, any](FizzBuzz)
+			case _v0%3 == 0:
+				coroutine.Yield[int, any](Fizz)
+			case _v0%5 == 0:
+				coroutine.Yield[int, any](Buzz)
+			default:
+				coroutine.Yield[int, any](_v0)
+			}
+			_f.IP = 2
+		}
+	}
+}
+
 func Shadowing(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
@@ -193,12 +229,14 @@ func Shadowing(n int) {
 		_v0 int
 		_v1 int
 		_v2 int
+		_v3 int
 	)
 	if _f.IP > 0 {
 		n = int(_f.Get(0).(coroutine.Int))
 		_v0 = int(_f.Get(1).(coroutine.Int))
 		_v1 = int(_f.Get(2).(coroutine.Int))
 		_v2 = int(_f.Get(3).(coroutine.Int))
+		_v3 = int(_f.Get(4).(coroutine.Int))
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -206,6 +244,7 @@ func Shadowing(n int) {
 			_f.Set(1, coroutine.Int(_v0))
 			_f.Set(2, coroutine.Int(_v1))
 			_f.Set(3, coroutine.Int(_v2))
+			_f.Set(4, coroutine.Int(_v3))
 		}
 	}()
 	switch {
@@ -245,6 +284,21 @@ func Shadowing(n int) {
 		fallthrough
 	case _f.IP < 9:
 
+		coroutine.Yield[int, any](_v0)
+		_f.IP = 9
+		fallthrough
+	case _f.IP < 10:
+		_v3 = 1
+		_f.IP = 10
+		fallthrough
+	case _f.IP < 11:
+		switch _v3 {
+		case 1:
+			coroutine.Yield[int, any](_v3)
+		}
+		_f.IP = 11
+		fallthrough
+	case _f.IP < 12:
 		coroutine.Yield[int, any](_v0)
 	}
 }

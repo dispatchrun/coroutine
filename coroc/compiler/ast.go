@@ -16,6 +16,8 @@ func desugar(tree ast.Node) {
 		switch n := node.(type) {
 		case *ast.BlockStmt:
 			n.List = desugar0(n.List)
+		case *ast.CaseClause:
+			n.Body = desugar0(n.Body)
 		}
 		return true
 	})
@@ -44,6 +46,13 @@ func desugar0(stmts []ast.Stmt) (desugared []ast.Stmt) {
 				continue
 			}
 		case *ast.ForStmt:
+			if s.Init != nil {
+				desugared = append(desugared, s.Init)
+				s.Init = nil
+				desugared = append(desugared, s)
+				continue
+			}
+		case *ast.SwitchStmt:
 			if s.Init != nil {
 				desugared = append(desugared, s.Init)
 				s.Init = nil
@@ -124,6 +133,12 @@ func trackSpans0(stmt ast.Stmt, spans map[ast.Stmt]span, nextID int) int {
 		}
 	case *ast.ForStmt:
 		nextID = trackSpans0(s.Body, spans, nextID)
+	case *ast.SwitchStmt:
+		nextID = trackSpans0(s.Body, spans, nextID)
+	case *ast.CaseClause:
+		for _, child := range s.Body {
+			nextID = trackSpans0(child, spans, nextID)
+		}
 	default:
 		nextID++ // leaf
 	}

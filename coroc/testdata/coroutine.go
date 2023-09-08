@@ -36,7 +36,7 @@ func NestedLoops(n int) {
 	}
 }
 
-func FizzBuzzGenerator(n int) {
+func FizzBuzzIfGenerator(n int) {
 	for i := 1; i <= n; i++ {
 		if i%3 == 0 && i%5 == 0 {
 			coroutine.Yield[int, any](FizzBuzz)
@@ -50,6 +50,21 @@ func FizzBuzzGenerator(n int) {
 	}
 }
 
+func FizzBuzzSwitchGenerator(n int) {
+	for i := 1; i <= n; i++ {
+		switch {
+		case i%3 == 0 && i%5 == 0:
+			coroutine.Yield[int, any](FizzBuzz)
+		case i%3 == 0:
+			coroutine.Yield[int, any](Fizz)
+		case i%5 == 0:
+			coroutine.Yield[int, any](Buzz)
+		default:
+			coroutine.Yield[int, any](i)
+		}
+	}
+}
+
 func Shadowing(n int) {
 	i := 0
 	coroutine.Yield[int, any](i) // 0
@@ -58,7 +73,12 @@ func Shadowing(n int) {
 	}
 	coroutine.Yield[int, any](i) // 0
 	for i := 1; i < 3; i++ {
-		coroutine.Yield[int, any](i) // 1 + 2
+		coroutine.Yield[int, any](i) // 1, 2
+	}
+	coroutine.Yield[int, any](i) // 0
+	switch i := 1; i {
+	case 1:
+		coroutine.Yield[int, any](i) // 1
 	}
 	coroutine.Yield[int, any](i) // 0
 }
