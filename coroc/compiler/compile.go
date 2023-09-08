@@ -171,7 +171,11 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 			case *ast.SelectStmt:
 				err = fmt.Errorf("not implemented: select")
 			case *ast.RangeStmt:
-				err = fmt.Errorf("not implemented: for range")
+				switch t := p.TypesInfo.TypeOf(n.X).(type) {
+				case *types.Array, *types.Slice:
+				default:
+					err = fmt.Errorf("not implemented: for range for %T", t)
+				}
 			case *ast.DeclStmt:
 				err = fmt.Errorf("not implemented: inline decls")
 			case *ast.AssignStmt:
@@ -319,7 +323,7 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 	})
 
 	// Desugar statements in the tree.
-	desugar(fn.Body)
+	desugar(fn.Body, p.TypesInfo)
 
 	// Scan/replace variables defined in the function.
 	objectVars := map[*ast.Object]*ast.Ident{}

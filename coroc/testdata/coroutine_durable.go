@@ -307,3 +307,78 @@ func Shadowing(_ int) {
 		coroutine.Yield[int, any](_v0)
 	}
 }
+
+func RangeSliceIndexGenerator(_ int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f := _c.Push()
+	var _v0 int
+	if _f.IP > 0 {
+		_v0 = int(_f.Get(0).(coroutine.Int))
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, coroutine.Int(_v0))
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		_d0_x = []int{10, 20, 30}
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 4:
+		switch {
+		case _f.IP < 3:
+			_v0 = 0
+			_f.IP = 3
+			fallthrough
+		case _f.IP < 4:
+			for ; _v0 < len(_d0_x); _v0++ {
+				coroutine.Yield[int, any](_v0)
+				_f.IP = 3
+			}
+		}
+	}
+}
+
+func RangeArrayIndexValueGenerator(_ int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f := _c.Push()
+	var _v0 int
+	if _f.IP > 0 {
+		_v0 = int(_f.Get(0).(coroutine.Int))
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, coroutine.Int(_v0))
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		_d0_x = [...]int{10, 20, 30}
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 6:
+		switch {
+		case _f.IP < 3:
+			_v0 = 0
+			_f.IP = 3
+			fallthrough
+		case _f.IP < 6:
+			for ; _v0 < len(_d0_x); _v0++ {
+				switch {
+				case _f.IP < 4:
+					_d0_x = _d0_x[_v0]
+					_f.IP = 4
+					fallthrough
+				case _f.IP < 5:
+					coroutine.Yield[int, any](_v0)
+					_f.IP = 5
+					fallthrough
+				case _f.IP < 6:
+					coroutine.Yield[int, any](v)
+				}
+				_f.IP = 3
+			}
+		}
+	}
+}
