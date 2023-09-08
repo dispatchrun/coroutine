@@ -42,6 +42,7 @@ func SquareGenerator(n int) {
 	case _f.IP < 2:
 		for ; _v0 <= n; _v0++ {
 			coroutine.Yield[int, any](_v0 * _v0)
+			_f.IP = 1
 		}
 	}
 }
@@ -72,10 +73,17 @@ func EvenSquareGenerator(n int) {
 		fallthrough
 	case _f.IP < 3:
 		for ; _v0 <= n; _v0++ {
-			_v1 = _v0 % 2
-			if _v1 == 0 {
-				coroutine.Yield[int, any](_v0 * _v0)
+			switch {
+			case _f.IP < 2:
+				_v1 = _v0 % 2
+				_f.IP = 2
+				fallthrough
+			case _f.IP < 3:
+				if _v1 == 0 {
+					coroutine.Yield[int, any](_v0 * _v0)
+				}
 			}
+			_f.IP = 1
 		}
 	}
 }

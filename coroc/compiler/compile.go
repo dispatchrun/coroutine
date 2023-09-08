@@ -490,7 +490,7 @@ func (c *compiler) compileStatement(stmt ast.Stmt, spans map[ast.Stmt]span) ast.
 		var cases []ast.Stmt
 		for i, child := range s.List {
 			childSpan := spans[child]
-			caseBody := []ast.Stmt{child}
+			caseBody := []ast.Stmt{c.compileStatement(child, spans)}
 			if i < len(s.List)-1 {
 				caseBody = append(caseBody,
 					&ast.AssignStmt{
@@ -518,11 +518,17 @@ func (c *compiler) compileStatement(stmt ast.Stmt, spans map[ast.Stmt]span) ast.
 		return &ast.IfStmt{Cond: s.Cond, Body: ifBody}
 
 	case *ast.ForStmt:
+		forSpan := spans[s]
 		forBodyStmt := c.compileStatement(s.Body, spans)
 		forBody, ok := forBodyStmt.(*ast.BlockStmt)
 		if !ok {
 			forBody = &ast.BlockStmt{List: []ast.Stmt{forBodyStmt}}
 		}
+		forBody.List = append(forBody.List, &ast.AssignStmt{
+			Lhs: []ast.Expr{ip},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(forSpan.start)}},
+		})
 		return &ast.ForStmt{Cond: s.Cond, Post: s.Post, Body: forBody}
 
 	default:
