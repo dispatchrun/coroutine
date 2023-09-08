@@ -82,3 +82,16 @@ func Shadowing(_ int) {
 	}
 	coroutine.Yield[int, any](i) // 0
 }
+
+func RangeSliceIndexGenerator(_ int) {
+	for i := range []int{10, 20, 30} {
+		coroutine.Yield[int, any](i)
+	}
+}
+
+func RangeArrayIndexValueGenerator(_ int) {
+	for i, v := range [...]int{10, 20, 30} {
+		coroutine.Yield[int, any](i)
+		coroutine.Yield[int, any](v)
+	}
+}
