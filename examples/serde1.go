@@ -73,4 +73,6 @@ type Struct1 struct {
 	Bounce1 *Bounce
 
 	MapStrStr map[string]string
+
+	Iface interface{}
 }

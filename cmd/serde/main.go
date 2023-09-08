@@ -254,12 +254,14 @@ func (g *generator) AllTypes(pkgs []*packages.Package) {
 		findTypes(pkg)
 	}
 
-	g.W(`var _typemap *serde.TypeMap = serde.NewTypeMap(`)
+	g.W(`func init() {`)
+	g.W(`serde.RegisterTypes(`)
 	for k := range s {
 		// TODO: find a way to avoid the allocations
 		g.W(`reflect.TypeOf(new(%s)).Elem(),`, k)
 	}
 	g.W(`)`)
+	g.W(`}`)
 }
 
 // return name
@@ -399,9 +401,29 @@ func (g *generator) Type(t types.Type, name string) locations {
 		return g.Pointer(x, name)
 	case *types.Map:
 		return g.Map(x, name)
+	case *types.Interface:
+		return g.Interface(x, name)
 	default:
 		panic(fmt.Errorf("type generator not implemented: %s (%T)", t, t))
 	}
+}
+
+func (g *generator) Interface(t *types.Interface, name string) locations {
+	g.imports.Ensure("serde", "github.com/stealthrocket/coroutine/serde")
+	l := locations{
+		serializer: location{
+			pkg:      "serde",
+			name:     nameof(serde.SerializeInterface),
+			terminal: false,
+		},
+		deserializer: location{
+			pkg:      "serde",
+			name:     nameof(serde.DeserializeInterface),
+			terminal: false,
+		},
+	}
+	g.setLocation(t, l)
+	return l
 }
 
 func (g *generator) Map(t *types.Map, name string) locations {
@@ -699,16 +721,17 @@ func (g *generator) setLocation(t types.Type, loc locations) {
 	}
 }
 
+func nameof(x interface{}) string {
+	if s, ok := x.(string); ok {
+		return s
+	}
+
+	full := runtime.FuncForPC(reflect.ValueOf(x).Pointer()).Name()
+	return full[strings.LastIndexByte(full, '.')+1:]
+}
+
 func (g *generator) builtin(t types.Type, ser, des interface{}) locations {
 	g.imports.Ensure("serde", "github.com/stealthrocket/coroutine/serde")
-	nameof := func(x interface{}) string {
-		if s, ok := x.(string); ok {
-			return s
-		}
-
-		full := runtime.FuncForPC(reflect.ValueOf(x).Pointer()).Name()
-		return full[strings.LastIndexByte(full, '.')+1:]
-	}
 	l := locations{
 		serializer: location{
 			pkg:      "serde",

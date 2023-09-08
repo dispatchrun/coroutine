@@ -48,6 +48,30 @@ func TestStruct1Empty(t *testing.T) {
 	}
 }
 
+func TestStruct1Iface(t *testing.T) {
+	enableDebugLogs()
+
+	s := Struct1{
+		Iface: int(42),
+	}
+
+	var b []byte
+	b = Serialize_Struct1(nil, s, b)
+	s2, b := Deserialize_Struct1(nil, b)
+
+	opts := []cmp.Option{
+		cmp.AllowUnexported(Foo{}),
+	}
+
+	if diff := cmp.Diff(s, s2, opts...); diff != "" {
+		t.Fatalf("mismatch (-want +got):\n%s", diff)
+	}
+
+	if len(b) > 0 {
+		t.Fatalf("leftover bytes: %d", len(b))
+	}
+}
+
 func TestStruct1(t *testing.T) {
 	enableDebugLogs()
 

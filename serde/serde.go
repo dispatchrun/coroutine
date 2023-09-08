@@ -13,34 +13,55 @@ import (
 // ID is the unique ID of a pointer or type in the serialized format.
 type ID int64
 
-type TypeMap struct {
+type typeMap struct {
 	byID   map[ID]reflect.Type
 	byType map[reflect.Type]ID
 }
 
-func NewTypeMap(types ...reflect.Type) *TypeMap {
-	x := &TypeMap{
-		byID:   make(map[ID]reflect.Type, len(types)),
-		byType: make(map[reflect.Type]ID, len(types)),
+func newTypeMap() *typeMap {
+	return &typeMap{
+		byID:   make(map[ID]reflect.Type),
+		byType: make(map[reflect.Type]ID),
 	}
-	for i, t := range types {
-		id := ID(i)
-		x.byID[id] = t
-		x.byType[t] = id
-	}
-	return x
 }
 
-func (t *TypeMap) Add(x reflect.Type) ID {
+func (t *typeMap) Add(x reflect.Type) ID {
 	i := ID(len(t.byID))
 	t.byID[i] = x
 	t.byType[x] = i
 	return i
 }
 
+func (t *typeMap) IDof(x reflect.Type) ID {
+	id, ok := t.byType[x]
+	if !ok {
+		panic(fmt.Errorf("type '%s' is not registered", x))
+	}
+	return id
+}
+
+func (t *typeMap) TypeOf(x ID) reflect.Type {
+	typ, ok := t.byID[x]
+	if !ok {
+		panic(fmt.Errorf("type id '%d' not registered", x))
+	}
+	return typ
+}
+
+var tm *typeMap = newTypeMap()
+
+func RegisterType(x reflect.Type) {
+	tm.Add(x)
+}
+
+func RegisterTypes(ts ...reflect.Type) {
+	for _, t := range ts {
+		RegisterType(t)
+	}
+}
+
 // Deserializer contains the state of the deserializer.
 type Deserializer struct {
-	types *TypeMap
 	// TODO: make it a slice
 	ptrs map[ID]unsafe.Pointer
 }
@@ -72,8 +93,7 @@ func EnsureDeserializer(d *Deserializer) *Deserializer {
 
 // Serializer contains the state of the serializer.
 type Serializer struct {
-	types *TypeMap
-	ptrs  map[unsafe.Pointer]ID
+	ptrs map[unsafe.Pointer]ID
 }
 
 func (s *Serializer) WritePtr(p unsafe.Pointer, b []byte) (bool, []byte) {
@@ -113,6 +133,58 @@ type Serializable interface {
 }
 
 // Helpers to write composite types serializers and deserializers.
+
+func SerializeInterface(s *Serializer, x interface{}, b []byte) []byte {
+	s = EnsureSerializer(s)
+
+	if x == nil { // no type pointer
+		return binary.AppendVarint(b, -1)
+	}
+
+	r := reflect.ValueOf(x)
+	t := r.Type()
+
+	// write the type id first
+	id := tm.IDof(t)
+	b = binary.AppendVarint(b, int64(id))
+
+	// then the data pointer marker
+	p := ifacePointer(x)
+	exists, b := s.WritePtr(p, b)
+	if exists {
+		return b
+	}
+
+	// serialize the actual data
+	return serializeAny(s, t, p, b)
+}
+
+func DeserializeInterface(d *Deserializer, b []byte) (interface{}, []byte) {
+	d = EnsureDeserializer(d)
+
+	var x interface{}
+	tid, n := binary.Varint(b)
+	b = b[n:]
+	if tid == -1 {
+		return x, b
+	}
+	t := tm.TypeOf(ID(tid))
+
+	p, id, b := d.ReadPtr(b)
+	if p != nil { // already been deserialized
+		return reflect.NewAt(t, p).Elem().Interface(), b
+	}
+	if id == 0 { // nil pointer
+		return reflect.Zero(reflect.PointerTo(t)).Interface(), b
+	}
+
+	v := reflect.New(t)
+	p = v.UnsafePointer()
+	d.Store(id, p)
+
+	b = deserializeAny(d, t, p, b)
+	return v.Elem().Interface(), b
+}
 
 func SerializeSerializable[T Serializable](x T, b []byte) []byte {
 	b, err := x.MarshalAppend(b)
