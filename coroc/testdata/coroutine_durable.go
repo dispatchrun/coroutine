@@ -9,7 +9,7 @@ import "github.com/stealthrocket/coroutine"
 func Identity(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
-	if _c.Rewinding() {
+	if _f.IP > 0 {
 		n = int(_f.Get(0).(coroutine.Int))
 	}
 	defer func() {
@@ -24,7 +24,7 @@ func SquareGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
 	var _v0 int
-	if _c.Rewinding() {
+	if _f.IP > 0 {
 		n = int(_f.Get(0).(coroutine.Int))
 		_v0 = int(_f.Get(1).(coroutine.Int))
 	}
@@ -35,14 +35,14 @@ func SquareGenerator(n int) {
 		}
 	}()
 	switch {
-	case _f.IP < 1:
-		_v0 = 1
-		_f.IP = 1
-		fallthrough
 	case _f.IP < 2:
+		_v0 = 1
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 3:
 		for ; _v0 <= n; _v0++ {
 			coroutine.Yield[int, any](_v0 * _v0)
-			_f.IP = 1
+			_f.IP = 2
 		}
 	}
 }
@@ -54,7 +54,7 @@ func EvenSquareGenerator(n int) {
 		_v0 int
 		_v1 int
 	)
-	if _c.Rewinding() {
+	if _f.IP > 0 {
 		n = int(_f.Get(0).(coroutine.Int))
 		_v0 = int(_f.Get(1).(coroutine.Int))
 		_v1 = int(_f.Get(2).(coroutine.Int))
@@ -67,23 +67,23 @@ func EvenSquareGenerator(n int) {
 		}
 	}()
 	switch {
-	case _f.IP < 1:
+	case _f.IP < 2:
 		_v0 = 1
-		_f.IP = 1
+		_f.IP = 2
 		fallthrough
-	case _f.IP < 3:
+	case _f.IP < 4:
 		for ; _v0 <= n; _v0++ {
 			switch {
-			case _f.IP < 2:
-				_v1 = _v0 % 2
-				_f.IP = 2
-				fallthrough
 			case _f.IP < 3:
+				_v1 = _v0 % 2
+				_f.IP = 3
+				fallthrough
+			case _f.IP < 4:
 				if _v1 == 0 {
 					coroutine.Yield[int, any](_v0 * _v0)
 				}
 			}
-			_f.IP = 1
+			_f.IP = 2
 		}
 	}
 }

@@ -429,7 +429,10 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 		})
 	}
 	gen.Body.List = append(gen.Body.List, &ast.IfStmt{
-		Cond: &ast.CallExpr{Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Rewinding")}},
+		Cond: &ast.BinaryExpr{
+			X:  &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")},
+			Op: token.GTR, /* > */
+			Y:  &ast.BasicLit{Kind: token.INT, Value: "0"}},
 		Body: &ast.BlockStmt{List: restoreStmts},
 	})
 

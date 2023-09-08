@@ -83,12 +83,13 @@ func scanYields(p *packages.Package, tree ast.Node, fn func(types []ast.Expr) bo
 
 type span struct{ start, end int }
 
-// trackSpans assigns an integer ID to each leaf statement in the tree using
-// a post-order traversal, and then assigns a "span" to all statements in the
-// tree which is equal to the half-open range of IDs seen in that subtree.
+// trackSpans assigns a non-zero monotonically increasing integer ID to each
+// leaf statement in the tree using a post-order traversal, and then assigns
+// a "span" to all statements in the tree which is equal to the half-open
+// range of IDs seen in that subtree.
 func trackSpans(stmt ast.Stmt) map[ast.Stmt]span {
 	spans := map[ast.Stmt]span{}
-	trackSpans0(stmt, spans, 0)
+	trackSpans0(stmt, spans, 1)
 	return spans
 }
 
