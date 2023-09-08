@@ -39,3 +39,16 @@ func FizzBuzzGenerator(n int) {
 		}
 	}
 }
+
+func Shadowing(n int) {
+	i := 0
+	coroutine.Yield[int, any](i) // 0
+	if i := 1; true {
+		coroutine.Yield[int, any](i) // 1
+	}
+	coroutine.Yield[int, any](i) // 0
+	for i := 1; i < 3; i++ {
+		coroutine.Yield[int, any](i) // 1 + 2
+	}
+	coroutine.Yield[int, any](i) // 0
+}
