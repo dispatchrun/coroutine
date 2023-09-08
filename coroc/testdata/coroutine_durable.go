@@ -267,7 +267,6 @@ func Shadowing(n int) {
 		_f.IP = 5
 		fallthrough
 	case _f.IP < 6:
-
 		coroutine.Yield[int, any](_v0)
 		_f.IP = 6
 		fallthrough
@@ -283,7 +282,6 @@ func Shadowing(n int) {
 		_f.IP = 8
 		fallthrough
 	case _f.IP < 9:
-
 		coroutine.Yield[int, any](_v0)
 		_f.IP = 9
 		fallthrough
