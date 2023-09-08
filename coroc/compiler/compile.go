@@ -478,12 +478,10 @@ func (c *compiler) compileStatement(stmt ast.Stmt, spans map[ast.Stmt]span) ast.
 		case len(s.List) == 1:
 			s.List[0] = c.compileStatement(s.List[0], spans)
 		case len(s.List) > 1:
-			s = &ast.BlockStmt{List: []ast.Stmt{c.compileDispatch(s.List, spans)}}
+			stmt = &ast.BlockStmt{List: []ast.Stmt{c.compileDispatch(s.List, spans)}}
 		}
-		return s
 	case *ast.IfStmt:
 		s.Body = c.compileStatement(s.Body, spans).(*ast.BlockStmt)
-		return s
 	case *ast.ForStmt:
 		forSpan := spans[s]
 		s.Body = c.compileStatement(s.Body, spans).(*ast.BlockStmt)
@@ -492,12 +490,10 @@ func (c *compiler) compileStatement(stmt ast.Stmt, spans map[ast.Stmt]span) ast.
 			Tok: token.ASSIGN,
 			Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(forSpan.start)}},
 		})
-		return s
 	case *ast.SwitchStmt:
 		for i, child := range s.Body.List {
 			s.Body.List[i] = c.compileStatement(child, spans)
 		}
-		return s
 	case *ast.CaseClause:
 		switch {
 		case len(s.Body) == 1:
@@ -505,9 +501,6 @@ func (c *compiler) compileStatement(stmt ast.Stmt, spans map[ast.Stmt]span) ast.
 		case len(s.Body) > 1:
 			s.Body = []ast.Stmt{c.compileDispatch(s.Body, spans)}
 		}
-		return s
-	default:
-		return s
 	}
 	return stmt
 }
