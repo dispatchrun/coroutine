@@ -27,6 +27,7 @@ func desugar0(stmts []ast.Stmt) (desugared []ast.Stmt) {
 	for _, stmt := range stmts {
 		switch s := stmt.(type) {
 		case *ast.IfStmt:
+			// Recursively rewrite `else if init; cond {}` to `else { init; if cond {} }`
 			curr := s
 			for {
 				elseIf, ok := curr.Else.(*ast.IfStmt)
@@ -39,6 +40,7 @@ func desugar0(stmts []ast.Stmt) (desugared []ast.Stmt) {
 				}
 				curr = elseIf
 			}
+			// Rewrite `if init; cond {}` to `init; if cond {}`
 			if s.Init != nil {
 				desugared = append(desugared, s.Init)
 				s.Init = nil
@@ -46,6 +48,7 @@ func desugar0(stmts []ast.Stmt) (desugared []ast.Stmt) {
 				continue
 			}
 		case *ast.ForStmt:
+			// Rewrite `for init; cond; post {}` to `init; for ; cond; post {}`
 			if s.Init != nil {
 				desugared = append(desugared, s.Init)
 				s.Init = nil
@@ -53,6 +56,7 @@ func desugar0(stmts []ast.Stmt) (desugared []ast.Stmt) {
 				continue
 			}
 		case *ast.SwitchStmt:
+			// Rewrite `switch init; cond {}` to `init; switch cond {}`
 			if s.Init != nil {
 				desugared = append(desugared, s.Init)
 				s.Init = nil
