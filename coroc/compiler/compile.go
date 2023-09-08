@@ -318,6 +318,9 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 		},
 	})
 
+	// Desugar statements in the tree.
+	desugar(fn.Body)
+
 	// Scan/replace variables defined in the function.
 	objectVars := map[*ast.Object]*ast.Ident{}
 	var varNames []*ast.Ident
@@ -375,7 +378,9 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 	if fn.Type.Params != nil {
 		for _, param := range fn.Type.Params.List {
 			for _, name := range param.Names {
-				saveAndRestore = append(saveAndRestore, name)
+				if name.Name != "_" {
+					saveAndRestore = append(saveAndRestore, name)
+				}
 			}
 		}
 	}
@@ -384,7 +389,9 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 		// during execution, so they need to be saved/restored.
 		for _, result := range fn.Type.Results.List {
 			for _, name := range result.Names {
-				saveAndRestore = append(saveAndRestore, name)
+				if name.Name != "_" {
+					saveAndRestore = append(saveAndRestore, name)
+				}
 			}
 		}
 	}
@@ -462,11 +469,11 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 		},
 	})
 
-	desugar(fn.Body)
-
 	spans := trackSpans(fn.Body)
 
-	gen.Body.List = append(gen.Body.List, c.compileStatement(fn.Body, spans).(*ast.BlockStmt).List...)
+	compiledBody := c.compileStatement(fn.Body, spans).(*ast.BlockStmt)
+
+	gen.Body.List = append(gen.Body.List, compiledBody.List...)
 
 	return gen
 }
@@ -476,7 +483,8 @@ func (c *compiler) compileStatement(stmt ast.Stmt, spans map[ast.Stmt]span) ast.
 	case *ast.BlockStmt:
 		switch {
 		case len(s.List) == 1:
-			s.List[0] = c.compileStatement(s.List[0], spans)
+			child := c.compileStatement(s.List[0], spans)
+			s.List[0] = unnestBlocks(child)
 		case len(s.List) > 1:
 			stmt = &ast.BlockStmt{List: []ast.Stmt{c.compileDispatch(s.List, spans)}}
 		}
@@ -497,7 +505,8 @@ func (c *compiler) compileStatement(stmt ast.Stmt, spans map[ast.Stmt]span) ast.
 	case *ast.CaseClause:
 		switch {
 		case len(s.Body) == 1:
-			s.Body[0] = c.compileStatement(s.Body[0], spans)
+			child := c.compileStatement(s.Body[0], spans)
+			s.Body[0] = unnestBlocks(child)
 		case len(s.Body) > 1:
 			s.Body = []ast.Stmt{c.compileDispatch(s.Body, spans)}
 		}
@@ -509,7 +518,9 @@ func (c *compiler) compileDispatch(stmts []ast.Stmt, spans map[ast.Stmt]span) as
 	var cases []ast.Stmt
 	for i, child := range stmts {
 		childSpan := spans[child]
-		caseBody := []ast.Stmt{c.compileStatement(child, spans)}
+		compiledChild := c.compileStatement(child, spans)
+		compiledChild = unnestBlocks(compiledChild)
+		caseBody := []ast.Stmt{compiledChild}
 		if i < len(stmts)-1 {
 			caseBody = append(caseBody,
 				&ast.AssignStmt{

@@ -40,28 +40,22 @@ func desugar0(stmts []ast.Stmt) (desugared []ast.Stmt) {
 				}
 				curr = elseIf
 			}
-			// Rewrite `if init; cond {}` to `init; if cond {}`
-			if s.Init != nil {
-				desugared = append(desugared, s.Init)
+			// Rewrite `if init; cond {}` to `{ init; if cond {} }`
+			if init := s.Init; init != nil {
 				s.Init = nil
-				desugared = append(desugared, s)
-				continue
+				stmt = &ast.BlockStmt{List: []ast.Stmt{init, s}}
 			}
 		case *ast.ForStmt:
-			// Rewrite `for init; cond; post {}` to `init; for ; cond; post {}`
-			if s.Init != nil {
-				desugared = append(desugared, s.Init)
+			// Rewrite `for init; cond; post {}` to `{ init; for ; cond; post {} }`
+			if init := s.Init; init != nil {
 				s.Init = nil
-				desugared = append(desugared, s)
-				continue
+				stmt = &ast.BlockStmt{List: []ast.Stmt{init, s}}
 			}
 		case *ast.SwitchStmt:
 			// Rewrite `switch init; cond {}` to `init; switch cond {}`
-			if s.Init != nil {
-				desugared = append(desugared, s.Init)
+			if init := s.Init; init != nil {
 				s.Init = nil
-				desugared = append(desugared, s)
-				continue
+				stmt = &ast.BlockStmt{List: []ast.Stmt{init, s}}
 			}
 		}
 		desugared = append(desugared, stmt)
@@ -148,4 +142,15 @@ func trackSpans0(stmt ast.Stmt, spans map[ast.Stmt]span, nextID int) int {
 	}
 	spans[stmt] = span{startID, nextID}
 	return nextID
+}
+
+// unnestBlocks recursively unnests blocks with just one statement.
+func unnestBlocks(stmt ast.Stmt) ast.Stmt {
+	for {
+		s, ok := stmt.(*ast.BlockStmt)
+		if !ok || len(s.List) != 1 {
+			return stmt
+		}
+		stmt = s.List[0]
+	}
 }

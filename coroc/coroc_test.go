@@ -54,7 +54,6 @@ func TestCoroutineYield(t *testing.T) {
 		{
 			name:   "shadowing",
 			coro:   Shadowing,
-			arg:    0,
 			yields: []int{0, 1, 0, 1, 2, 0, 1, 0},
 		},
 	} {

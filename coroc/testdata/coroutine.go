@@ -65,7 +65,7 @@ func FizzBuzzSwitchGenerator(n int) {
 	}
 }
 
-func Shadowing(n int) {
+func Shadowing(_ int) {
 	i := 0
 	coroutine.Yield[int, any](i) // 0
 	if i := 1; true {

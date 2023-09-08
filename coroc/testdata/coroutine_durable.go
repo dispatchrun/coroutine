@@ -222,7 +222,7 @@ func FizzBuzzSwitchGenerator(n int) {
 	}
 }
 
-func Shadowing(n int) {
+func Shadowing(_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
 	var (
@@ -232,19 +232,17 @@ func Shadowing(n int) {
 		_v3 int
 	)
 	if _f.IP > 0 {
-		n = int(_f.Get(0).(coroutine.Int))
-		_v0 = int(_f.Get(1).(coroutine.Int))
-		_v1 = int(_f.Get(2).(coroutine.Int))
-		_v2 = int(_f.Get(3).(coroutine.Int))
-		_v3 = int(_f.Get(4).(coroutine.Int))
+		_v0 = int(_f.Get(0).(coroutine.Int))
+		_v1 = int(_f.Get(1).(coroutine.Int))
+		_v2 = int(_f.Get(2).(coroutine.Int))
+		_v3 = int(_f.Get(3).(coroutine.Int))
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, coroutine.Int(n))
-			_f.Set(1, coroutine.Int(_v0))
-			_f.Set(2, coroutine.Int(_v1))
-			_f.Set(3, coroutine.Int(_v2))
-			_f.Set(4, coroutine.Int(_v3))
+			_f.Set(0, coroutine.Int(_v0))
+			_f.Set(1, coroutine.Int(_v1))
+			_f.Set(2, coroutine.Int(_v2))
+			_f.Set(3, coroutine.Int(_v3))
 		}
 	}()
 	switch {
@@ -256,13 +254,16 @@ func Shadowing(n int) {
 		coroutine.Yield[int, any](_v0)
 		_f.IP = 3
 		fallthrough
-	case _f.IP < 4:
-		_v1 = 1
-		_f.IP = 4
-		fallthrough
 	case _f.IP < 5:
-		if true {
-			coroutine.Yield[int, any](_v1)
+		switch {
+		case _f.IP < 4:
+			_v1 = 1
+			_f.IP = 4
+			fallthrough
+		case _f.IP < 5:
+			if true {
+				coroutine.Yield[int, any](_v1)
+			}
 		}
 		_f.IP = 5
 		fallthrough
@@ -270,14 +271,17 @@ func Shadowing(n int) {
 		coroutine.Yield[int, any](_v0)
 		_f.IP = 6
 		fallthrough
-	case _f.IP < 7:
-		_v2 = 1
-		_f.IP = 7
-		fallthrough
 	case _f.IP < 8:
-		for ; _v2 < 3; _v2++ {
-			coroutine.Yield[int, any](_v2)
+		switch {
+		case _f.IP < 7:
+			_v2 = 1
 			_f.IP = 7
+			fallthrough
+		case _f.IP < 8:
+			for ; _v2 < 3; _v2++ {
+				coroutine.Yield[int, any](_v2)
+				_f.IP = 7
+			}
 		}
 		_f.IP = 8
 		fallthrough
@@ -285,14 +289,17 @@ func Shadowing(n int) {
 		coroutine.Yield[int, any](_v0)
 		_f.IP = 9
 		fallthrough
-	case _f.IP < 10:
-		_v3 = 1
-		_f.IP = 10
-		fallthrough
 	case _f.IP < 11:
-		switch _v3 {
-		case 1:
-			coroutine.Yield[int, any](_v3)
+		switch {
+		case _f.IP < 10:
+			_v3 = 1
+			_f.IP = 10
+			fallthrough
+		case _f.IP < 11:
+			switch _v3 {
+			case 1:
+				coroutine.Yield[int, any](_v3)
+			}
 		}
 		_f.IP = 11
 		fallthrough
