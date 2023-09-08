@@ -26,6 +26,16 @@ func EvenSquareGenerator(n int) {
 	}
 }
 
+func NestedLoops(n int) {
+	for i := 1; i <= n; i++ {
+		for j := 1; j <= n; j++ {
+			for k := 1; k <= n; k++ {
+				coroutine.Yield[int, any](i * j * k)
+			}
+		}
+	}
+}
+
 func FizzBuzzGenerator(n int) {
 	for i := 1; i <= n; i++ {
 		if i%3 == 0 && i%5 == 0 {

@@ -34,6 +34,12 @@ func TestCoroutineYield(t *testing.T) {
 			yields: []int{4, 16, 36},
 		},
 		{
+			name:   "nested loops",
+			coro:   NestedLoops,
+			arg:    3,
+			yields: []int{1, 2, 3, 2, 4, 6, 3, 6, 9, 2, 4, 6, 4, 8, 12, 6, 12, 18, 3, 6, 9, 6, 12, 18, 9, 18, 27},
+		},
+		{
 			name:   "fizz buzz",
 			coro:   FizzBuzzGenerator,
 			arg:    20,

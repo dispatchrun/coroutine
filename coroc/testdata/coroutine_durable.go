@@ -88,6 +88,61 @@ func EvenSquareGenerator(n int) {
 	}
 }
 
+func NestedLoops(n int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f := _c.Push()
+	var (
+		_v0 int
+		_v1 int
+		_v2 int
+	)
+	if _f.IP > 0 {
+		n = int(_f.Get(0).(coroutine.Int))
+		_v0 = int(_f.Get(1).(coroutine.Int))
+		_v1 = int(_f.Get(2).(coroutine.Int))
+		_v2 = int(_f.Get(3).(coroutine.Int))
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, coroutine.Int(n))
+			_f.Set(1, coroutine.Int(_v0))
+			_f.Set(2, coroutine.Int(_v1))
+			_f.Set(3, coroutine.Int(_v2))
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		_v0 = 1
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 5:
+		for ; _v0 <= n; _v0++ {
+			switch {
+			case _f.IP < 3:
+				_v1 = 1
+				_f.IP = 3
+				fallthrough
+			case _f.IP < 5:
+				for ; _v1 <= n; _v1++ {
+					switch {
+					case _f.IP < 4:
+						_v2 = 1
+						_f.IP = 4
+						fallthrough
+					case _f.IP < 5:
+						for ; _v2 <= n; _v2++ {
+							coroutine.Yield[int, any](_v0 * _v1 * _v2)
+							_f.IP = 4
+						}
+					}
+					_f.IP = 3
+				}
+			}
+			_f.IP = 2
+		}
+	}
+}
+
 func FizzBuzzGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
