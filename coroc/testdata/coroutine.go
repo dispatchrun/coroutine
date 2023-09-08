@@ -25,3 +25,17 @@ func EvenSquareGenerator(n int) {
 		}
 	}
 }
+
+func FizzBuzzGenerator(n int) {
+	for i := 1; i <= n; i++ {
+		if i%3 == 0 && i%5 == 0 {
+			coroutine.Yield[int, any](FizzBuzz)
+		} else if i%3 == 0 {
+			coroutine.Yield[int, any](Fizz)
+		} else if mod5 := i % 5; mod5 == 0 {
+			coroutine.Yield[int, any](Buzz)
+		} else {
+			coroutine.Yield[int, any](i)
+		}
+	}
+}

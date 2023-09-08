@@ -160,16 +160,10 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 		var err error
 		ast.Inspect(fn, func(node ast.Node) bool {
 			switch n := node.(type) {
-			case *ast.IfStmt:
-				if n.Else != nil {
-					err = fmt.Errorf("not implemented: if else")
-				}
 			case *ast.DeferStmt:
 				err = fmt.Errorf("not implemented: defer")
 			case *ast.GoStmt:
 				err = fmt.Errorf("not implemented: go")
-			case *ast.SendStmt:
-				err = fmt.Errorf("not implemented: chan send")
 			case *ast.LabeledStmt:
 				err = fmt.Errorf("not implemented: labels")
 			case *ast.SwitchStmt:
@@ -470,7 +464,7 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 		},
 	})
 
-	fn.Body.List = desugar(fn.Body.List)
+	desugar(fn.Body)
 
 	spans := trackSpans(fn.Body)
 

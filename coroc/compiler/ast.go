@@ -7,18 +7,36 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// desugar recursively desugars a set of statements. The goal is to
-// hoist initialization statements out of branches and loops, so that
-// when resuming a coroutine within that branch or loop the
-// initialization can be skipped. Other types of desugaring may be
-// required in the future.
-func desugar(stmts []ast.Stmt) (desugared []ast.Stmt) {
+// desugar recursively desugars an AST. The goal is to hoist initialization
+// statements out of branches and loops, so that when resuming a coroutine
+// within that branch or loop the initialization can be skipped. Other types
+// of desugaring may be required in the future.
+func desugar(tree ast.Node) {
+	ast.Inspect(tree, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.BlockStmt:
+			n.List = desugar0(n.List)
+		}
+		return true
+	})
+}
+
+func desugar0(stmts []ast.Stmt) (desugared []ast.Stmt) {
 	for _, stmt := range stmts {
 		switch s := stmt.(type) {
-		case *ast.BlockStmt:
-			s.List = desugar(s.List)
 		case *ast.IfStmt:
-			s.Body.List = desugar(s.Body.List)
+			curr := s
+			for {
+				elseIf, ok := curr.Else.(*ast.IfStmt)
+				if !ok {
+					break
+				}
+				if init := elseIf.Init; init != nil {
+					elseIf.Init = nil
+					curr.Else = &ast.BlockStmt{List: []ast.Stmt{init, elseIf}}
+				}
+				curr = elseIf
+			}
 			if s.Init != nil {
 				desugared = append(desugared, s.Init)
 				s.Init = nil
@@ -26,7 +44,6 @@ func desugar(stmts []ast.Stmt) (desugared []ast.Stmt) {
 				continue
 			}
 		case *ast.ForStmt:
-			s.Body.List = desugar(s.Body.List)
 			if s.Init != nil {
 				desugared = append(desugared, s.Init)
 				s.Init = nil
@@ -102,6 +119,9 @@ func trackSpans0(stmt ast.Stmt, spans map[ast.Stmt]span, nextID int) int {
 		}
 	case *ast.IfStmt:
 		nextID = trackSpans0(s.Body, spans, nextID)
+		if s.Else != nil {
+			nextID = trackSpans0(s.Else, spans, nextID)
+		}
 	case *ast.ForStmt:
 		nextID = trackSpans0(s.Body, spans, nextID)
 	default:
