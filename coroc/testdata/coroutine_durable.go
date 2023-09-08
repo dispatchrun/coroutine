@@ -15,6 +15,8 @@ func Identity(n int) {
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, coroutine.Int(n))
+		} else {
+			_c.Pop()
 		}
 	}()
 	coroutine.Yield[int, any](n)
@@ -32,6 +34,8 @@ func SquareGenerator(n int) {
 		if _c.Unwinding() {
 			_f.Set(0, coroutine.Int(n))
 			_f.Set(1, coroutine.Int(_v0))
+		} else {
+			_c.Pop()
 		}
 	}()
 	switch {
@@ -64,6 +68,8 @@ func EvenSquareGenerator(n int) {
 			_f.Set(0, coroutine.Int(n))
 			_f.Set(1, coroutine.Int(_v0))
 			_f.Set(2, coroutine.Int(_v1))
+		} else {
+			_c.Pop()
 		}
 	}()
 	switch {
@@ -108,6 +114,8 @@ func NestedLoops(n int) {
 			_f.Set(1, coroutine.Int(_v0))
 			_f.Set(2, coroutine.Int(_v1))
 			_f.Set(3, coroutine.Int(_v2))
+		} else {
+			_c.Pop()
 		}
 	}()
 	switch {
@@ -160,6 +168,8 @@ func FizzBuzzIfGenerator(n int) {
 			_f.Set(0, coroutine.Int(n))
 			_f.Set(1, coroutine.Int(_v0))
 			_f.Set(2, coroutine.Int(_v1))
+		} else {
+			_c.Pop()
 		}
 	}()
 	switch {
@@ -198,6 +208,8 @@ func FizzBuzzSwitchGenerator(n int) {
 		if _c.Unwinding() {
 			_f.Set(0, coroutine.Int(n))
 			_f.Set(1, coroutine.Int(_v0))
+		} else {
+			_c.Pop()
 		}
 	}()
 	switch {
@@ -243,6 +255,8 @@ func Shadowing(_ int) {
 			_f.Set(1, coroutine.Int(_v1))
 			_f.Set(2, coroutine.Int(_v2))
 			_f.Set(3, coroutine.Int(_v3))
+		} else {
+			_c.Pop()
 		}
 	}()
 	switch {
@@ -318,6 +332,8 @@ func RangeSliceIndexGenerator(_ int) {
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, coroutine.Int(_v0))
+		} else {
+			_c.Pop()
 		}
 	}()
 	switch {
@@ -350,6 +366,8 @@ func RangeArrayIndexValueGenerator(_ int) {
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, coroutine.Int(_v0))
+		} else {
+			_c.Pop()
 		}
 	}()
 	switch {

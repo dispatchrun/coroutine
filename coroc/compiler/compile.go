@@ -466,6 +466,9 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 								Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Unwinding")},
 							},
 							Body: &ast.BlockStmt{List: saveStmts},
+							Else: &ast.BlockStmt{List: []ast.Stmt{
+								&ast.ExprStmt{X: &ast.CallExpr{Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Pop")}}}},
+							},
 						},
 					},
 				},
