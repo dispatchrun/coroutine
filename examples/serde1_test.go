@@ -1,6 +1,7 @@
 package examples
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"testing"
@@ -31,45 +32,21 @@ func TestStruct1Empty(t *testing.T) {
 
 	s := Struct1{}
 
-	var b []byte
-	b = Serialize_Struct1(nil, s, b)
-	s2, b := Deserialize_Struct1(nil, b)
-
-	opts := []cmp.Option{
-		cmp.AllowUnexported(Foo{}),
-	}
-
-	if diff := cmp.Diff(s, s2, opts...); diff != "" {
-		t.Fatalf("mismatch (-want +got):\n%s", diff)
-	}
-
-	if len(b) > 0 {
-		t.Fatalf("leftover bytes: %d", len(b))
-	}
+	roundtripStruct1(t, s)
 }
 
 func TestStruct1Iface(t *testing.T) {
 	enableDebugLogs()
 
-	s := Struct1{
-		Iface: int(42),
+	for i, s := range []Struct1{
+		{Iface: int(42)},
+	} {
+		s := s
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			roundtripStruct1(t, s)
+		})
 	}
 
-	var b []byte
-	b = Serialize_Struct1(nil, s, b)
-	s2, b := Deserialize_Struct1(nil, b)
-
-	opts := []cmp.Option{
-		cmp.AllowUnexported(Foo{}),
-	}
-
-	if diff := cmp.Diff(s, s2, opts...); diff != "" {
-		t.Fatalf("mismatch (-want +got):\n%s", diff)
-	}
-
-	if len(b) > 0 {
-		t.Fatalf("leftover bytes: %d", len(b))
-	}
 }
 
 func TestStruct1(t *testing.T) {
@@ -127,6 +104,11 @@ func TestStruct1(t *testing.T) {
 		MapStrStr: map[string]string{"one": "un", "two": "deux", "three": "trois"},
 	}
 
+	roundtripStruct1(t, s)
+}
+
+func roundtripStruct1(t *testing.T, s Struct1) {
+	t.Helper()
 	var b []byte
 	b = Serialize_Struct1(nil, s, b)
 	s2, b := Deserialize_Struct1(nil, b)
