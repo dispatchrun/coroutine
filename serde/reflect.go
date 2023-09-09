@@ -23,7 +23,7 @@ func ifacePointer(v interface{}) unsafe.Pointer {
 func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	switch t.Kind() {
 	case reflect.Int:
-		return SerializeInt(*(*int)(p), b)
+		return SerializeInt(s, *(*int)(p), b)
 	default:
 		panic(fmt.Errorf("reflection cannot serialize type %s", t))
 	}
@@ -32,7 +32,7 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer, b []byte) []b
 func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	switch t.Kind() {
 	case reflect.Int:
-		x, b := DeserializeInt(b)
+		x, b := DeserializeInt(d, b)
 		*(*int)(p) = x
 		return b
 	default:

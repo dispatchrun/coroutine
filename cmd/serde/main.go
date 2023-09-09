@@ -120,9 +120,8 @@ func generate(typeName string, patterns []string, output string) error {
 }
 
 type location struct {
-	pkg      string
-	name     string
-	terminal bool // if true, doesn't need the serializer/deserializer argument
+	pkg  string
+	name string
 }
 
 type locations struct {
@@ -412,14 +411,12 @@ func (g *generator) Interface(t *types.Interface, name string) locations {
 	g.imports.Ensure("serde", "github.com/stealthrocket/coroutine/serde")
 	l := locations{
 		serializer: location{
-			pkg:      "serde",
-			name:     nameof(serde.SerializeInterface),
-			terminal: false,
+			pkg:  "serde",
+			name: nameof(serde.SerializeInterface),
 		},
 		deserializer: location{
-			pkg:      "serde",
-			name:     nameof(serde.DeserializeInterface),
-			terminal: false,
+			pkg:  "serde",
+			name: nameof(serde.DeserializeInterface),
 		},
 	}
 	g.setLocation(t, l)
@@ -552,7 +549,7 @@ func (g *generator) SerializableToPtr(t types.Type, name string) locations {
 	// This is a special call because it takes a pointer as target instead
 	// of returning the value.
 	// TODO: make all signatures like that.
-	g.W(`b = serde.DeserializeSerializable(x, b)`)
+	g.W(`b = serde.DeserializeSerializable(d, x, b)`)
 	g.W(`return z, b`)
 	g.W(`}`)
 	g.W(``)
@@ -659,9 +656,6 @@ func (g *generator) serializeCallForLoc(loc locations) {
 	l := loc.serializer
 
 	args := "s, x, b"
-	if l.terminal {
-		args = "x, b"
-	}
 
 	if l.pkg != "" {
 		g.W(`b = %s.%s(%s)`, l.pkg, l.name, args)
@@ -674,9 +668,6 @@ func (g *generator) deserializeCallForLoc(loc locations) {
 	l := loc.deserializer
 
 	args := "d, b"
-	if l.terminal {
-		args = "b"
-	}
 
 	if l.pkg != "" {
 		g.W(`x, b = %s.%s(%s)`, l.pkg, l.name, args)
@@ -702,12 +693,10 @@ func (g *generator) newGenLocation(t types.Type, name string) locations {
 	}
 	loc := locations{
 		serializer: location{
-			name:     "Serialize_" + name,
-			terminal: false,
+			name: "Serialize_" + name,
 		},
 		deserializer: location{
-			name:     "Deserialize_" + name,
-			terminal: false,
+			name: "Deserialize_" + name,
 		},
 	}
 	g.setLocation(t, loc)
@@ -734,14 +723,12 @@ func (g *generator) builtin(t types.Type, ser, des interface{}) locations {
 	g.imports.Ensure("serde", "github.com/stealthrocket/coroutine/serde")
 	l := locations{
 		serializer: location{
-			pkg:      "serde",
-			name:     nameof(ser),
-			terminal: true,
+			pkg:  "serde",
+			name: nameof(ser),
 		},
 		deserializer: location{
-			pkg:      "serde",
-			name:     nameof(des),
-			terminal: true,
+			pkg:  "serde",
+			name: nameof(des),
 		},
 	}
 	g.setLocation(t, l)
