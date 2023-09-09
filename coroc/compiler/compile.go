@@ -355,12 +355,14 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 	}
 
 	// Collect params/results/variables that need to be saved/restored.
-	var saveAndRestore []*ast.Ident
+	var saveAndRestoreNames []*ast.Ident
+	var saveAndRestoreTypes []types.Type
 	if fn.Type.Params != nil {
 		for _, param := range fn.Type.Params.List {
 			for _, name := range param.Names {
 				if name.Name != "_" {
-					saveAndRestore = append(saveAndRestore, name)
+					saveAndRestoreNames = append(saveAndRestoreNames, name)
+					saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
 				}
 			}
 		}
@@ -371,19 +373,21 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 		for _, result := range fn.Type.Results.List {
 			for _, name := range result.Names {
 				if name.Name != "_" {
-					saveAndRestore = append(saveAndRestore, name)
+					saveAndRestoreNames = append(saveAndRestoreNames, name)
+					saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
 				}
 			}
 		}
 	}
-	saveAndRestore = append(saveAndRestore, varNames...)
+	saveAndRestoreNames = append(saveAndRestoreNames, varNames...)
+	saveAndRestoreTypes = append(saveAndRestoreTypes, varTypes...)
 
 	// Restore state when rewinding the stack.
 	//
 	// As an optimization, only those variables still in scope for a
 	// particular f.IP need to be restored.
 	var restoreStmts []ast.Stmt
-	for i, name := range saveAndRestore {
+	for i, name := range saveAndRestoreNames {
 		restoreStmts = append(restoreStmts, &ast.AssignStmt{
 			Lhs: []ast.Expr{name},
 			Tok: token.ASSIGN,
@@ -401,7 +405,7 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 									&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
 								},
 							},
-							Type: &ast.SelectorExpr{X: ast.NewIdent("coroutine"), Sel: ast.NewIdent("Int")},
+							Type: typeExpr(saveAndRestoreTypes[i]),
 						},
 					},
 				},
@@ -418,16 +422,13 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 
 	// Save state when unwinding the stack.
 	var saveStmts []ast.Stmt
-	for i, name := range saveAndRestore {
+	for i, name := range saveAndRestoreNames {
 		saveStmts = append(saveStmts, &ast.ExprStmt{
 			X: &ast.CallExpr{
 				Fun: &ast.SelectorExpr{X: frame, Sel: ast.NewIdent("Set")},
 				Args: []ast.Expr{
 					&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
-					&ast.CallExpr{
-						Fun:  &ast.SelectorExpr{X: ast.NewIdent("coroutine"), Sel: ast.NewIdent("Int")},
-						Args: []ast.Expr{name},
-					},
+					name,
 				},
 			},
 		})

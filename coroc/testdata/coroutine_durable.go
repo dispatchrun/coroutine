@@ -10,11 +10,11 @@ func Identity(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
 	if _f.IP > 0 {
-		n = int(_f.Get(0).(coroutine.Int))
+		n = int(_f.Get(0).(int))
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, coroutine.Int(n))
+			_f.Set(0, n)
 		} else {
 			_c.Pop()
 		}
@@ -27,13 +27,13 @@ func SquareGenerator(n int) {
 	_f := _c.Push()
 	var _v0 int
 	if _f.IP > 0 {
-		n = int(_f.Get(0).(coroutine.Int))
-		_v0 = int(_f.Get(1).(coroutine.Int))
+		n = int(_f.Get(0).(int))
+		_v0 = int(_f.Get(1).(int))
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, coroutine.Int(n))
-			_f.Set(1, coroutine.Int(_v0))
+			_f.Set(0, n)
+			_f.Set(1, _v0)
 		} else {
 			_c.Pop()
 		}
@@ -59,15 +59,15 @@ func EvenSquareGenerator(n int) {
 		_v1 int
 	)
 	if _f.IP > 0 {
-		n = int(_f.Get(0).(coroutine.Int))
-		_v0 = int(_f.Get(1).(coroutine.Int))
-		_v1 = int(_f.Get(2).(coroutine.Int))
+		n = int(_f.Get(0).(int))
+		_v0 = int(_f.Get(1).(int))
+		_v1 = int(_f.Get(2).(int))
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, coroutine.Int(n))
-			_f.Set(1, coroutine.Int(_v0))
-			_f.Set(2, coroutine.Int(_v1))
+			_f.Set(0, n)
+			_f.Set(1, _v0)
+			_f.Set(2, _v1)
 		} else {
 			_c.Pop()
 		}
@@ -103,17 +103,17 @@ func NestedLoops(n int) {
 		_v2 int
 	)
 	if _f.IP > 0 {
-		n = int(_f.Get(0).(coroutine.Int))
-		_v0 = int(_f.Get(1).(coroutine.Int))
-		_v1 = int(_f.Get(2).(coroutine.Int))
-		_v2 = int(_f.Get(3).(coroutine.Int))
+		n = int(_f.Get(0).(int))
+		_v0 = int(_f.Get(1).(int))
+		_v1 = int(_f.Get(2).(int))
+		_v2 = int(_f.Get(3).(int))
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, coroutine.Int(n))
-			_f.Set(1, coroutine.Int(_v0))
-			_f.Set(2, coroutine.Int(_v1))
-			_f.Set(3, coroutine.Int(_v2))
+			_f.Set(0, n)
+			_f.Set(1, _v0)
+			_f.Set(2, _v1)
+			_f.Set(3, _v2)
 		} else {
 			_c.Pop()
 		}
@@ -159,15 +159,15 @@ func FizzBuzzIfGenerator(n int) {
 		_v1 int
 	)
 	if _f.IP > 0 {
-		n = int(_f.Get(0).(coroutine.Int))
-		_v0 = int(_f.Get(1).(coroutine.Int))
-		_v1 = int(_f.Get(2).(coroutine.Int))
+		n = int(_f.Get(0).(int))
+		_v0 = int(_f.Get(1).(int))
+		_v1 = int(_f.Get(2).(int))
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, coroutine.Int(n))
-			_f.Set(1, coroutine.Int(_v0))
-			_f.Set(2, coroutine.Int(_v1))
+			_f.Set(0, n)
+			_f.Set(1, _v0)
+			_f.Set(2, _v1)
 		} else {
 			_c.Pop()
 		}
@@ -201,13 +201,13 @@ func FizzBuzzSwitchGenerator(n int) {
 	_f := _c.Push()
 	var _v0 int
 	if _f.IP > 0 {
-		n = int(_f.Get(0).(coroutine.Int))
-		_v0 = int(_f.Get(1).(coroutine.Int))
+		n = int(_f.Get(0).(int))
+		_v0 = int(_f.Get(1).(int))
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, coroutine.Int(n))
-			_f.Set(1, coroutine.Int(_v0))
+			_f.Set(0, n)
+			_f.Set(1, _v0)
 		} else {
 			_c.Pop()
 		}
@@ -244,17 +244,17 @@ func Shadowing(_ int) {
 		_v3 int
 	)
 	if _f.IP > 0 {
-		_v0 = int(_f.Get(0).(coroutine.Int))
-		_v1 = int(_f.Get(1).(coroutine.Int))
-		_v2 = int(_f.Get(2).(coroutine.Int))
-		_v3 = int(_f.Get(3).(coroutine.Int))
+		_v0 = int(_f.Get(0).(int))
+		_v1 = int(_f.Get(1).(int))
+		_v2 = int(_f.Get(2).(int))
+		_v3 = int(_f.Get(3).(int))
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, coroutine.Int(_v0))
-			_f.Set(1, coroutine.Int(_v1))
-			_f.Set(2, coroutine.Int(_v2))
-			_f.Set(3, coroutine.Int(_v3))
+			_f.Set(0, _v0)
+			_f.Set(1, _v1)
+			_f.Set(2, _v2)
+			_f.Set(3, _v3)
 		} else {
 			_c.Pop()
 		}
@@ -330,13 +330,13 @@ func RangeSliceIndexGenerator(_ int) {
 		_v1 int
 	)
 	if _f.IP > 0 {
-		_v0 = int(_f.Get(0).(coroutine.Int))
-		_v1 = int(_f.Get(1).(coroutine.Int))
+		_v0 = int(_f.Get(0).([]int))
+		_v1 = int(_f.Get(1).(int))
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, coroutine.Int(_v0))
-			_f.Set(1, coroutine.Int(_v1))
+			_f.Set(0, _v0)
+			_f.Set(1, _v1)
 		} else {
 			_c.Pop()
 		}
@@ -370,15 +370,15 @@ func RangeArrayIndexValueGenerator(_ int) {
 		_v2 int
 	)
 	if _f.IP > 0 {
-		_v0 = int(_f.Get(0).(coroutine.Int))
-		_v1 = int(_f.Get(1).(coroutine.Int))
-		_v2 = int(_f.Get(2).(coroutine.Int))
+		_v0 = int(_f.Get(0).([3]int))
+		_v1 = int(_f.Get(1).(int))
+		_v2 = int(_f.Get(2).(int))
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, coroutine.Int(_v0))
-			_f.Set(1, coroutine.Int(_v1))
-			_f.Set(2, coroutine.Int(_v2))
+			_f.Set(0, _v0)
+			_f.Set(1, _v1)
+			_f.Set(2, _v2)
 		} else {
 			_c.Pop()
 		}
