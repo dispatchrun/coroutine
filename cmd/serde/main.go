@@ -228,8 +228,8 @@ func (g *generator) W(f string, args ...any) {
 
 // Generate the code for a given typedef
 func (g *generator) Typedef(t typedef) {
-	typeName := g.TypeNameFor(t.obj.Type())
-	g.Type(t.obj.Type(), typeName)
+	//typeName := g.TypeNameFor(t.obj.Type())
+	g.Type(t.obj.Type())
 }
 
 func cutLast(s, sep string) (before, after string, found bool) {
@@ -418,41 +418,41 @@ func (g *generator) WriteTo(w io.Writer) (int64, error) {
 	return int64(n) + int64(n2), err
 }
 
-func (g *generator) Type(t types.Type, name string) locations {
+func (g *generator) Type(t types.Type) locations {
 	// Hit the cache first.
 	if loc, ok := g.get(t); ok {
 		return loc
 	}
 
 	if types.AssignableTo(t, g.serializable) {
-		return g.Serializable(t, name)
+		return g.Serializable(t)
 	}
 
 	if types.AssignableTo(types.NewPointer(t), g.serializable) {
-		return g.SerializableToPtr(t, name)
+		return g.SerializableToPtr(t)
 	}
 
 	switch x := t.(type) {
 	case *types.Basic:
-		return g.Basic(x, name)
+		return g.Basic(x)
 	case *types.Struct:
-		return g.Struct(x, name)
+		return g.Struct(x)
 	case *types.Named:
-		return g.Named(x, name)
+		return g.Named(x)
 	case *types.Slice:
-		return g.Slice(x, name)
+		return g.Slice(x)
 	case *types.Pointer:
-		return g.Pointer(x, name)
+		return g.Pointer(x)
 	case *types.Map:
-		return g.Map(x, name)
+		return g.Map(x)
 	case *types.Interface:
-		return g.Interface(x, name)
+		return g.Interface(x)
 	default:
 		panic(fmt.Errorf("type generator not implemented: %s (%T)", t, t))
 	}
 }
 
-func (g *generator) Interface(t *types.Interface, name string) locations {
+func (g *generator) Interface(t *types.Interface) locations {
 	g.imports.Ensure("serde", "github.com/stealthrocket/coroutine/serde")
 	l := locations{
 		serializer: location{
@@ -468,16 +468,17 @@ func (g *generator) Interface(t *types.Interface, name string) locations {
 	return l
 }
 
-func (g *generator) Map(t *types.Map, name string) locations {
+func (g *generator) Map(t *types.Map) locations {
+	name := g.TypeNameFor(t)
 	loc := g.newGenLocation(t, name)
 
 	kt := t.Key()
 	kname := g.TypeNameFor(kt)
-	kloc := g.Type(kt, kname)
+	kloc := g.Type(kt)
 
 	vt := t.Elem()
 	vname := g.TypeNameFor(vt)
-	vloc := g.Type(vt, vname)
+	vloc := g.Type(vt)
 
 	g.W(`func %s(s *serde.Serializer, z %s, b []byte) []byte {`, loc.serializer.name, name)
 	g.W(`s = serde.EnsureSerializer(s)`)
@@ -526,12 +527,13 @@ func (g *generator) Map(t *types.Map, name string) locations {
 	return loc
 }
 
-func (g *generator) Pointer(t *types.Pointer, name string) locations {
+func (g *generator) Pointer(t *types.Pointer) locations {
 	unsafeName := g.imports.Add("unsafe")
+	name := g.TypeNameFor(t)
 	loc := g.newGenLocation(t, name)
 
 	pt := t.Elem()
-	ploc := g.Type(pt, name)
+	ploc := g.Type(pt)
 	ptype := g.TypeNameFor(pt)
 
 	g.W(`func %s(s *serde.Serializer, z %s, b []byte) []byte {`, loc.serializer.name, name)
@@ -567,16 +569,17 @@ func (g *generator) Pointer(t *types.Pointer, name string) locations {
 	return loc
 }
 
-func (g *generator) Serializable(t types.Type, name string) locations {
+func (g *generator) Serializable(t types.Type) locations {
 	return g.builtin(t, "SerializeSerializable", "DeserializeSerializable")
 }
 
-func (g *generator) SerializableToPtr(t types.Type, name string) locations {
+func (g *generator) SerializableToPtr(t types.Type) locations {
 	// t is not Serializable, but *t is.
+	name := g.TypeNameFor(t)
 	loc := g.newGenLocation(t, name)
 
 	// location for the pointer type
-	ploc := g.Type(types.NewPointer(t), name)
+	ploc := g.Type(types.NewPointer(t))
 
 	// generate wrappers to use the pointer type
 	g.W(`func %s(s *serde.Serializer, z %s, b []byte) []byte {`, loc.serializer.name, name)
@@ -602,12 +605,13 @@ func (g *generator) SerializableToPtr(t types.Type, name string) locations {
 	return loc
 }
 
-func (g *generator) Slice(t *types.Slice, name string) locations {
+func (g *generator) Slice(t *types.Slice) locations {
+	name := g.TypeNameFor(t)
 	loc := g.newGenLocation(t, name)
 
 	et := t.Elem()
-	typeName := g.TypeNameFor(et)
-	eloc := g.Type(et, typeName)
+	ename := g.TypeNameFor(et)
+	eloc := g.Type(et)
 
 	g.W(`func %s(s *serde.Serializer, x %s, b []byte) []byte {`, loc.serializer.name, name)
 	g.W(`s = serde.EnsureSerializer(s)`)
@@ -624,7 +628,7 @@ func (g *generator) Slice(t *types.Slice, name string) locations {
 	g.W(`n, b := serde.DeserializeSize(b)`)
 	g.W(`var z %s`, name)
 	g.W(`for i := 0; i < n; i++ {`)
-	g.W(`var x %s`, typeName)
+	g.W(`var x %s`, ename)
 	g.deserializeCallForLoc(eloc)
 	g.W(`z = append(z, x)`)
 	g.W(`}`)
@@ -635,13 +639,33 @@ func (g *generator) Slice(t *types.Slice, name string) locations {
 	return loc
 }
 
-func (g *generator) Named(t *types.Named, name string) locations {
-	// TODO: need to also register an entry
-	typeName := g.TypeNameFor(t.Obj().Type())
-	return g.Type(t.Underlying(), typeName)
+func (g *generator) Named(t *types.Named) locations {
+	name := g.TypeNameFor(t.Obj().Type())
+	loc := g.newGenLocation(t, name)
+
+	u := t.Underlying()
+	utype := g.Type(u)
+	uname := g.TypeNameFor(u)
+
+	g.W(`func %s(s *serde.Serializer, z %s, b []byte) []byte {`, loc.serializer.name, name)
+	g.W(`s = serde.EnsureSerializer(s)`)
+	g.W(`x := (%s)(z)`, uname)
+	g.serializeCallForLoc(utype)
+	g.W(`return b`)
+	g.W(`}`)
+
+	g.W(`func %s(d *serde.Deserializer, b []byte) (%s, []byte) {`, loc.deserializer.name, name)
+	g.W(`d = serde.EnsureDeserializer(d)`)
+	g.W(`var x %s`, uname)
+	g.deserializeCallForLoc(utype)
+	g.W(`return (%s)(x), b`, name)
+	g.W(`}`)
+
+	return loc
 }
 
-func (g *generator) Struct(t *types.Struct, name string) locations {
+func (g *generator) Struct(t *types.Struct) locations {
+	name := g.TypeNameFor(t)
 	loc := g.newGenLocation(t, name)
 
 	// Depth-first search in the fields to generate serialization functions
@@ -650,8 +674,7 @@ func (g *generator) Struct(t *types.Struct, name string) locations {
 	for i := 0; i < n; i++ {
 		f := t.Field(i)
 		ft := f.Type()
-		typeName := g.TypeNameFor(ft)
-		g.Type(ft, typeName)
+		g.Type(ft)
 	}
 
 	// Generate a new function to serialize this struct type.
@@ -661,9 +684,7 @@ func (g *generator) Struct(t *types.Struct, name string) locations {
 	for i := 0; i < n; i++ {
 		f := t.Field(i)
 		ft := f.Type()
-
-		typeName := g.TypeNameFor(ft)
-		floc := g.Type(ft, typeName)
+		floc := g.Type(ft)
 
 		g.W(`{`)
 		g.W(`x := x.%s`, f.Name())
@@ -682,11 +703,11 @@ func (g *generator) Struct(t *types.Struct, name string) locations {
 		f := t.Field(i)
 		ft := f.Type()
 
-		typeName := g.TypeNameFor(ft)
-		floc := g.Type(ft, typeName)
+		ename := g.TypeNameFor(ft)
+		floc := g.Type(ft)
 
 		g.W(`{`)
-		g.W(`var x %s`, typeName)
+		g.W(`var x %s`, ename)
 		g.deserializeCallForLoc(floc)
 		g.W(`z.%s = x`, f.Name())
 		g.W(`}`)
@@ -782,7 +803,7 @@ func (g *generator) builtin(t types.Type, ser, des interface{}) locations {
 	return l
 }
 
-func (g *generator) Basic(t *types.Basic, name string) locations {
+func (g *generator) Basic(t *types.Basic) locations {
 	switch t.Kind() {
 	case types.Invalid:
 		panic("trying to generate serializer for invalid basic type")
