@@ -362,16 +362,9 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 	if len(varTypes) > 0 {
 		varDecl := &ast.GenDecl{Tok: token.VAR}
 		for i, t := range varTypes {
-			var typeExpr ast.Expr
-			if t.String() == "int" {
-				typeExpr = ast.NewIdent("int")
-			} else {
-				// TODO: types.Type => ast.Expr
-				panic("not implemented")
-			}
 			varDecl.Specs = append(varDecl.Specs, &ast.ValueSpec{
 				Names: []*ast.Ident{varNames[i]},
-				Type:  typeExpr,
+				Type:  typeExpr(t),
 			})
 		}
 		gen.Body.List = append(gen.Body.List, &ast.DeclStmt{Decl: varDecl})

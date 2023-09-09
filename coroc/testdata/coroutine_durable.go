@@ -325,31 +325,36 @@ func Shadowing(_ int) {
 func RangeSliceIndexGenerator(_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
-	var _v0 int
+	var (
+		_v0 []int
+		_v1 int
+	)
 	if _f.IP > 0 {
 		_v0 = int(_f.Get(0).(coroutine.Int))
+		_v1 = int(_f.Get(1).(coroutine.Int))
 	}
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, coroutine.Int(_v0))
+			_f.Set(1, coroutine.Int(_v1))
 		} else {
 			_c.Pop()
 		}
 	}()
 	switch {
 	case _f.IP < 2:
-		_d0_x = []int{10, 20, 30}
+		_v0 = []int{10, 20, 30}
 		_f.IP = 2
 		fallthrough
 	case _f.IP < 4:
 		switch {
 		case _f.IP < 3:
-			_v0 = 0
+			_v1 = 0
 			_f.IP = 3
 			fallthrough
 		case _f.IP < 4:
-			for ; _v0 < len(_d0_x); _v0++ {
-				coroutine.Yield[int, any](_v0)
+			for ; _v1 < len(_v0); _v1++ {
+				coroutine.Yield[int, any](i)
 				_f.IP = 3
 			}
 		}
@@ -359,41 +364,49 @@ func RangeSliceIndexGenerator(_ int) {
 func RangeArrayIndexValueGenerator(_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
-	var _v0 int
+	var (
+		_v0 [3]int
+		_v1 int
+		_v2 int
+	)
 	if _f.IP > 0 {
 		_v0 = int(_f.Get(0).(coroutine.Int))
+		_v1 = int(_f.Get(1).(coroutine.Int))
+		_v2 = int(_f.Get(2).(coroutine.Int))
 	}
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, coroutine.Int(_v0))
+			_f.Set(1, coroutine.Int(_v1))
+			_f.Set(2, coroutine.Int(_v2))
 		} else {
 			_c.Pop()
 		}
 	}()
 	switch {
 	case _f.IP < 2:
-		_d0_x = [...]int{10, 20, 30}
+		_v0 = [...]int{10, 20, 30}
 		_f.IP = 2
 		fallthrough
 	case _f.IP < 6:
 		switch {
 		case _f.IP < 3:
-			_v0 = 0
+			_v1 = 0
 			_f.IP = 3
 			fallthrough
 		case _f.IP < 6:
-			for ; _v0 < len(_d0_x); _v0++ {
+			for ; _v1 < len(_v0); _v1++ {
 				switch {
 				case _f.IP < 4:
-					_d0_x = _d0_x[_v0]
+					_v2 = _v0[_v1]
 					_f.IP = 4
 					fallthrough
 				case _f.IP < 5:
-					coroutine.Yield[int, any](_v0)
+					coroutine.Yield[int, any](i)
 					_f.IP = 5
 					fallthrough
 				case _f.IP < 6:
-					coroutine.Yield[int, any](v)
+					coroutine.Yield[int, any](_v2)
 				}
 				_f.IP = 3
 			}

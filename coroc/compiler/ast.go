@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -198,5 +199,21 @@ func unnestBlocks(stmt ast.Stmt) ast.Stmt {
 			return stmt
 		}
 		stmt = s.List[0]
+	}
+}
+
+func typeExpr(typ types.Type) ast.Expr {
+	switch t := typ.(type) {
+	case *types.Basic:
+		return ast.NewIdent(t.String())
+	case *types.Slice:
+		return &ast.ArrayType{Elt: typeExpr(t.Elem())}
+	case *types.Array:
+		return &ast.ArrayType{
+			Len: &ast.BasicLit{Kind: token.INT, Value: strconv.FormatInt(t.Len(), 10)},
+			Elt: typeExpr(t.Elem()),
+		}
+	default:
+		panic(fmt.Sprintf("not implemented: %T", t))
 	}
 }
