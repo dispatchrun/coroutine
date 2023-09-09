@@ -65,7 +65,7 @@ func FizzBuzzSwitchGenerator(n int) {
 	}
 }
 
-func Shadowing(n int) {
+func Shadowing(_ int) {
 	i := 0
 	coroutine.Yield[int, any](i) // 0
 	if i := 1; true {
@@ -81,4 +81,17 @@ func Shadowing(n int) {
 		coroutine.Yield[int, any](i) // 1
 	}
 	coroutine.Yield[int, any](i) // 0
+}
+
+func RangeSliceIndexGenerator(_ int) {
+	for i := range []int{10, 20, 30} {
+		coroutine.Yield[int, any](i)
+	}
+}
+
+func RangeArrayIndexValueGenerator(_ int) {
+	for i, v := range [...]int{10, 20, 30} {
+		coroutine.Yield[int, any](i)
+		coroutine.Yield[int, any](v)
+	}
 }

@@ -24,19 +24,19 @@ type Deserializable interface {
 // information about the type of Serializable object that's being
 // serialized. The bytes can later be passed to Unmarshal to
 // reconstruct the same Serializable object.
-func MarshalAppend(b []byte, s Serializable) ([]byte, error) {
+func MarshalAppend(b []byte, s any) ([]byte, error) {
 	t, ok := serializableByReflectType[reflect.TypeOf(s)]
 	if !ok {
 		return nil, fmt.Errorf("serializable type %T has not been registered", s)
 	}
 	b = binary.AppendVarint(b, int64(t.id))
-	return s.MarshalAppend(b)
+	return s.(Serializable).MarshalAppend(b)
 }
 
 // Unmarshal unmarshals a Serializable object from a buffer. It returns
 // the object, and the number of bytes that were read from the buffer in
 // order to reconstruct the object.
-func Unmarshal(b []byte) (Serializable, int, error) {
+func Unmarshal(b []byte) (any, int, error) {
 	id, n := binary.Varint(b)
 	if n <= 0 || int64(int(id)) != id {
 		return nil, 0, fmt.Errorf("invalid serializable type info")

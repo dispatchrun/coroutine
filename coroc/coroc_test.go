@@ -54,8 +54,17 @@ func TestCoroutineYield(t *testing.T) {
 		{
 			name:   "shadowing",
 			coro:   Shadowing,
-			arg:    0,
 			yields: []int{0, 1, 0, 1, 2, 0, 1, 0},
+		},
+		{
+			name:   "range over slice indices",
+			coro:   RangeSliceIndexGenerator,
+			yields: []int{0, 1, 2},
+		},
+		{
+			name:   "range over array indices and values",
+			coro:   RangeArrayIndexValueGenerator,
+			yields: []int{0, 10, 1, 20, 2, 30},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {

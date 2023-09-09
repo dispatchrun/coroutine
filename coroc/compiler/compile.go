@@ -171,7 +171,11 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 			case *ast.SelectStmt:
 				err = fmt.Errorf("not implemented: select")
 			case *ast.RangeStmt:
-				err = fmt.Errorf("not implemented: for range")
+				switch t := p.TypesInfo.TypeOf(n.X).(type) {
+				case *types.Array, *types.Slice:
+				default:
+					err = fmt.Errorf("not implemented: for range for %T", t)
+				}
 			case *ast.DeclStmt:
 				err = fmt.Errorf("not implemented: inline decls")
 			case *ast.AssignStmt:
@@ -211,22 +215,6 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 		})
 		if err != nil {
 			return err
-		}
-
-		// Require int params/return values for now.
-		if fn.Type.Params != nil {
-			for _, fn := range fn.Type.Params.List {
-				if ident, ok := fn.Type.(*ast.Ident); !ok || ident.Name != "int" {
-					return fmt.Errorf("not implemented: non-int params")
-				}
-			}
-		}
-		if fn.Type.Results != nil {
-			for _, fn := range fn.Type.Results.List {
-				if ident, ok := fn.Type.(*ast.Ident); !ok || ident.Name != "int" {
-					return fmt.Errorf("not implemented: non-int results")
-				}
-			}
 		}
 	}
 
@@ -318,6 +306,9 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 		},
 	})
 
+	// Desugar statements in the tree.
+	desugar(fn.Body, p.TypesInfo)
+
 	// Scan/replace variables defined in the function.
 	objectVars := map[*ast.Object]*ast.Ident{}
 	var varNames []*ast.Ident
@@ -355,27 +346,24 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 	if len(varTypes) > 0 {
 		varDecl := &ast.GenDecl{Tok: token.VAR}
 		for i, t := range varTypes {
-			var typeExpr ast.Expr
-			if t.String() == "int" {
-				typeExpr = ast.NewIdent("int")
-			} else {
-				// TODO: types.Type => ast.Expr
-				panic("not implemented")
-			}
 			varDecl.Specs = append(varDecl.Specs, &ast.ValueSpec{
 				Names: []*ast.Ident{varNames[i]},
-				Type:  typeExpr,
+				Type:  typeExpr(t),
 			})
 		}
 		gen.Body.List = append(gen.Body.List, &ast.DeclStmt{Decl: varDecl})
 	}
 
 	// Collect params/results/variables that need to be saved/restored.
-	var saveAndRestore []*ast.Ident
+	var saveAndRestoreNames []*ast.Ident
+	var saveAndRestoreTypes []types.Type
 	if fn.Type.Params != nil {
 		for _, param := range fn.Type.Params.List {
 			for _, name := range param.Names {
-				saveAndRestore = append(saveAndRestore, name)
+				if name.Name != "_" {
+					saveAndRestoreNames = append(saveAndRestoreNames, name)
+					saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
+				}
 			}
 		}
 	}
@@ -384,38 +372,37 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 		// during execution, so they need to be saved/restored.
 		for _, result := range fn.Type.Results.List {
 			for _, name := range result.Names {
-				saveAndRestore = append(saveAndRestore, name)
+				if name.Name != "_" {
+					saveAndRestoreNames = append(saveAndRestoreNames, name)
+					saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
+				}
 			}
 		}
 	}
-	saveAndRestore = append(saveAndRestore, varNames...)
+	saveAndRestoreNames = append(saveAndRestoreNames, varNames...)
+	saveAndRestoreTypes = append(saveAndRestoreTypes, varTypes...)
 
 	// Restore state when rewinding the stack.
 	//
 	// As an optimization, only those variables still in scope for a
 	// particular f.IP need to be restored.
 	var restoreStmts []ast.Stmt
-	for i, name := range saveAndRestore {
+	for i, name := range saveAndRestoreNames {
 		restoreStmts = append(restoreStmts, &ast.AssignStmt{
 			Lhs: []ast.Expr{name},
 			Tok: token.ASSIGN,
 			Rhs: []ast.Expr{
-				&ast.CallExpr{
-					Fun: ast.NewIdent("int"),
-					Args: []ast.Expr{
-						&ast.TypeAssertExpr{
-							X: &ast.CallExpr{
-								Fun: &ast.SelectorExpr{
-									X:   frame,
-									Sel: ast.NewIdent("Get"),
-								},
-								Args: []ast.Expr{
-									&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
-								},
-							},
-							Type: &ast.SelectorExpr{X: ast.NewIdent("coroutine"), Sel: ast.NewIdent("Int")},
+				&ast.TypeAssertExpr{
+					X: &ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   frame,
+							Sel: ast.NewIdent("Get"),
+						},
+						Args: []ast.Expr{
+							&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
 						},
 					},
+					Type: typeExpr(saveAndRestoreTypes[i]),
 				},
 			},
 		})
@@ -430,16 +417,13 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 
 	// Save state when unwinding the stack.
 	var saveStmts []ast.Stmt
-	for i, name := range saveAndRestore {
+	for i, name := range saveAndRestoreNames {
 		saveStmts = append(saveStmts, &ast.ExprStmt{
 			X: &ast.CallExpr{
 				Fun: &ast.SelectorExpr{X: frame, Sel: ast.NewIdent("Set")},
 				Args: []ast.Expr{
 					&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
-					&ast.CallExpr{
-						Fun:  &ast.SelectorExpr{X: ast.NewIdent("coroutine"), Sel: ast.NewIdent("Int")},
-						Args: []ast.Expr{name},
-					},
+					name,
 				},
 			},
 		})
@@ -455,6 +439,9 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 								Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Unwinding")},
 							},
 							Body: &ast.BlockStmt{List: saveStmts},
+							Else: &ast.BlockStmt{List: []ast.Stmt{
+								&ast.ExprStmt{X: &ast.CallExpr{Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Pop")}}}},
+							},
 						},
 					},
 				},
@@ -462,11 +449,11 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 		},
 	})
 
-	desugar(fn.Body)
-
 	spans := trackSpans(fn.Body)
 
-	gen.Body.List = append(gen.Body.List, c.compileStatement(fn.Body, spans).(*ast.BlockStmt).List...)
+	compiledBody := c.compileStatement(fn.Body, spans).(*ast.BlockStmt)
+
+	gen.Body.List = append(gen.Body.List, compiledBody.List...)
 
 	return gen
 }
@@ -476,7 +463,8 @@ func (c *compiler) compileStatement(stmt ast.Stmt, spans map[ast.Stmt]span) ast.
 	case *ast.BlockStmt:
 		switch {
 		case len(s.List) == 1:
-			s.List[0] = c.compileStatement(s.List[0], spans)
+			child := c.compileStatement(s.List[0], spans)
+			s.List[0] = unnestBlocks(child)
 		case len(s.List) > 1:
 			stmt = &ast.BlockStmt{List: []ast.Stmt{c.compileDispatch(s.List, spans)}}
 		}
@@ -497,7 +485,8 @@ func (c *compiler) compileStatement(stmt ast.Stmt, spans map[ast.Stmt]span) ast.
 	case *ast.CaseClause:
 		switch {
 		case len(s.Body) == 1:
-			s.Body[0] = c.compileStatement(s.Body[0], spans)
+			child := c.compileStatement(s.Body[0], spans)
+			s.Body[0] = unnestBlocks(child)
 		case len(s.Body) > 1:
 			s.Body = []ast.Stmt{c.compileDispatch(s.Body, spans)}
 		}
@@ -509,7 +498,9 @@ func (c *compiler) compileDispatch(stmts []ast.Stmt, spans map[ast.Stmt]span) as
 	var cases []ast.Stmt
 	for i, child := range stmts {
 		childSpan := spans[child]
-		caseBody := []ast.Stmt{c.compileStatement(child, spans)}
+		compiledChild := c.compileStatement(child, spans)
+		compiledChild = unnestBlocks(compiledChild)
+		caseBody := []ast.Stmt{compiledChild}
 		if i < len(stmts)-1 {
 			caseBody = append(caseBody,
 				&ast.AssignStmt{

@@ -14,11 +14,11 @@ type Storage struct {
 	// This is private so that the data structure is allowed to switch
 	// the in-memory representation dynamically (e.g. a map[int]Serializable
 	// may be more efficient for very sparse maps).
-	objects []Serializable
+	objects []any
 }
 
 // NewStorage creates a Storage.
-func NewStorage(objects []Serializable) Storage {
+func NewStorage(objects []any) Storage {
 	return Storage{objects: objects}
 }
 
@@ -28,7 +28,7 @@ func (v *Storage) Has(i int) bool {
 }
 
 // Get gets the object for a specific index.
-func (v *Storage) Get(i int) Serializable {
+func (v *Storage) Get(i int) any {
 	if !v.Has(i) {
 		panic("missing object " + strconv.Itoa(i))
 	}
@@ -44,7 +44,7 @@ func (v *Storage) Delete(i int) {
 }
 
 // Set sets the object for a specific index.
-func (v *Storage) Set(i int, value Serializable) {
+func (v *Storage) Set(i int, value any) {
 	if n := i + 1; n > len(v.objects) {
 		v.objects = slices.Grow(v.objects, n-len(v.objects))
 		v.objects = v.objects[:n]
@@ -110,7 +110,7 @@ func (v *Storage) Unmarshal(b []byte) (int, error) {
 	}
 	n += vn
 
-	objects := make([]Serializable, size)
+	objects := make([]any, size)
 	for i := 0; i < int(count); i++ {
 		id, vn := binary.Varint(b[n:])
 		if vn <= 0 || int64(int(id)) != id {
