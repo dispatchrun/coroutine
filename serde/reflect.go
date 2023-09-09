@@ -2,6 +2,7 @@ package serde
 
 import (
 	"fmt"
+	"log/slog"
 	"reflect"
 	"unsafe"
 )
@@ -25,7 +26,10 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer, b []byte) []b
 	codec, exists := tm.CodecOf(t)
 	if exists {
 		x := reflect.NewAt(t, p).Elem().Interface()
+		slog.Debug("using codec", "codec", codec, "type", t)
 		return codec.serializer(s, x, b)
+	} else {
+		slog.Debug("type has not codec", "type", t)
 	}
 
 	switch t.Kind() {

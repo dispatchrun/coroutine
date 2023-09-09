@@ -7,6 +7,7 @@ import (
 	"go/format"
 	"go/types"
 	"io"
+	"log/slog"
 	"math"
 	"os"
 	"path"
@@ -28,7 +29,26 @@ func usage() {
 	flag.PrintDefaults()
 }
 
+// TODO: this function is duplicated
+func enableDebugLogs() {
+	removeTime := func(groups []string, a slog.Attr) slog.Attr {
+		if a.Key == slog.TimeKey && len(groups) == 0 {
+			return slog.Attr{}
+		}
+		return a
+	}
+
+	var programLevel = new(slog.LevelVar)
+	h := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level:       programLevel,
+		ReplaceAttr: removeTime,
+	})
+	slog.SetDefault(slog.New(h))
+	programLevel.Set(slog.LevelDebug)
+}
+
 func main() {
+	enableDebugLogs()
 	typeName := ""
 	flag.StringVar(&typeName, "type", "", "non-optional type name")
 	output := ""
@@ -616,6 +636,7 @@ func (g *generator) Slice(t *types.Slice, name string) locations {
 }
 
 func (g *generator) Named(t *types.Named, name string) locations {
+	// TODO: need to also register an entry
 	typeName := g.TypeNameFor(t.Obj().Type())
 	return g.Type(t.Underlying(), typeName)
 }
@@ -709,6 +730,7 @@ func isInvalidChar(r rune) bool {
 // Generate, save, and return a new location for a type with generated
 // serializers.
 func (g *generator) newGenLocation(t types.Type, name string) locations {
+	slog.Debug("generated serde", "name", name, "type", t)
 	//TODO: check name collision
 	if strings.ContainsFunc(name, isInvalidChar) {
 		name = ""

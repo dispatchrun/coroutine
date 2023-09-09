@@ -40,6 +40,12 @@ func TestStruct1Iface(t *testing.T) {
 
 	for i, s := range []Struct1{
 		{Iface: int(42)},
+		{Iface: true},
+		{Iface: "hello"},
+		{Iface: Inner{
+			A: 111,
+			B: "test1",
+		}},
 	} {
 		s := s
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
