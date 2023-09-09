@@ -3,62 +3,11 @@ package serde
 import (
 	"encoding/binary"
 	"fmt"
+	"log/slog"
 	"math"
 	"reflect"
 	"unsafe"
-
-	"log/slog"
 )
-
-// ID is the unique ID of a pointer or type in the serialized format.
-type ID int64
-
-type typeMap struct {
-	byID   map[ID]reflect.Type
-	byType map[reflect.Type]ID
-}
-
-func newTypeMap() *typeMap {
-	return &typeMap{
-		byID:   make(map[ID]reflect.Type),
-		byType: make(map[reflect.Type]ID),
-	}
-}
-
-func (t *typeMap) Add(x reflect.Type) ID {
-	i := ID(len(t.byID))
-	t.byID[i] = x
-	t.byType[x] = i
-	return i
-}
-
-func (t *typeMap) IDof(x reflect.Type) ID {
-	id, ok := t.byType[x]
-	if !ok {
-		panic(fmt.Errorf("type '%s' is not registered", x))
-	}
-	return id
-}
-
-func (t *typeMap) TypeOf(x ID) reflect.Type {
-	typ, ok := t.byID[x]
-	if !ok {
-		panic(fmt.Errorf("type id '%d' not registered", x))
-	}
-	return typ
-}
-
-var tm *typeMap = newTypeMap()
-
-func RegisterType(x reflect.Type) {
-	tm.Add(x)
-}
-
-func RegisterTypes(ts ...reflect.Type) {
-	for _, t := range ts {
-		RegisterType(t)
-	}
-}
 
 // Deserializer contains the state of the deserializer.
 type Deserializer struct {

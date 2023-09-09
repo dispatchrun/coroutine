@@ -124,6 +124,13 @@ type location struct {
 	name string
 }
 
+func (l location) FullName() string {
+	if l.pkg != "" {
+		return fmt.Sprintf("%s.%s", l.pkg, l.name)
+	}
+	return l.name
+}
+
 type locations struct {
 	serializer   location
 	deserializer location
@@ -220,8 +227,7 @@ func public(name string) bool {
 
 func (g *generator) AllTypes(pkgs []*packages.Package) {
 	// Generate a reflect.Type <> ID mapping.
-	//	s := typeutil.Map{}
-	s := map[string]struct{}{}
+	s := map[string]types.Type{}
 	ps := map[string]struct{}{}
 
 	var findTypes func(p *packages.Package)
@@ -241,7 +247,7 @@ func (g *generator) AllTypes(pkgs []*packages.Package) {
 			if !ok {
 				continue
 			}
-			s[name] = struct{}{}
+			s[name] = t
 		}
 
 		for _, i := range p.Imports {
@@ -253,13 +259,26 @@ func (g *generator) AllTypes(pkgs []*packages.Package) {
 		findTypes(pkg)
 	}
 
+	reflectName := g.imports.Add("reflect")
 	g.W(`func init() {`)
-	g.W(`serde.RegisterTypes(`)
-	for k := range s {
-		// TODO: find a way to avoid the allocations
-		g.W(`reflect.TypeOf(new(%s)).Elem(),`, k)
+	g.W(`var t %s.Type`, reflectName)
+	//	g.W(`serde.RegisterTypes(`)
+	for k, t := range s {
+		g.W(`{`)
+		g.W(`var x %s`, k)
+		g.W(`t = reflect.TypeOf(x)`)
+
+		locs := g.known.At(t)
+		if locs == nil {
+			g.W(`serde.RegisterType(t)`)
+		} else {
+			x := locs.(locations)
+			ser := x.serializer.FullName()
+			des := x.deserializer.FullName()
+			g.W(`serde.RegisterTypeWithCodec(t, %s, %s)`, ser, des)
+		}
+		g.W(`}`)
 	}
-	g.W(`)`)
 	g.W(`}`)
 }
 
