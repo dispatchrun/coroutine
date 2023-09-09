@@ -62,20 +62,25 @@ func desugar0(stmts []ast.Stmt, info *types.Info) (desugared []ast.Stmt) {
 			// - `for i, _ := range x {}` => `{ _x := x; for i := 0; i < len(_x); i++ {} }`
 			// - `for i, v := range x {}` => `{ _x := x; for i := 0; i < len(_x); i++ { v := _x[i]; ... } }`
 			// - `for _, v := range x {}` => `{ _x := x; for _i := 0; _i < len(_x); _i++ { v := _x[_i]; ... } }`
-			hasIdx := s.Key != nil && !isUnderscore(s.Key)
-			hasVal := s.Value != nil && !isUnderscore(s.Value)
-			prefix := "_d" + strconv.Itoa(i)
-			idx := s.Key
-			if !hasIdx {
-				idx = ast.NewIdent(prefix + "_i")
+			var idx *ast.Ident
+			if hasIdx := s.Key != nil && !isUnderscore(s.Key); hasIdx {
+				idx = ast.NewIdent("_rangei" + strconv.Itoa(i))
+				idx.Obj = &ast.Object{Kind: ast.Var, Name: idx.Name}
+				info.Defs[idx] = types.NewVar(0, nil, idx.Name, types.Typ[types.Int])
+			} else {
+				idx = s.Key.(*ast.Ident)
 			}
-			x := ast.NewIdent(prefix + "_x")
-			body := s.Body
-			if hasVal {
-				body.List = append([]ast.Stmt{
-					&ast.AssignStmt{Lhs: []ast.Expr{x}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.IndexExpr{X: x, Index: idx}}},
-				}, body.List...)
+
+			x := ast.NewIdent("_rangex" + strconv.Itoa(i))
+			x.Obj = &ast.Object{Kind: ast.Var, Name: x.Name}
+			info.Defs[x] = types.NewVar(0, nil, x.Name, info.TypeOf(s.X))
+
+			if hasVal := s.Value != nil && !isUnderscore(s.Value); hasVal {
+				s.Body.List = append([]ast.Stmt{
+					&ast.AssignStmt{Lhs: []ast.Expr{s.Value}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.IndexExpr{X: x, Index: idx}}},
+				}, s.Body.List...)
 			}
+
 			stmt = &ast.BlockStmt{
 				List: []ast.Stmt{
 					&ast.AssignStmt{Lhs: []ast.Expr{x}, Tok: token.DEFINE, Rhs: []ast.Expr{s.X}},
