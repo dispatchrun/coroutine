@@ -392,22 +392,17 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 			Lhs: []ast.Expr{name},
 			Tok: token.ASSIGN,
 			Rhs: []ast.Expr{
-				&ast.CallExpr{
-					Fun: ast.NewIdent("int"),
-					Args: []ast.Expr{
-						&ast.TypeAssertExpr{
-							X: &ast.CallExpr{
-								Fun: &ast.SelectorExpr{
-									X:   frame,
-									Sel: ast.NewIdent("Get"),
-								},
-								Args: []ast.Expr{
-									&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
-								},
-							},
-							Type: typeExpr(saveAndRestoreTypes[i]),
+				&ast.TypeAssertExpr{
+					X: &ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   frame,
+							Sel: ast.NewIdent("Get"),
+						},
+						Args: []ast.Expr{
+							&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
 						},
 					},
+					Type: typeExpr(saveAndRestoreTypes[i]),
 				},
 			},
 		})

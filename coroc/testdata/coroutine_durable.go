@@ -10,7 +10,7 @@ func Identity(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
 	if _f.IP > 0 {
-		n = int(_f.Get(0).(int))
+		n = _f.Get(0).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -27,8 +27,8 @@ func SquareGenerator(n int) {
 	_f := _c.Push()
 	var _v0 int
 	if _f.IP > 0 {
-		n = int(_f.Get(0).(int))
-		_v0 = int(_f.Get(1).(int))
+		n = _f.Get(0).(int)
+		_v0 = _f.Get(1).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -59,9 +59,9 @@ func EvenSquareGenerator(n int) {
 		_v1 int
 	)
 	if _f.IP > 0 {
-		n = int(_f.Get(0).(int))
-		_v0 = int(_f.Get(1).(int))
-		_v1 = int(_f.Get(2).(int))
+		n = _f.Get(0).(int)
+		_v0 = _f.Get(1).(int)
+		_v1 = _f.Get(2).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -103,10 +103,10 @@ func NestedLoops(n int) {
 		_v2 int
 	)
 	if _f.IP > 0 {
-		n = int(_f.Get(0).(int))
-		_v0 = int(_f.Get(1).(int))
-		_v1 = int(_f.Get(2).(int))
-		_v2 = int(_f.Get(3).(int))
+		n = _f.Get(0).(int)
+		_v0 = _f.Get(1).(int)
+		_v1 = _f.Get(2).(int)
+		_v2 = _f.Get(3).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -159,9 +159,9 @@ func FizzBuzzIfGenerator(n int) {
 		_v1 int
 	)
 	if _f.IP > 0 {
-		n = int(_f.Get(0).(int))
-		_v0 = int(_f.Get(1).(int))
-		_v1 = int(_f.Get(2).(int))
+		n = _f.Get(0).(int)
+		_v0 = _f.Get(1).(int)
+		_v1 = _f.Get(2).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -201,8 +201,8 @@ func FizzBuzzSwitchGenerator(n int) {
 	_f := _c.Push()
 	var _v0 int
 	if _f.IP > 0 {
-		n = int(_f.Get(0).(int))
-		_v0 = int(_f.Get(1).(int))
+		n = _f.Get(0).(int)
+		_v0 = _f.Get(1).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -244,10 +244,10 @@ func Shadowing(_ int) {
 		_v3 int
 	)
 	if _f.IP > 0 {
-		_v0 = int(_f.Get(0).(int))
-		_v1 = int(_f.Get(1).(int))
-		_v2 = int(_f.Get(2).(int))
-		_v3 = int(_f.Get(3).(int))
+		_v0 = _f.Get(0).(int)
+		_v1 = _f.Get(1).(int)
+		_v2 = _f.Get(2).(int)
+		_v3 = _f.Get(3).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -330,8 +330,8 @@ func RangeSliceIndexGenerator(_ int) {
 		_v1 int
 	)
 	if _f.IP > 0 {
-		_v0 = int(_f.Get(0).([]int))
-		_v1 = int(_f.Get(1).(int))
+		_v0 = _f.Get(0).([]int)
+		_v1 = _f.Get(1).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -370,9 +370,9 @@ func RangeArrayIndexValueGenerator(_ int) {
 		_v2 int
 	)
 	if _f.IP > 0 {
-		_v0 = int(_f.Get(0).([3]int))
-		_v1 = int(_f.Get(1).(int))
-		_v2 = int(_f.Get(2).(int))
+		_v0 = _f.Get(0).([3]int)
+		_v1 = _f.Get(1).(int)
+		_v2 = _f.Get(2).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
