@@ -216,22 +216,6 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 		if err != nil {
 			return err
 		}
-
-		// Require int params/return values for now.
-		if fn.Type.Params != nil {
-			for _, fn := range fn.Type.Params.List {
-				if ident, ok := fn.Type.(*ast.Ident); !ok || ident.Name != "int" {
-					return fmt.Errorf("not implemented: non-int params")
-				}
-			}
-		}
-		if fn.Type.Results != nil {
-			for _, fn := range fn.Type.Results.List {
-				if ident, ok := fn.Type.(*ast.Ident); !ok || ident.Name != "int" {
-					return fmt.Errorf("not implemented: non-int results")
-				}
-			}
-		}
 	}
 
 	// Generate the coroutine AST.
