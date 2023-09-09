@@ -21,6 +21,13 @@ func ifacePointer(v interface{}) unsafe.Pointer {
 }
 
 func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+
+	codec, exists := tm.CodecOf(t)
+	if exists {
+		x := reflect.NewAt(t, p).Elem().Interface()
+		return codec.serializer(s, x, b)
+	}
+
 	switch t.Kind() {
 	case reflect.Int:
 		return SerializeInt(s, *(*int)(p), b)
@@ -30,6 +37,15 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer, b []byte) []b
 }
 
 func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	codec, exists := tm.CodecOf(t)
+	if exists {
+		v, b := codec.deserializer(d, b)
+		rv := reflect.ValueOf(v)
+		target := reflect.NewAt(t, p)
+		target.Elem().Set(rv)
+		return b
+	}
+
 	switch t.Kind() {
 	case reflect.Int:
 		x, b := DeserializeInt(d, b)

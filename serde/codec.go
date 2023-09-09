@@ -56,6 +56,14 @@ func (t *typeMap) TypeOf(x ID) reflect.Type {
 	return codec.rtype
 }
 
+func (t *typeMap) CodecOf(x reflect.Type) (typeCodec, bool) {
+	id, ok := t.byType[x]
+	if !ok {
+		return typeCodec{}, false
+	}
+	return t.byID[id], true
+}
+
 var tm *typeMap = newTypeMap()
 
 func RegisterType(x reflect.Type) {

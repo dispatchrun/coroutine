@@ -275,7 +275,13 @@ func (g *generator) AllTypes(pkgs []*packages.Package) {
 			x := locs.(locations)
 			ser := x.serializer.FullName()
 			des := x.deserializer.FullName()
-			g.W(`serde.RegisterTypeWithCodec(t, %s, %s)`, ser, des)
+			g.W(`sw := func(s *serde.Serializer, x any, b []byte) []byte {`)
+			g.W(`return %s(s, x.(%s), b)`, ser, k)
+			g.W(`}`)
+			g.W(`dw := func(d *serde.Deserializer, b []byte) (any, []byte) {`)
+			g.W(`return %s(d, b)`, des)
+			g.W(`}`)
+			g.W(`serde.RegisterTypeWithCodec(t, sw, dw)`)
 		}
 		g.W(`}`)
 	}
