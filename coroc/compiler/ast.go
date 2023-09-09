@@ -64,7 +64,7 @@ func desugar0(stmts []ast.Stmt, info *types.Info) (desugared []ast.Stmt) {
 			// - `for i, v := range x {}` => `{ _x := x; for i := 0; i < len(_x); i++ { v := _x[i]; ... } }`
 			// - `for _, v := range x {}` => `{ _x := x; for _i := 0; _i < len(_x); _i++ { v := _x[_i]; ... } }`
 			var idx *ast.Ident
-			if hasIdx := s.Key != nil && !isUnderscore(s.Key); hasIdx {
+			if hasIdx := s.Key != nil && !isUnderscore(s.Key); !hasIdx {
 				idx = ast.NewIdent("_rangei" + strconv.Itoa(i))
 				idx.Obj = &ast.Object{Kind: ast.Var, Name: idx.Name}
 				info.Defs[idx] = types.NewVar(0, nil, idx.Name, types.Typ[types.Int])

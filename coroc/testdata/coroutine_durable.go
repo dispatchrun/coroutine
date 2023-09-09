@@ -354,7 +354,7 @@ func RangeSliceIndexGenerator(_ int) {
 			fallthrough
 		case _f.IP < 4:
 			for ; _v1 < len(_v0); _v1++ {
-				coroutine.Yield[int, any](i)
+				coroutine.Yield[int, any](_v1)
 				_f.IP = 3
 			}
 		}
@@ -402,7 +402,7 @@ func RangeArrayIndexValueGenerator(_ int) {
 					_f.IP = 4
 					fallthrough
 				case _f.IP < 5:
-					coroutine.Yield[int, any](i)
+					coroutine.Yield[int, any](_v1)
 					_f.IP = 5
 					fallthrough
 				case _f.IP < 6:
