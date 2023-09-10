@@ -96,7 +96,7 @@ func generate(typeName string, patterns []string, tags []string, output string) 
 
 	output = td.TargetFile()
 
-	g := serde.NewGenerator(pkgs, td.Pkg)
+	g := serde.NewGenerator(tags, pkgs, td.Pkg)
 	g.GenType(td.Obj.Type())
 	g.GenRegister(pkgs)
 
