@@ -69,18 +69,18 @@ func serializeAny(s *Serializer, r reflect.Value, b []byte) []byte {
 		return reflectWrapSer(SerializeString, s, r, b)
 	case reflect.Array:
 		return serializeArray(s, r, b)
-	// Chan
-	// Func
 	case reflect.Interface:
 		return reflectWrapSer(SerializeInterface, s, r, b)
-	// Map
 	case reflect.Map:
 		return serializeMap(s, r, b)
 	case reflect.Pointer:
 		return serializePointer(s, r, b)
 	case reflect.Slice:
 		return serializeSlice(s, r, b)
-	// Struct
+	case reflect.Struct:
+		return serializeStruct(s, r, b)
+	// Chan
+	// Func
 	// UnsafePointer
 	default:
 		panic(fmt.Errorf("reflection cannot serialize type %s", t))
@@ -142,6 +142,8 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte)
 		return deserializeSlice(d, t, p, b)
 	case reflect.Map:
 		return deserializeMap(d, t, p, b)
+	case reflect.Struct:
+		return deserializeStruct(d, t, p, b)
 	default:
 		panic(fmt.Errorf("reflection cannot deserialize type %s", t))
 	}
@@ -257,6 +259,42 @@ func deserializePointer(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []b
 		r.Elem().Set(newthing)
 		d.Store(i, newthing.UnsafePointer())
 		b = deserializeAny(d, t.Elem(), newthing.UnsafePointer(), b)
+	}
+	return b
+}
+
+func reflectFieldSupported(ft reflect.StructField) bool {
+	// TODO
+	return !ft.Anonymous && ft.IsExported()
+}
+
+func serializeStruct(s *Serializer, r reflect.Value, b []byte) []byte {
+	t := r.Type()
+	n := t.NumField()
+	for i := 0; i < n; i++ {
+		ft := t.Field(i)
+		if !reflectFieldSupported(ft) {
+			continue
+		}
+		f := r.Field(i)
+		b = serializeAny(s, f, b)
+	}
+	return b
+}
+
+func deserializeStruct(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	n := t.NumField()
+	r := reflect.NewAt(t, p)
+	for i := 0; i < n; i++ {
+		ft := t.Field(i)
+		if !reflectFieldSupported(ft) {
+			continue
+		}
+
+		fr := reflect.New(ft.Type)
+		b = deserializeAny(d, ft.Type, fr.UnsafePointer(), b)
+
+		r.Elem().Field(i).Set(fr.Elem())
 	}
 	return b
 }

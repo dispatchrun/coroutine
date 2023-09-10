@@ -8,6 +8,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+type EasyStruct struct {
+	A int
+	B string
+}
+
 func TestReflect(t *testing.T) {
 	// override type map and manually register types to avoid using the
 	// genereated codecs
@@ -39,6 +44,10 @@ func TestReflect(t *testing.T) {
 		[2]int{1, 2},
 		[]int{1, 2, 3},
 		map[string]int{"one": 1, "two": 2},
+		EasyStruct{
+			A: 52,
+			B: "test",
+		},
 	}
 
 	for _, x := range cases {
