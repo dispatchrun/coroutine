@@ -38,6 +38,7 @@ func TestReflect(t *testing.T) {
 		intpp,
 		[2]int{1, 2},
 		[]int{1, 2, 3},
+		map[string]int{"one": 1, "two": 2},
 	}
 
 	for _, x := range cases {

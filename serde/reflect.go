@@ -1,6 +1,7 @@
 package serde
 
 import (
+	"encoding/binary"
 	"fmt"
 	"log/slog"
 	"reflect"
@@ -73,11 +74,12 @@ func serializeAny(s *Serializer, r reflect.Value, b []byte) []byte {
 	case reflect.Interface:
 		return reflectWrapSer(SerializeInterface, s, r, b)
 	// Map
+	case reflect.Map:
+		return serializeMap(s, r, b)
 	case reflect.Pointer:
 		return serializePointer(s, r, b)
 	case reflect.Slice:
 		return serializeSlice(s, r, b)
-	// String
 	// Struct
 	// UnsafePointer
 	default:
@@ -138,6 +140,8 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte)
 		return deserializeArray(d, t, p, b)
 	case reflect.Slice:
 		return deserializeSlice(d, t, p, b)
+	case reflect.Map:
+		return deserializeMap(d, t, p, b)
 	default:
 		panic(fmt.Errorf("reflection cannot deserialize type %s", t))
 	}
@@ -155,6 +159,43 @@ func reflectWrapDes[T any](f func(*Deserializer, []byte) (T, []byte), d *Deseria
 
 func dumptr(r reflect.Value) {
 	fmt.Printf("=>%s, %s\n", r, r.Type())
+}
+
+func serializeMap(s *Serializer, r reflect.Value, b []byte) []byte {
+	size := 0
+	if r.IsNil() {
+		size = -1
+	} else {
+		size = r.Len()
+	}
+	b = binary.AppendVarint(b, int64(size))
+
+	iter := r.MapRange()
+	for iter.Next() {
+		k := iter.Key()
+		v := iter.Value()
+		b = serializeAny(s, k, b)
+		b = serializeAny(s, v, b)
+	}
+	return b
+}
+
+func deserializeMap(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	n, b := DeserializeMapSize(b)
+	if n < 0 { // nil map
+		return b
+	}
+	nv := reflect.MakeMapWithSize(t, n)
+	r := reflect.NewAt(t, p)
+	r.Elem().Set(nv)
+	for i := 0; i < n; i++ {
+		k := reflect.New(t.Key())
+		b = deserializeAny(d, t.Key(), k.UnsafePointer(), b)
+		v := reflect.New(t.Elem())
+		b = deserializeAny(d, t.Elem(), v.UnsafePointer(), b)
+		r.Elem().SetMapIndex(k.Elem(), v.Elem())
+	}
+	return b
 }
 
 func serializeSlice(s *Serializer, r reflect.Value, b []byte) []byte {
