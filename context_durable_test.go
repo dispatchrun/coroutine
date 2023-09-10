@@ -14,21 +14,21 @@ func TestContextSerialization(t *testing.T) {
 			Frames: []Frame{
 				{
 					IP: 3,
-					Storage: NewStorage([]Serializable{
+					Storage: NewStorage([]any{
 						1: Int(3),
 						5: Int(-1),
 					}),
 				},
 				{
 					IP: 5,
-					Storage: NewStorage([]Serializable{
+					Storage: NewStorage([]any{
 						0: Int(4),
 						2: Int(math.MaxInt),
 					}),
 				},
 			},
 		},
-		Heap: NewStorage([]Serializable{
+		Heap: NewStorage([]any{
 			32: Int(11),
 		}),
 	}

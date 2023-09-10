@@ -101,7 +101,6 @@ func NewGenerator(pkgs []*packages.Package, target *packages.Package) *Generator
 		panic("could not find built-in Serializable interface; make sure coroutine/serde is in pkgs")
 	}
 	serializableIface := serializable.Obj.Type().(*types.Named).Underlying().(*types.Interface)
-
 	return &Generator{
 		serializable: serializableIface,
 		main:         target,

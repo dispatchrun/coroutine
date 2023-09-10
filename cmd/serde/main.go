@@ -7,6 +7,7 @@ import (
 	"go/format"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/stealthrocket/coroutine/serde"
 	"golang.org/x/tools/go/packages"
@@ -44,6 +45,8 @@ func main() {
 	flag.StringVar(&typeName, "type", "", "non-optional type name")
 	output := ""
 	flag.StringVar(&output, "output", "", "output file name; defaults to <type_serde.go")
+	buildTags := ""
+	flag.StringVar(&buildTags, "tags", "", "comma-separated list of build tags to apply")
 	flag.Usage = usage
 	flag.Parse()
 
@@ -58,14 +61,16 @@ func main() {
 		args = []string{"."}
 	}
 
-	err := generate(typeName, args, output)
+	tags := strings.Split(buildTags, ",")
+
+	err := generate(typeName, args, tags, output)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		os.Exit(1)
 	}
 }
 
-func generate(typeName string, patterns []string, output string) error {
+func generate(typeName string, patterns []string, tags []string, output string) error {
 	// Add the serde support library to the search to bring the built-ins
 	// into the type system. At the moment it's only used for the
 	// Serializable interface, but eventually it should be used to reference
@@ -73,9 +78,13 @@ func generate(typeName string, patterns []string, output string) error {
 	// directly.
 	patterns = append(patterns, "github.com/stealthrocket/coroutine/serde")
 
-	pkgs, err := parse(patterns)
+	pkgs, err := parse(patterns, tags)
 	if err != nil {
 		return err
+	}
+
+	for _, p := range pkgs {
+		fmt.Println("->", p.Name)
 	}
 
 	// Find the package that contains the type declaration requested.
@@ -117,9 +126,10 @@ func generate(typeName string, patterns []string, output string) error {
 	return err
 }
 
-func parse(patterns []string) ([]*packages.Package, error) {
+func parse(patterns []string, tags []string) ([]*packages.Package, error) {
 	cfg := &packages.Config{
-		Mode: packages.NeedName | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedSyntax | packages.NeedDeps | packages.NeedImports,
+		Mode:       packages.NeedName | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedSyntax | packages.NeedDeps | packages.NeedImports,
+		BuildFlags: []string{fmt.Sprintf("-tags=%s", strings.Join(tags, " "))},
 	}
 	return packages.Load(cfg, patterns...)
 }
