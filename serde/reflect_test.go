@@ -19,7 +19,7 @@ func TestReflect(t *testing.T) {
 
 	intv := int(100)
 	intp := &intv
-	fmt.Println("INTP:", intp)
+	intpp := &intp
 
 	cases := []interface{}{
 		"foo",
@@ -35,6 +35,7 @@ func TestReflect(t *testing.T) {
 		uint16(9),
 		uint8(8),
 		intp,
+		intpp,
 	}
 
 	for _, x := range cases {
