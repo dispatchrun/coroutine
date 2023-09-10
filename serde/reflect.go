@@ -66,7 +66,8 @@ func serializeAny(s *Serializer, r reflect.Value, b []byte) []byte {
 		return reflectWrapSer(SerializeComplex128, s, r, b)
 	case reflect.String:
 		return reflectWrapSer(SerializeString, s, r, b)
-	// Array
+	case reflect.Array:
+		return serializeArray(s, r, b)
 	// Chan
 	// Func
 	case reflect.Interface:
@@ -74,7 +75,8 @@ func serializeAny(s *Serializer, r reflect.Value, b []byte) []byte {
 	// Map
 	case reflect.Pointer:
 		return serializePointer(s, r, b)
-	// Slice
+	case reflect.Slice:
+		return serializeSlice(s, r, b)
 	// String
 	// Struct
 	// UnsafePointer
@@ -132,6 +134,10 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte)
 		return reflectWrapDes(DeserializeInterface, d, p, b)
 	case reflect.Pointer:
 		return deserializePointer(d, t, p, b)
+	case reflect.Array:
+		return deserializeArray(d, t, p, b)
+	case reflect.Slice:
+		return deserializeSlice(d, t, p, b)
 	default:
 		panic(fmt.Errorf("reflection cannot deserialize type %s", t))
 	}
@@ -149,6 +155,46 @@ func reflectWrapDes[T any](f func(*Deserializer, []byte) (T, []byte), d *Deseria
 
 func dumptr(r reflect.Value) {
 	fmt.Printf("=>%s, %s\n", r, r.Type())
+}
+
+func serializeSlice(s *Serializer, r reflect.Value, b []byte) []byte {
+	b = SerializeSize(r.Len(), b)
+	for i := 0; i < r.Len(); i++ {
+		x := r.Index(i)
+		b = serializeAny(s, x, b)
+	}
+	return b
+}
+
+func deserializeSlice(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	n, b := DeserializeSize(b)
+	nv := reflect.MakeSlice(t, n, n)
+	r := reflect.NewAt(t, p)
+	r.Elem().Set(nv)
+	size := int(t.Elem().Size())
+	p = nv.UnsafePointer()
+	for i := 0; i < n; i++ {
+		e := unsafe.Add(p, size*i)
+		b = deserializeAny(d, t.Elem(), e, b)
+	}
+	return b
+}
+
+func serializeArray(s *Serializer, r reflect.Value, b []byte) []byte {
+	for i := 0; i < r.Len(); i++ {
+		x := r.Index(i)
+		b = serializeAny(s, x, b)
+	}
+	return b
+}
+
+func deserializeArray(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	size := int(t.Elem().Size())
+	for i := 0; i < t.Len(); i++ {
+		e := unsafe.Add(p, size*i)
+		b = deserializeAny(d, t.Elem(), e, b)
+	}
+	return b
 }
 
 func serializePointer(s *Serializer, r reflect.Value, b []byte) []byte {

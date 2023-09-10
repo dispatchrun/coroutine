@@ -37,6 +37,7 @@ func TestReflect(t *testing.T) {
 		intp,
 		intpp,
 		[2]int{1, 2},
+		[]int{1, 2, 3},
 	}
 
 	for _, x := range cases {
