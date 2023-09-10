@@ -2,6 +2,8 @@
 
 package coroutine
 
+import "github.com/stealthrocket/coroutine/serde"
+
 // Context is passed to a coroutine and flows through all
 // functions that Yield (or could yield).
 type Context[R, S any] struct {
@@ -28,11 +30,8 @@ type Context[R, S any] struct {
 
 // MarshalAppend appends a serialized Context to the provided buffer.
 func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
-	var err error
-	b, err = c.Stack.MarshalAppend(b)
-	if err != nil {
-		return b, err
-	}
+	s := serde.EnsureSerializer(nil)
+	b = Serialize_Stack(s, c.Stack, b)
 	return c.Heap.MarshalAppend(b)
 }
 
@@ -40,11 +39,13 @@ func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
 // the number of bytes that were read in order to reconstruct the
 // context.
 func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
-	sn, err := c.Stack.Unmarshal(b)
-	if err != nil {
-		return 0, err
-	}
-	hn, err := c.Heap.Unmarshal(b[sn:])
+	d := serde.EnsureDeserializer(nil)
+	start := len(b)
+	s, b := Deserialize_Stack(d, b)
+	c.Stack = s
+	sn := start - len(b)
+
+	hn, err := c.Heap.Unmarshal(b)
 	if err != nil {
 		return 0, err
 	}
