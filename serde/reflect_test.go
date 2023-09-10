@@ -36,6 +36,7 @@ func TestReflect(t *testing.T) {
 		uint8(8),
 		intp,
 		intpp,
+		[2]int{1, 2},
 	}
 
 	for _, x := range cases {
