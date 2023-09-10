@@ -55,9 +55,7 @@ func TestStruct1Iface(t *testing.T) {
 
 }
 
-func TestStruct1(t *testing.T) {
-	enableDebugLogs()
-
+func makes1() Struct1 {
 	str := "pointed at"
 	myint := 999
 	myintptr := &myint
@@ -71,7 +69,7 @@ func TestStruct1(t *testing.T) {
 	bounce1.Other = bounce2
 	bounce2.Other = bounce1
 
-	s := Struct1{
+	return Struct1{
 		Str:  "hello",
 		Int:  42,
 		Ints: []int64{1, 2, 3},
@@ -109,7 +107,12 @@ func TestStruct1(t *testing.T) {
 
 		MapStrStr: map[string]string{"one": "un", "two": "deux", "three": "trois"},
 	}
+}
 
+func TestStruct1(t *testing.T) {
+	enableDebugLogs()
+
+	s := makes1()
 	roundtripStruct1(t, s)
 }
 

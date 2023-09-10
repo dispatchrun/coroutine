@@ -111,7 +111,7 @@ func generate(typeName string, patterns []string, output string) error {
 	}
 
 	g.Typedef(td)
-	g.AllTypes(pkgs)
+	g.genregister(pkgs)
 
 	var buf bytes.Buffer
 	n, err := g.WriteTo(&buf)
@@ -245,7 +245,7 @@ func public(name string) bool {
 	return c >= 'A' && c <= 'Z'
 }
 
-func (g *generator) AllTypes(pkgs []*packages.Package) {
+func (g *generator) genregister(pkgs []*packages.Package) {
 	// Generate a reflect.Type <> ID mapping.
 	s := map[string]types.Type{}
 	ps := map[string]struct{}{}

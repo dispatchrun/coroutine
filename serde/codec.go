@@ -12,6 +12,7 @@ type SerializeFn func(s *Serializer, x any, b []byte) []byte
 type DeserializeFn func(s *Deserializer, b []byte) (any, []byte)
 
 type typeCodec struct {
+	id           ID
 	rtype        reflect.Type
 	serializer   SerializeFn
 	deserializer DeserializeFn
@@ -34,8 +35,16 @@ func (t *typeMap) Add(x reflect.Type) ID {
 }
 
 func (t *typeMap) AddWithCodec(x reflect.Type, ser SerializeFn, des DeserializeFn) ID {
+	if id, ok := t.byType[x]; ok {
+		return id
+	}
 	i := ID(len(t.byID))
-	t.byID[i] = typeCodec{rtype: x, serializer: ser, deserializer: des}
+	t.byID[i] = typeCodec{
+		id:           i,
+		rtype:        x,
+		serializer:   ser,
+		deserializer: des,
+	}
 	t.byType[x] = i
 	return i
 }
@@ -57,6 +66,9 @@ func (t *typeMap) TypeOf(x ID) reflect.Type {
 }
 
 func (t *typeMap) CodecOf(x reflect.Type) (typeCodec, bool) {
+	if t == nil {
+		return typeCodec{}, false
+	}
 	id, ok := t.byType[x]
 	if !ok {
 		return typeCodec{}, false

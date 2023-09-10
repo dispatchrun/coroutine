@@ -10,8 +10,8 @@ import (
 
 type basicTest[T comparable] struct {
 	name  string
-	ser   func(x T, b []byte) []byte
-	des   func(b []byte) (T, []byte)
+	ser   func(s *serde.Serializer, x T, b []byte) []byte
+	des   func(d *serde.Deserializer, b []byte) (T, []byte)
 	cases []T
 }
 
@@ -20,9 +20,11 @@ func (bt basicTest[T]) Run(t *testing.T) {
 		for i, x := range bt.cases {
 			x := x
 			t.Run(fmt.Sprintf("%d %v", i, x), func(t *testing.T) {
+				s := serde.EnsureSerializer(nil)
+				d := serde.EnsureDeserializer(nil)
 				var b []byte
-				b = bt.ser(x, b)
-				y, b := bt.des(b)
+				b = bt.ser(s, x, b)
+				y, b := bt.des(d, b)
 
 				if x != y {
 					t.Fatalf("got '%v'; expected '%v'", y, x)

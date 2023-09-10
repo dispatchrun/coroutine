@@ -105,7 +105,7 @@ func SerializeInterface(s *Serializer, x interface{}, b []byte) []byte {
 	}
 
 	// serialize the actual data
-	return serializeAny(s, t, p, b)
+	return serializeAny(s, r, b)
 }
 
 func DeserializeInterface(d *Deserializer, b []byte) (interface{}, []byte) {
@@ -190,6 +190,15 @@ func DeserializeBool(d *Deserializer, b []byte) (bool, []byte) {
 	return b[0] == 1, b[1:]
 }
 
+func SerializeUint(s *Serializer, x uint, b []byte) []byte {
+	return SerializeUint64(s, uint64(x), b)
+}
+
+func DeserializeUint(d *Deserializer, b []byte) (uint, []byte) {
+	x, b := DeserializeUint64(d, b)
+	return uint(x), b
+}
+
 func SerializeUint64(s *Serializer, x uint64, b []byte) []byte {
 	return binary.LittleEndian.AppendUint64(b, x)
 }
@@ -224,15 +233,14 @@ func DeserializeUint8(d *Deserializer, b []byte) (uint8, []byte) {
 
 func SerializeInt(s *Serializer, x int, b []byte) []byte {
 	slog.Debug("SerializeInt", "x", x, "offset", len(b))
-	return binary.LittleEndian.AppendUint64(b, uint64(x))
+	return SerializeInt64(s, int64(x), b)
 }
 
 func DeserializeInt(d *Deserializer, b []byte) (int, []byte) {
 	slog.Debug("DeserializeInt", "offset", len(b))
-	r := int(binary.LittleEndian.Uint64(b[:8]))
+	r, b := DeserializeInt64(d, b)
 	slog.Debug("DeserializeInt", "result", r)
-
-	return r, b[8:]
+	return int(r), b
 }
 
 func SerializeInt64(s *Serializer, x int64, b []byte) []byte {
