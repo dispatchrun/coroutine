@@ -2,6 +2,11 @@
 
 package coroutine
 
+import (
+	"encoding/binary"
+	"fmt"
+)
+
 // Stack is the call stack for a coroutine.
 type Stack struct {
 	// FP is the frame pointer. Functions always use the Frame
@@ -100,38 +105,38 @@ type Frame struct {
 }
 
 // MarshalAppend appends a serialized Frame to the provided buffer.
-// func (f *Frame) MarshalAppend(b []byte) ([]byte, error) {
-// 	b = binary.AppendVarint(b, int64(f.IP))
-// 	if f.Resume {
-// 		b = append(b, 1)
-// 	} else {
-// 		b = append(b, 0)
-// 	}
-// 	return f.Storage.MarshalAppend(b)
-// }
+func (f *Frame) MarshalAppend(b []byte) ([]byte, error) {
+	b = binary.AppendVarint(b, int64(f.IP))
+	if f.Resume {
+		b = append(b, 1)
+	} else {
+		b = append(b, 0)
+	}
+	return f.Storage.MarshalAppend(b)
+}
 
-// // Unmarshal deserializes a Frame from the provided buffer, returning
-// // the number of bytes that were read in order to reconstruct the
-// // frame.
-// func (f *Frame) Unmarshal(b []byte) (int, error) {
-// 	ip, n := binary.Varint(b)
-// 	if n <= 0 || int64(int(ip)) != ip {
-// 		return 0, fmt.Errorf("invalid frame instruction pointer: %v", b)
-// 	}
-// 	if n >= len(b) || (b[n] != 0 && b[n] != 1) {
-// 		return 0, fmt.Errorf("invalid frame resume flag: %v", b)
-// 	}
-// 	f.Resume = b[n] == 1
-// 	n++
+// Unmarshal deserializes a Frame from the provided buffer, returning
+// the number of bytes that were read in order to reconstruct the
+// frame.
+func (f *Frame) Unmarshal(b []byte) (int, error) {
+	ip, n := binary.Varint(b)
+	if n <= 0 || int64(int(ip)) != ip {
+		return 0, fmt.Errorf("invalid frame instruction pointer: %v", b)
+	}
+	if n >= len(b) || (b[n] != 0 && b[n] != 1) {
+		return 0, fmt.Errorf("invalid frame resume flag: %v", b)
+	}
+	f.Resume = b[n] == 1
+	n++
 
-// 	var storage Storage
-// 	sn, err := storage.Unmarshal(b[n:])
-// 	if err != nil {
-// 		return 0, err
-// 	}
-// 	n += sn
+	var storage Storage
+	sn, err := storage.Unmarshal(b[n:])
+	if err != nil {
+		return 0, err
+	}
+	n += sn
 
-// 	f.IP = int(ip)
-// 	f.Storage = storage
-// 	return n, nil
-// }
+	f.IP = int(ip)
+	f.Storage = storage
+	return n, nil
+}

@@ -98,11 +98,12 @@ type Generator struct {
 func NewGenerator(tags []string, pkgs []*packages.Package, target *packages.Package) *Generator {
 	// Find our built-in Serializable interface type so that we can check
 	// for its implementations.
-	serializable := FindTypeDef("Serializable", pkgs)
+	serializable := FindTypeDef("github.com/stealthrocket/coroutine/serde", "Serializable", pkgs)
 	if serializable == Notype {
 		panic("could not find built-in Serializable interface; make sure coroutine/serde is in pkgs")
 	}
 	serializableIface := serializable.Obj.Type().(*types.Named).Underlying().(*types.Interface)
+	slog.Debug("found Serializable interface", "type", serializableIface)
 	return &Generator{
 		tags:         tags,
 		serializable: serializableIface,
@@ -322,11 +323,11 @@ func (g *Generator) Type(t types.Type) locations {
 		return loc
 	}
 
-	if types.AssignableTo(t, g.serializable) {
+	if types.Implements(t, g.serializable) {
 		return g.Serializable(t)
 	}
 
-	if types.AssignableTo(types.NewPointer(t), g.serializable) {
+	if types.Implements(types.NewPointer(t), g.serializable) {
 		return g.SerializableToPtr(t)
 	}
 
@@ -468,10 +469,12 @@ func (g *Generator) Pointer(t *types.Pointer) locations {
 }
 
 func (g *Generator) Serializable(t types.Type) locations {
+	slog.Debug("using Serializable interface", "type", t)
 	return g.builtin(t, "SerializeSerializable", "DeserializeSerializable")
 }
 
 func (g *Generator) SerializableToPtr(t types.Type) locations {
+	slog.Debug("using pointer to Serializable interface", "type", t)
 	// t is not Serializable, but *t is.
 	name := g.TypeNameFor(t)
 	loc := g.newGenLocation(t, name)
@@ -814,8 +817,11 @@ func (t Typedef) TargetFile() string {
 
 var Notype = Typedef{}
 
-func FindTypeDef(name string, pkgs []*packages.Package) Typedef {
+func FindTypeDef(inpkg string, name string, pkgs []*packages.Package) Typedef {
 	for _, pkg := range pkgs {
+		if inpkg != "" && pkg.PkgPath != inpkg {
+			continue
+		}
 		for id, d := range pkg.TypesInfo.Defs {
 			if id.Name == name {
 				// TOOD: this probably need more checks.

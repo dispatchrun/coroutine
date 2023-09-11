@@ -89,7 +89,7 @@ func generate(typeName string, patterns []string, tags []string, output string) 
 
 	// Find the package that contains the type declaration requested.
 	// This will also be the output package.
-	td := serde.FindTypeDef(typeName, pkgs)
+	td := serde.FindTypeDef("", typeName, pkgs)
 	if td == serde.Notype {
 		return fmt.Errorf("could not find type definition")
 	}

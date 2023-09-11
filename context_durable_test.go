@@ -6,6 +6,8 @@ import (
 	"math"
 	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestContextSerialization(t *testing.T) {
@@ -44,6 +46,11 @@ func TestContextSerialization(t *testing.T) {
 	} else if n != len(b) {
 		t.Errorf("not all bytes were consumed when reconstructing the Context: got %d, expected %d", n, len(b))
 	}
+
+	if diff := cmp.Diff(original, reconstructed, cmp.AllowUnexported(reconstructed, Storage{})); diff != "" {
+		t.Fatalf("mismatch (-want +got):\n%s", diff)
+	}
+
 	if !reflect.DeepEqual(original, reconstructed) {
 		t.Error("unexpected context")
 		t.Logf("   got: %#v", reconstructed)
