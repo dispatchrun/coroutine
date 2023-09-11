@@ -70,13 +70,6 @@ func main() {
 }
 
 func generate(typeName string, patterns []string, tags []string) error {
-	// Add the serde support library to the search to bring the built-ins
-	// into the type system. At the moment it's only used for the
-	// Serializable interface, but eventually it should be used to reference
-	// helpers and basic types serialization functions by their ast.Ident
-	// directly.
-	patterns = append(patterns, "github.com/stealthrocket/coroutine/serde")
-
 	pkgs, err := parse(patterns, tags)
 	if err != nil {
 		return err
@@ -92,7 +85,6 @@ func generate(typeName string, patterns []string, tags []string) error {
 	output := td.TargetFile()
 
 	g := serde.NewGenerator(tags, pkgs, td.Pkg)
-	//	g.GenType(td.Obj.Type())
 	g.GenRegister(pkgs)
 
 	var buf bytes.Buffer
@@ -106,7 +98,6 @@ func generate(typeName string, patterns []string, tags []string) error {
 		fmt.Println(buf.String())
 		return err
 	}
-	//	fmt.Println(string(clean))
 
 	f, err := os.OpenFile(output, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {

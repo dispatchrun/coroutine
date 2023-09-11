@@ -30,7 +30,7 @@ func (d *Deserializer) Store(i ID, p unsafe.Pointer) {
 	d.ptrs[i] = p
 }
 
-func EnsureDeserializer(d *Deserializer) *Deserializer {
+func newDeserializer(d *Deserializer) *Deserializer {
 	if d == nil {
 		d = &Deserializer{
 			ptrs: make(map[ID]unsafe.Pointer),
@@ -78,22 +78,6 @@ type Serializable interface {
 	// of bytes that were read from the buffer in order to reconstruct the
 	// object.
 	Unmarshal(b []byte) (n int, err error)
-}
-
-func SerializeSerializable[T Serializable](s *Serializer, x T, b []byte) []byte {
-	b, err := x.MarshalAppend(b)
-	if err != nil {
-		panic(fmt.Errorf("serializing %T: %w", x, err))
-	}
-	return b
-}
-
-func DeserializeSerializable[T Serializable](d *Deserializer, x T, b []byte) []byte {
-	n, err := x.Unmarshal(b)
-	if err != nil {
-		panic(fmt.Errorf("deserializing %T: %w", x, err))
-	}
-	return b[n:]
 }
 
 // Write size of slice or map because we want to distinguish an initialized

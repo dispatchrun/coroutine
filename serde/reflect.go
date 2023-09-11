@@ -24,7 +24,7 @@ func Serialize(x any, b []byte) []byte {
 
 // Deserialize value from b.
 func Deserialize(b []byte) (interface{}, []byte) {
-	d := EnsureDeserializer(nil)
+	d := newDeserializer(nil)
 	var x interface{}
 	px := &x
 	t := reflect.TypeOf(px).Elem()

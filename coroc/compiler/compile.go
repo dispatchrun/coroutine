@@ -79,7 +79,13 @@ func (c *compiler) compile(path string) error {
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedImports | packages.NeedDeps | packages.NeedTypesInfo,
 		Fset: c.fset,
 	}
-	pkgs, err := packages.Load(conf, path)
+
+	// Add the serde support library to the search to bring the built-ins
+	// into the type system. At the moment it's only used for the
+	// Serializable interface, but eventually it should be used to reference
+	// helpers and basic types serialization functions by their ast.Ident
+	// directly.
+	pkgs, err := packages.Load(conf, path, "github.com/stealthrocket/coroutine/serde")
 	if err != nil {
 		return fmt.Errorf("packages.Load %q: %w", path, err)
 	}
