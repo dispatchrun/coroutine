@@ -7,8 +7,10 @@ import (
 	"math"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
+	"golang.org/x/exp/maps"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -148,8 +150,12 @@ func (g *Generator) GenRegister(pkgs []*packages.Package) {
 		findTypes(pkg)
 	}
 
+	// sort to avoid diffs changing too much
+	types := maps.Keys(s)
+	sort.Strings(types)
+
 	g.W(`func init() {`)
-	for k := range s {
+	for _, k := range types {
 		g.W(`serde.RegisterType[%s]()`, k)
 	}
 	g.W(`}`)
@@ -261,7 +267,13 @@ func (g *Generator) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return int64(n), err
 	}
-	for name, path := range g.imports.byName {
+
+	// sort imports for stability of output
+
+	importnames := maps.Keys(g.imports.byName)
+	sort.Strings(importnames)
+	for _, name := range importnames {
+		path := g.imports.byName[name]
 		n2, err := fmt.Fprintf(w, "import %s \"%s\"\n", name, path)
 		n += n2
 		if err != nil {
