@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"go/format"
+	"go/types"
 	"log/slog"
 	"os"
 	"strings"
@@ -83,13 +84,9 @@ func generate(typeName string, patterns []string, tags []string, output string) 
 		return err
 	}
 
-	for _, p := range pkgs {
-		fmt.Println("->", p.Name)
-	}
-
 	// Find the package that contains the type declaration requested.
 	// This will also be the output package.
-	td := serde.FindTypeDef("", typeName, pkgs)
+	td := serde.FindTypeDef[types.Type]("", typeName, pkgs)
 	if td == serde.Notype {
 		return fmt.Errorf("could not find type definition")
 	}

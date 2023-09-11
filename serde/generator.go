@@ -98,7 +98,7 @@ type Generator struct {
 func NewGenerator(tags []string, pkgs []*packages.Package, target *packages.Package) *Generator {
 	// Find our built-in Serializable interface type so that we can check
 	// for its implementations.
-	serializable := FindTypeDef("github.com/stealthrocket/coroutine/serde", "Serializable", pkgs)
+	serializable := FindTypeDef[*types.Named]("github.com/stealthrocket/coroutine/serde", "Serializable", pkgs)
 	if serializable == Notype {
 		panic("could not find built-in Serializable interface; make sure coroutine/serde is in pkgs")
 	}
@@ -817,14 +817,20 @@ func (t Typedef) TargetFile() string {
 
 var Notype = Typedef{}
 
-func FindTypeDef(inpkg string, name string, pkgs []*packages.Package) Typedef {
+func FindTypeDef[T types.Type](inpkg string, name string, pkgs []*packages.Package) Typedef {
 	for _, pkg := range pkgs {
 		if inpkg != "" && pkg.PkgPath != inpkg {
 			continue
 		}
 		for id, d := range pkg.TypesInfo.Defs {
+			if d == nil {
+				continue
+			}
+			_, ok := d.Type().(T)
+			if !ok {
+				continue
+			}
 			if id.Name == name {
-				// TOOD: this probably need more checks.
 				return Typedef{Obj: d, Pkg: pkg}
 			}
 		}
