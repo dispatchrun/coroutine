@@ -32,8 +32,7 @@ type Context[R, S any] struct {
 
 // MarshalAppend appends a serialized Context to the provided buffer.
 func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
-	s := serde.EnsureSerializer(nil)
-	b = Serialize_Stack(s, c.Stack, b)
+	b = serde.Serialize(c.Stack, b)
 	// TODO: heap is ignored for now
 	return b, nil
 }
@@ -42,10 +41,9 @@ func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
 // the number of bytes that were read in order to reconstruct the
 // context.
 func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
-	d := serde.EnsureDeserializer(nil)
 	start := len(b)
-	s, b := Deserialize_Stack(d, b)
-	c.Stack = s
+	s, b := serde.Deserialize(b)
+	c.Stack = s.(Stack)
 	sn := start - len(b)
 
 	// TODO: heap is ignored for now

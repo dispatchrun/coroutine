@@ -3,82 +3,110 @@ package serde
 import (
 	"encoding/binary"
 	"fmt"
-	"log/slog"
+	"math"
 	"reflect"
 	"unsafe"
 )
 
 // reflect.go contains the reflection based serialization and deserialization
-// procedures. It is used to handle values the codegen pass cannot generate
-// methods for (interfaces). Eventually codegen should be able to generate code
-// for types.
+// procedures. It does not do any type memoization, as eventually codegen should
+// be able to generate code for types.
+
+// Serialize x at the end of b, returning it.
+func Serialize(x any, b []byte) []byte {
+	s := EnsureSerializer(nil)
+	w := &x // w is *interface{}
+	wr := reflect.ValueOf(w)
+	p := wr.UnsafePointer() // *interface{}
+	t := wr.Elem().Type()   // what x contains
+	return serializeAny(s, t, p, b)
+}
+
+// Deserialize value from b.
+func Deserialize(b []byte) (interface{}, []byte) {
+	d := EnsureDeserializer(nil)
+	var x interface{}
+	px := &x
+	t := reflect.TypeOf(px).Elem()
+	p := unsafe.Pointer(px)
+	b = deserializeInterface(d, t, p, b)
+	return x, b
+}
+
+var (
+	//	ifaceptrtype reflect.Type = reflect.TypeOf((*interface{})(nil))
+	serializableT = reflect.TypeOf((*Serializable)(nil)).Elem()
+)
 
 type iface struct {
 	typ unsafe.Pointer
 	ptr unsafe.Pointer
 }
 
-func ifacePointer(v interface{}) unsafe.Pointer {
-	return (*iface)(unsafe.Pointer(&v)).ptr
-}
+func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	if t.Implements(serializableT) {
+		b, err := reflect.NewAt(t, p).Elem().Interface().(Serializable).MarshalAppend(b)
+		if err != nil {
+			panic(fmt.Errorf("unhandled marshalappend err: %w", err))
+		}
+		return b
+	}
 
-func serializeAny(s *Serializer, r reflect.Value, b []byte) []byte {
-	t := r.Type()
-	codec, exists := tm.CodecOf(t)
-	if exists && codec.serializer != nil {
-		slog.Debug("using codec", "codec", codec, "type", t)
-		return codec.serializer(s, r.Interface(), b)
-	} else {
-		slog.Debug("type has not codec", "type", t)
+	if reflect.PointerTo(t).Implements(serializableT) {
+		b, err := reflect.NewAt(t, p).Interface().(Serializable).MarshalAppend(b)
+		if err != nil {
+			panic(fmt.Errorf("unhandled marshalappend err: %w", err))
+		}
+		return b
 	}
 
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic(fmt.Errorf("can't serialize reflect.Invalid"))
 	case reflect.Bool:
-		return reflectWrapSer(SerializeBool, s, r, b)
+		return serializeBool(s, *(*bool)(p), b)
 	case reflect.Int:
-		return reflectWrapSer(SerializeInt, s, r, b)
+		return serializeInt(s, *(*int)(p), b)
 	case reflect.Int64:
-		return reflectWrapSer(SerializeInt64, s, r, b)
+		return serializeInt64(s, *(*int64)(p), b)
 	case reflect.Int32:
-		return reflectWrapSer(SerializeInt32, s, r, b)
+		return serializeInt32(s, *(*int32)(p), b)
 	case reflect.Int16:
-		return reflectWrapSer(SerializeInt16, s, r, b)
+		return serializeInt16(s, *(*int16)(p), b)
 	case reflect.Int8:
-		return reflectWrapSer(SerializeInt8, s, r, b)
+		return serializeInt8(s, *(*int8)(p), b)
 	case reflect.Uint:
-		return reflectWrapSer(SerializeUint, s, r, b)
+		return serializeUint(s, *(*uint)(p), b)
 	case reflect.Uint64:
-		return reflectWrapSer(SerializeUint64, s, r, b)
+		return serializeUint64(s, *(*uint64)(p), b)
 	case reflect.Uint32:
-		return reflectWrapSer(SerializeUint32, s, r, b)
+		return serializeUint32(s, *(*uint32)(p), b)
 	case reflect.Uint16:
-		return reflectWrapSer(SerializeUint16, s, r, b)
+		return serializeUint16(s, *(*uint16)(p), b)
 	case reflect.Uint8:
-		return reflectWrapSer(SerializeUint8, s, r, b)
+		return serializeUint8(s, *(*uint8)(p), b)
 	case reflect.Float64:
-		return reflectWrapSer(SerializeFloat64, s, r, b)
+		return serializeFloat64(s, *(*float64)(p), b)
 	case reflect.Float32:
-		return reflectWrapSer(SerializeFloat32, s, r, b)
+		return serializeFloat32(s, *(*float32)(p), b)
 	case reflect.Complex64:
-		return reflectWrapSer(SerializeComplex64, s, r, b)
+		return serializeComplex64(s, *(*complex64)(p), b)
 	case reflect.Complex128:
-		return reflectWrapSer(SerializeComplex128, s, r, b)
+		return serializeComplex128(s, *(*complex128)(p), b)
 	case reflect.String:
-		return reflectWrapSer(SerializeString, s, r, b)
+		return serializeString(s, (*string)(p), b)
 	case reflect.Array:
-		return serializeArray(s, r, b)
+		return serializeArray(s, t, p, b)
 	case reflect.Interface:
-		return reflectWrapSer(SerializeInterface, s, r, b)
+		return serializeInterface(s, t, p, b)
 	case reflect.Map:
-		return serializeMap(s, r, b)
+		return serializeMap(s, t, p, b)
 	case reflect.Pointer:
-		return serializePointer(s, r, b)
+		return serializePointer(s, t, p, b)
 	case reflect.Slice:
-		return serializeSlice(s, r, b)
+		return serializeSlice(s, t, p, b)
 	case reflect.Struct:
-		return serializeStruct(s, r, b)
+		return serializeStruct(s, t, p, b)
 	// Chan
 	// Func
 	// UnsafePointer
@@ -88,52 +116,58 @@ func serializeAny(s *Serializer, r reflect.Value, b []byte) []byte {
 }
 
 func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
-	codec, exists := tm.CodecOf(t)
-	if exists && codec.deserializer != nil {
-		v, b := codec.deserializer(d, b)
-		rv := reflect.ValueOf(v)
-		target := reflect.NewAt(t, p)
-		target.Elem().Set(rv)
-		return b
+	if t.Implements(serializableT) {
+		i, err := reflect.NewAt(t, p).Elem().Interface().(Serializable).Unmarshal(b)
+		if err != nil {
+			panic(fmt.Errorf("unhandled unmarshal err: %w", err))
+		}
+		return b[i:]
+	}
+	if reflect.PointerTo(t).Implements(serializableT) {
+		i, err := reflect.NewAt(t, p).Interface().(Serializable).Unmarshal(b)
+		if err != nil {
+			panic(fmt.Errorf("unhandled unmarshal err: %w", err))
+		}
+		return b[i:]
 	}
 
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic(fmt.Errorf("can't deserialize reflect.Invalid"))
 	case reflect.Bool:
-		return reflectWrapDes(DeserializeBool, d, p, b)
+		return deserializeBool(d, (*bool)(p), b)
 	case reflect.Int:
-		return reflectWrapDes(DeserializeInt, d, p, b)
+		return deserializeInt(d, (*int)(p), b)
 	case reflect.Int64:
-		return reflectWrapDes(DeserializeInt64, d, p, b)
+		return deserializeInt64(d, (*int64)(p), b)
 	case reflect.Int32:
-		return reflectWrapDes(DeserializeInt32, d, p, b)
+		return deserializeInt32(d, (*int32)(p), b)
 	case reflect.Int16:
-		return reflectWrapDes(DeserializeInt16, d, p, b)
+		return deserializeInt16(d, (*int16)(p), b)
 	case reflect.Int8:
-		return reflectWrapDes(DeserializeInt8, d, p, b)
+		return deserializeInt8(d, (*int8)(p), b)
 	case reflect.Uint:
-		return reflectWrapDes(DeserializeUint, d, p, b)
+		return deserializeUint(d, (*uint)(p), b)
 	case reflect.Uint64:
-		return reflectWrapDes(DeserializeUint64, d, p, b)
+		return deserializeUint64(d, (*uint64)(p), b)
 	case reflect.Uint32:
-		return reflectWrapDes(DeserializeUint32, d, p, b)
+		return deserializeUint32(d, (*uint32)(p), b)
 	case reflect.Uint16:
-		return reflectWrapDes(DeserializeUint16, d, p, b)
+		return deserializeUint16(d, (*uint16)(p), b)
 	case reflect.Uint8:
-		return reflectWrapDes(DeserializeUint8, d, p, b)
+		return deserializeUint8(d, (*uint8)(p), b)
 	case reflect.Float64:
-		return reflectWrapDes(DeserializeFloat64, d, p, b)
+		return deserializeFloat64(d, (*float64)(p), b)
 	case reflect.Float32:
-		return reflectWrapDes(DeserializeFloat32, d, p, b)
+		return deserializeFloat32(d, (*float32)(p), b)
 	case reflect.Complex64:
-		return reflectWrapDes(DeserializeComplex64, d, p, b)
+		return deserializeComplex64(d, (*complex64)(p), b)
 	case reflect.Complex128:
-		return reflectWrapDes(DeserializeComplex128, d, p, b)
+		return deserializeComplex128(d, (*complex128)(p), b)
 	case reflect.String:
-		return reflectWrapDes(DeserializeString, d, p, b)
+		return deserializeString(d, (*string)(p), b)
 	case reflect.Interface:
-		return reflectWrapDes(DeserializeInterface, d, p, b)
+		return deserializeInterface(d, t, p, b)
 	case reflect.Pointer:
 		return deserializePointer(d, t, p, b)
 	case reflect.Array:
@@ -149,22 +183,9 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte)
 	}
 }
 
-func reflectWrapSer[T any](f func(*Serializer, T, []byte) []byte, s *Serializer, r reflect.Value, b []byte) []byte {
-	return f(s, r.Interface().(T), b)
-}
-
-func reflectWrapDes[T any](f func(*Deserializer, []byte) (T, []byte), d *Deserializer, p unsafe.Pointer, b []byte) []byte {
-	x, b := f(d, b)
-	*(*T)(p) = x
-	return b
-}
-
-func dumptr(r reflect.Value) {
-	fmt.Printf("=>%s, %s\n", r, r.Type())
-}
-
-func serializeMap(s *Serializer, r reflect.Value, b []byte) []byte {
+func serializeMap(s *Serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	size := 0
+	r := reflect.NewAt(t, p).Elem()
 	if r.IsNil() {
 		size = -1
 	} else {
@@ -172,18 +193,21 @@ func serializeMap(s *Serializer, r reflect.Value, b []byte) []byte {
 	}
 	b = binary.AppendVarint(b, int64(size))
 
+	// TODO: allocs
 	iter := r.MapRange()
+	k := reflect.New(t.Key()).Elem()
+	v := reflect.New(t.Elem()).Elem()
 	for iter.Next() {
-		k := iter.Key()
-		v := iter.Value()
-		b = serializeAny(s, k, b)
-		b = serializeAny(s, v, b)
+		k.Set(iter.Key())
+		v.Set(iter.Value())
+		b = serializeAny(s, t.Key(), k.Addr().UnsafePointer(), b)
+		b = serializeAny(s, t.Elem(), v.Addr().UnsafePointer(), b)
 	}
 	return b
 }
 
 func deserializeMap(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
-	n, b := DeserializeMapSize(b)
+	n, b := deserializeSize(b)
 	if n < 0 { // nil map
 		return b
 	}
@@ -200,17 +224,24 @@ func deserializeMap(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte)
 	return b
 }
 
-func serializeSlice(s *Serializer, r reflect.Value, b []byte) []byte {
-	b = SerializeSize(r.Len(), b)
+func serializeSlice(s *Serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	r := reflect.NewAt(t, p).Elem()
+	b = serializeSize(r, b)
+	te := t.Elem()
+	start := r.UnsafePointer()
+	size := int(te.Size())
 	for i := 0; i < r.Len(); i++ {
-		x := r.Index(i)
-		b = serializeAny(s, x, b)
+		pe := unsafe.Add(start, i*size)
+		b = serializeAny(s, te, pe, b)
 	}
 	return b
 }
 
 func deserializeSlice(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
-	n, b := DeserializeSize(b)
+	n, b := deserializeSize(b)
+	if n < 0 {
+		return b
+	}
 	nv := reflect.MakeSlice(t, n, n)
 	r := reflect.NewAt(t, p)
 	r.Elem().Set(nv)
@@ -223,28 +254,33 @@ func deserializeSlice(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byt
 	return b
 }
 
-func serializeArray(s *Serializer, r reflect.Value, b []byte) []byte {
-	for i := 0; i < r.Len(); i++ {
-		x := r.Index(i)
-		b = serializeAny(s, x, b)
+func serializeArray(s *Serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	n := t.Len()
+	te := t.Elem()
+	ts := int(te.Size())
+	for i := 0; i < n; i++ {
+		pe := unsafe.Add(p, ts*i)
+		b = serializeAny(s, te, pe, b)
 	}
 	return b
 }
 
 func deserializeArray(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	size := int(t.Elem().Size())
+	te := t.Elem()
 	for i := 0; i < t.Len(); i++ {
-		e := unsafe.Add(p, size*i)
-		b = deserializeAny(d, t.Elem(), e, b)
+		pe := unsafe.Add(p, size*i)
+		b = deserializeAny(d, te, pe, b)
 	}
 	return b
 }
 
-func serializePointer(s *Serializer, r reflect.Value, b []byte) []byte {
+func serializePointer(s *Serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	r := reflect.NewAt(t, p).Elem()
 	x := r.UnsafePointer()
 	ok, b := s.WritePtr(x, b)
 	if !ok {
-		b = serializeAny(s, r.Elem(), b)
+		b = serializeAny(s, t.Elem(), x, b)
 	}
 	return b
 }
@@ -252,7 +288,7 @@ func serializePointer(s *Serializer, r reflect.Value, b []byte) []byte {
 func deserializePointer(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	r := reflect.NewAt(t, p)
 	x, i, b := d.ReadPtr(b)
-	if x != nil || i == 0 {
+	if x != nil || i == 0 { // pointer already seen or nil
 		r.Elem().Set(reflect.NewAt(t.Elem(), x))
 	} else {
 		newthing := reflect.New(t.Elem())
@@ -265,36 +301,275 @@ func deserializePointer(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []b
 
 func reflectFieldSupported(ft reflect.StructField) bool {
 	// TODO
-	return !ft.Anonymous && ft.IsExported()
+	return true
+	//	return !ft.Anonymous //&& ft.IsExported()
 }
 
-func serializeStruct(s *Serializer, r reflect.Value, b []byte) []byte {
-	t := r.Type()
+func serializeStruct(s *Serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	n := t.NumField()
 	for i := 0; i < n; i++ {
 		ft := t.Field(i)
 		if !reflectFieldSupported(ft) {
 			continue
 		}
-		f := r.Field(i)
-		b = serializeAny(s, f, b)
+		fp := unsafe.Add(p, ft.Offset)
+		b = serializeAny(s, ft.Type, fp, b)
 	}
 	return b
 }
 
 func deserializeStruct(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	n := t.NumField()
-	r := reflect.NewAt(t, p)
 	for i := 0; i < n; i++ {
 		ft := t.Field(i)
 		if !reflectFieldSupported(ft) {
 			continue
 		}
 
-		fr := reflect.New(ft.Type)
-		b = deserializeAny(d, ft.Type, fr.UnsafePointer(), b)
-
-		r.Elem().Field(i).Set(fr.Elem())
+		fp := unsafe.Add(p, ft.Offset)
+		b = deserializeAny(d, ft.Type, fp, b)
 	}
 	return b
+}
+
+func serializeInterface(s *Serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	i := (*iface)(p)
+
+	// Serialize empty interface as just -1.
+	//
+	// TODO: there's probably a bug here for an interface with a type
+	// pointer but a nil data pointer.
+	if i.typ == nil || i.ptr == nil {
+		return binary.AppendVarint(b, -1)
+	}
+
+	x := *(*interface{})(p)
+	et := reflect.TypeOf(x)
+
+	id := tm.IDof(et)
+	b = binary.AppendVarint(b, int64(id))
+
+	eptr := i.ptr
+	if inlined(et) {
+		xp := i.ptr
+		eptr = unsafe.Pointer(&xp)
+		// noescape?
+	}
+
+	exists, b := s.WritePtr(eptr, b)
+	if exists {
+		return b
+	}
+
+	// serialize the actual data if needed
+	return serializeAny(s, et, eptr, b)
+}
+
+func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	tid, n := binary.Varint(b)
+	b = b[n:]
+	if tid == -1 {
+		// nothing to do?
+		return b
+	}
+
+	te := tm.TypeOf(ID(tid))
+
+	pe, id, b := d.ReadPtr(b)
+	if pe != nil { // already been deserialized
+		r := reflect.NewAt(t, p)
+		val := reflect.NewAt(t, pe).Elem()
+		r.Elem().Set(val)
+		return b
+	}
+	if id == 0 { // nil pointer
+		r := reflect.NewAt(t, p)
+		val := reflect.Zero(reflect.PointerTo(te)).Elem()
+		r.Elem().Set(val)
+		return b
+	}
+
+	pre := reflect.New(te)
+	pe = pre.UnsafePointer()
+	d.Store(id, p)
+
+	b = deserializeAny(d, te, pe, b)
+	reflect.NewAt(t, p).Elem().Set(pre.Elem())
+	return b
+}
+
+func serializeString(s *Serializer, x *string, b []byte) []byte {
+	b = binary.AppendVarint(b, int64(len(*x)))
+	return append(b, *x...)
+}
+
+func deserializeString(d *Deserializer, x *string, b []byte) []byte {
+	l, n := binary.Varint(b)
+	b = b[n:]
+	*x = string(b[:l])
+	return b[l:]
+}
+
+func serializeBool(s *Serializer, x bool, b []byte) []byte {
+	c := byte(0)
+	if x {
+		c = 1
+	}
+	return append(b, c)
+}
+
+func deserializeBool(d *Deserializer, x *bool, b []byte) []byte {
+	*x = b[0] == 1
+	return b[1:]
+}
+
+func serializeInt(s *Serializer, x int, b []byte) []byte {
+	return serializeInt64(s, int64(x), b)
+}
+
+func deserializeInt(d *Deserializer, x *int, b []byte) []byte {
+	*x = int(binary.LittleEndian.Uint64(b[:8]))
+	return b[8:]
+}
+
+func serializeInt64(s *Serializer, x int64, b []byte) []byte {
+	return binary.LittleEndian.AppendUint64(b, uint64(x))
+}
+
+func deserializeInt64(d *Deserializer, x *int64, b []byte) []byte {
+	*x = int64(binary.LittleEndian.Uint64(b[:8]))
+	return b[8:]
+}
+
+func serializeInt32(s *Serializer, x int32, b []byte) []byte {
+	return binary.LittleEndian.AppendUint32(b, uint32(x))
+}
+
+func deserializeInt32(d *Deserializer, x *int32, b []byte) []byte {
+	*x = int32(binary.LittleEndian.Uint32(b[:4]))
+	return b[4:]
+}
+
+func serializeInt16(s *Serializer, x int16, b []byte) []byte {
+	return binary.LittleEndian.AppendUint16(b, uint16(x))
+}
+
+func deserializeInt16(d *Deserializer, x *int16, b []byte) []byte {
+	*x = int16(binary.LittleEndian.Uint16(b[:2]))
+	return b[2:]
+}
+
+func serializeInt8(s *Serializer, x int8, b []byte) []byte {
+	return append(b, byte(x))
+}
+
+func deserializeInt8(d *Deserializer, x *int8, b []byte) []byte {
+	*x = int8(b[0])
+	return b[1:]
+}
+
+func serializeUint(s *Serializer, x uint, b []byte) []byte {
+	return serializeUint64(s, uint64(x), b)
+}
+
+func deserializeUint(d *Deserializer, x *uint, b []byte) []byte {
+	*x = uint(binary.LittleEndian.Uint64(b[:8]))
+	return b[8:]
+}
+
+func serializeUint64(s *Serializer, x uint64, b []byte) []byte {
+	return binary.LittleEndian.AppendUint64(b, x)
+}
+
+func deserializeUint64(d *Deserializer, x *uint64, b []byte) []byte {
+	*x = uint64(binary.LittleEndian.Uint64(b[:8]))
+	return b[8:]
+}
+
+func serializeUint32(s *Serializer, x uint32, b []byte) []byte {
+	return binary.LittleEndian.AppendUint32(b, x)
+}
+
+func deserializeUint32(d *Deserializer, x *uint32, b []byte) []byte {
+	*x = uint32(binary.LittleEndian.Uint32(b[:4]))
+	return b[4:]
+}
+
+func serializeUint16(s *Serializer, x uint16, b []byte) []byte {
+	return binary.LittleEndian.AppendUint16(b, x)
+}
+
+func deserializeUint16(d *Deserializer, x *uint16, b []byte) []byte {
+	*x = uint16(binary.LittleEndian.Uint16(b[:2]))
+	return b[2:]
+}
+
+func serializeUint8(s *Serializer, x uint8, b []byte) []byte {
+	return append(b, byte(x))
+}
+
+func deserializeUint8(d *Deserializer, x *uint8, b []byte) []byte {
+	*x = uint8(b[0])
+	return b[1:]
+}
+
+func serializeFloat32(s *Serializer, x float32, b []byte) []byte {
+	return serializeUint32(s, math.Float32bits(x), b)
+}
+
+func deserializeFloat32(d *Deserializer, x *float32, b []byte) []byte {
+	return deserializeUint32(d, (*uint32)(unsafe.Pointer(x)), b)
+}
+
+func serializeFloat64(s *Serializer, x float64, b []byte) []byte {
+	return serializeUint64(s, math.Float64bits(x), b)
+}
+
+func deserializeFloat64(d *Deserializer, x *float64, b []byte) []byte {
+	return deserializeUint64(d, (*uint64)(unsafe.Pointer(x)), b)
+}
+
+func serializeComplex64(s *Serializer, x complex64, b []byte) []byte {
+	b = serializeFloat32(s, real(x), b)
+	b = serializeFloat32(s, imag(x), b)
+	return b
+}
+
+func deserializeComplex64(d *Deserializer, x *complex64, b []byte) []byte {
+	// TODO: remove allocs
+	var r float32
+	b = deserializeFloat32(d, &r, b)
+	var i float32
+	b = deserializeFloat32(d, &i, b)
+	*x = complex(r, i)
+	return b
+}
+
+func serializeComplex128(s *Serializer, x complex128, b []byte) []byte {
+	b = serializeFloat64(s, real(x), b)
+	b = serializeFloat64(s, imag(x), b)
+	return b
+}
+
+func deserializeComplex128(d *Deserializer, x *complex128, b []byte) []byte {
+	// TODO: remove allocs
+	var r float64
+	b = deserializeFloat64(d, &r, b)
+	var i float64
+	b = deserializeFloat64(d, &i, b)
+	*x = complex(r, i)
+	return b
+}
+
+func inlined(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Ptr:
+		return true
+	case reflect.Map:
+		return true
+	case reflect.Struct:
+		return t.NumField() == 1 && inlined(t.Field(0).Type)
+	default:
+		return false
+	}
 }

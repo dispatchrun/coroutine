@@ -92,7 +92,7 @@ func generate(typeName string, patterns []string, tags []string) error {
 	output := td.TargetFile()
 
 	g := serde.NewGenerator(tags, pkgs, td.Pkg)
-	g.GenType(td.Obj.Type())
+	//	g.GenType(td.Obj.Type())
 	g.GenRegister(pkgs)
 
 	var buf bytes.Buffer

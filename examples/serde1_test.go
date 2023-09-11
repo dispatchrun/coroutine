@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/stealthrocket/coroutine/serde"
 )
 
 func enableDebugLogs() {
@@ -118,9 +119,11 @@ func TestStruct1(t *testing.T) {
 
 func roundtripStruct1(t *testing.T, s Struct1) {
 	t.Helper()
+
 	var b []byte
-	b = Serialize_Struct1(nil, s, b)
-	s2, b := Deserialize_Struct1(nil, b)
+	serde.RegisterType[Struct1]()
+	b = serde.Serialize(s, b)
+	s2, b := serde.Deserialize(b)
 
 	opts := []cmp.Option{
 		cmp.AllowUnexported(Foo{}),

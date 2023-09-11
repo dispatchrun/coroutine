@@ -4,2194 +4,431 @@
 
 package coroutine
 
-import json "encoding/json"
-import objectpath "golang.org/x/tools/go/types/objectpath"
-import semver "golang.org/x/mod/semver"
-import strconv "strconv"
-import sort "sort"
-import syntax "regexp/syntax"
-import rand "math/rand"
-import astutil "golang.org/x/tools/go/ast/astutil"
-import ast "go/ast"
 import packages "golang.org/x/tools/go/packages"
-import strings "strings"
-import io "io"
-import parser "go/parser"
-import fs "io/fs"
-import bufio "bufio"
-import big "math/big"
-import types "go/types"
-import typeutil "golang.org/x/tools/go/types/typeutil"
-import sync "sync"
-import atomic "sync/atomic"
-import unicode "unicode"
-import time "time"
-import constant "go/constant"
-import base64 "encoding/base64"
 import unsafe "unsafe"
-import build "go/build"
-import constraint "go/build/constraint"
-import crypto "crypto"
-import slog "log/slog"
+import time "time"
+import json "encoding/json"
+import astutil "golang.org/x/tools/go/ast/astutil"
+import types "go/types"
 import token "go/token"
-import serde "github.com/stealthrocket/coroutine/serde"
-import runtime "runtime"
-import bytes "bytes"
-import scanner "go/scanner"
-import syscall "syscall"
-import doc "go/doc"
-import reflect "reflect"
-import exec "os/exec"
 import os "os"
+import bytes "bytes"
+import parser "go/parser"
+import doc "go/doc"
+import crypto "crypto"
+import serde "github.com/stealthrocket/coroutine/serde"
+import ast "go/ast"
+import io "io"
+import objectpath "golang.org/x/tools/go/types/objectpath"
+import build "go/build"
+import exec "os/exec"
 import regexp "regexp"
+import rand "math/rand"
 import comment "go/doc/comment"
+import slog "log/slog"
+import reflect "reflect"
+import typeutil "golang.org/x/tools/go/types/typeutil"
+import strings "strings"
+import sync "sync"
+import sort "sort"
+import unicode "unicode"
+import scanner "go/scanner"
+import runtime "runtime"
+import big "math/big"
 import log "log"
+import semver "golang.org/x/mod/semver"
+import bufio "bufio"
+import base64 "encoding/base64"
+import strconv "strconv"
+import atomic "sync/atomic"
+import syscall "syscall"
+import fs "io/fs"
+import constraint "go/build/constraint"
+import constant "go/constant"
+import syntax "regexp/syntax"
 
-func Serialize_gen8(s *serde.Serializer, x []any, b []byte) []byte {
-	s = serde.EnsureSerializer(s)
-	b = serde.SerializeSize(len(x), b)
-	for _, x := range x {
-		b = serde.SerializeInterface(s, x, b)
-	}
-	return b
-}
-
-func Deserialize_gen8(d *serde.Deserializer, b []byte) ([]any, []byte) {
-	d = serde.EnsureDeserializer(d)
-	n, b := serde.DeserializeSize(b)
-	var z []any
-	for i := 0; i < n; i++ {
-		var x any
-		x, b = serde.DeserializeInterface(d, b)
-		z = append(z, x)
-	}
-	return z, b
-}
-
-func Serialize_gen7(s *serde.Serializer, x struct{ objects []any }, b []byte) []byte {
-	s = serde.EnsureSerializer(s)
-	{
-		x := x.objects
-		b = Serialize_gen8(s, x, b)
-	}
-	return b
-}
-
-func Deserialize_gen7(d *serde.Deserializer, b []byte) (struct{ objects []any }, []byte) {
-	d = serde.EnsureDeserializer(d)
-	var z struct{ objects []any }
-	{
-		var x []any
-		x, b = Deserialize_gen8(d, b)
-		z.objects = x
-	}
-	return z, b
-}
-
-func Serialize_Storage(s *serde.Serializer, z Storage, b []byte) []byte {
-	s = serde.EnsureSerializer(s)
-	x := (struct{ objects []any })(z)
-	b = Serialize_gen7(s, x, b)
-	return b
-}
-func Deserialize_Storage(d *serde.Deserializer, b []byte) (Storage, []byte) {
-	d = serde.EnsureDeserializer(d)
-	var x struct{ objects []any }
-	x, b = Deserialize_gen7(d, b)
-	return (Storage)(x), b
-}
-func Serialize_gen5(s *serde.Serializer, x struct {
-	IP int
-	Storage
-	Resume bool
-}, b []byte) []byte {
-	s = serde.EnsureSerializer(s)
-	{
-		x := x.IP
-		b = serde.SerializeInt(s, x, b)
-	}
-	{
-		x := x.Storage
-		b = Serialize_Storage(s, x, b)
-	}
-	{
-		x := x.Resume
-		b = serde.SerializeBool(s, x, b)
-	}
-	return b
-}
-
-func Deserialize_gen5(d *serde.Deserializer, b []byte) (struct {
-	IP int
-	Storage
-	Resume bool
-}, []byte) {
-	d = serde.EnsureDeserializer(d)
-	var z struct {
-		IP int
-		Storage
-		Resume bool
-	}
-	{
-		var x int
-		x, b = serde.DeserializeInt(d, b)
-		z.IP = x
-	}
-	{
-		var x Storage
-		x, b = Deserialize_Storage(d, b)
-		z.Storage = x
-	}
-	{
-		var x bool
-		x, b = serde.DeserializeBool(d, b)
-		z.Resume = x
-	}
-	return z, b
-}
-
-func Serialize_Frame(s *serde.Serializer, z Frame, b []byte) []byte {
-	s = serde.EnsureSerializer(s)
-	x := (struct {
-		IP int
-		Storage
-		Resume bool
-	})(z)
-	b = Serialize_gen5(s, x, b)
-	return b
-}
-func Deserialize_Frame(d *serde.Deserializer, b []byte) (Frame, []byte) {
-	d = serde.EnsureDeserializer(d)
-	var x struct {
-		IP int
-		Storage
-		Resume bool
-	}
-	x, b = Deserialize_gen5(d, b)
-	return (Frame)(x), b
-}
-func Serialize_gen3(s *serde.Serializer, x []Frame, b []byte) []byte {
-	s = serde.EnsureSerializer(s)
-	b = serde.SerializeSize(len(x), b)
-	for _, x := range x {
-		b = Serialize_Frame(s, x, b)
-	}
-	return b
-}
-
-func Deserialize_gen3(d *serde.Deserializer, b []byte) ([]Frame, []byte) {
-	d = serde.EnsureDeserializer(d)
-	n, b := serde.DeserializeSize(b)
-	var z []Frame
-	for i := 0; i < n; i++ {
-		var x Frame
-		x, b = Deserialize_Frame(d, b)
-		z = append(z, x)
-	}
-	return z, b
-}
-
-func Serialize_gen1(s *serde.Serializer, x struct {
-	FP     int
-	Frames []Frame
-}, b []byte) []byte {
-	s = serde.EnsureSerializer(s)
-	{
-		x := x.FP
-		b = serde.SerializeInt(s, x, b)
-	}
-	{
-		x := x.Frames
-		b = Serialize_gen3(s, x, b)
-	}
-	return b
-}
-
-func Deserialize_gen1(d *serde.Deserializer, b []byte) (struct {
-	FP     int
-	Frames []Frame
-}, []byte) {
-	d = serde.EnsureDeserializer(d)
-	var z struct {
-		FP     int
-		Frames []Frame
-	}
-	{
-		var x int
-		x, b = serde.DeserializeInt(d, b)
-		z.FP = x
-	}
-	{
-		var x []Frame
-		x, b = Deserialize_gen3(d, b)
-		z.Frames = x
-	}
-	return z, b
-}
-
-func Serialize_Stack(s *serde.Serializer, z Stack, b []byte) []byte {
-	s = serde.EnsureSerializer(s)
-	x := (struct {
-		FP     int
-		Frames []Frame
-	})(z)
-	b = Serialize_gen1(s, x, b)
-	return b
-}
-func Deserialize_Stack(d *serde.Deserializer, b []byte) (Stack, []byte) {
-	d = serde.EnsureDeserializer(d)
-	var x struct {
-		FP     int
-		Frames []Frame
-	}
-	x, b = Deserialize_gen1(d, b)
-	return (Stack)(x), b
-}
 func init() {
-	var t reflect.Type
-	{
-		var x ast.MapType
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x big.Int
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x runtime.PanicNilError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x atomic.Bool
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x reflect.SliceHeader
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Package
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.SockFilter
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.ChanType
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x constraint.NotExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x atomic.Uint32
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x reflect.ChanDir
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.Ellipsis
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syntax.EmptyOp
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Instance
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x uint16
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x Stack
-		t = reflect.TypeOf(x)
-		sw := func(s *serde.Serializer, x any, b []byte) []byte {
-			return Serialize_Stack(s, x.(Stack), b)
-		}
-		dw := func(d *serde.Deserializer, b []byte) (any, []byte) {
-			return Deserialize_Stack(d, b)
-		}
-		serde.RegisterTypeWithCodec(t, sw, dw)
-	}
-	{
-		var x build.MultiplePackageError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x int
-		t = reflect.TypeOf(x)
-		sw := func(s *serde.Serializer, x any, b []byte) []byte {
-			return serde.SerializeInt(s, x.(int), b)
-		}
-		dw := func(d *serde.Deserializer, b []byte) (any, []byte) {
-			return serde.DeserializeInt(d, b)
-		}
-		serde.RegisterTypeWithCodec(t, sw, dw)
-	}
-	{
-		var x reflect.StructTag
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x strings.Replacer
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Signature
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.TypeParamList
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x build.Directive
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syntax.Inst
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x astutil.Cursor
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x runtime.Func
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.WaitStatus
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.NetlinkRouteAttr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.BadExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x big.Float
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x doc.Package
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x build.ImportMode
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x doc.Value
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x uintptr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x runtime.Pinner
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.ImportSpec
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.Object
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.ForStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Context
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x base64.Encoding
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x io.PipeReader
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x packages.Module
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.BadDecl
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.SwitchStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x build.Package
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x constraint.AndExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x slog.Kind
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x runtime.Frames
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Dirent
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.EmptyStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x bytes.Reader
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x rand.Zipf
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Label
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x reflect.SelectDir
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.RawSockaddrNetlink
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.RangeStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x uint32
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x complex128
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x atomic.Int32
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Cmsghdr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.SelectStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Ucred
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x os.ProcAttr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Map
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x atomic.Value
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x time.Location
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Flock_t
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.SockaddrUnix
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.NlAttr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.CallExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x token.File
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Term
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Const
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x rand.Rand
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x constraint.TagExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x reflect.StructField
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x sync.Pool
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x exec.ExitError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x json.Decoder
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.LabeledStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.TypeAssertExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x slog.HandlerOptions
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x serde.Typedef
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x runtime.BlockProfileRecord
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x build.NoGoError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syntax.ErrorCode
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x bool
-		t = reflect.TypeOf(x)
-		sw := func(s *serde.Serializer, x any, b []byte) []byte {
-			return serde.SerializeBool(s, x.(bool), b)
-		}
-		dw := func(d *serde.Deserializer, b []byte) (any, []byte) {
-			return serde.DeserializeBool(d, b)
-		}
-		serde.RegisterTypeWithCodec(t, sw, dw)
-	}
-	{
-		var x bufio.Writer
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x json.UnsupportedTypeError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x json.UnsupportedValueError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x packages.ModuleError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x packages.OverlayJSON
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Timeval
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.SysProcIDMap
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Nil
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x json.InvalidUTF8Error
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x slog.Attr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.ChanDir
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syntax.Prog
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x serde.Deserializer
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x runtime.TypeAssertionError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x strings.Reader
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.RtNexthop
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.FieldList
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.UnaryExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x comment.Heading
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x comment.Code
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x base64.CorruptInputError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x typeutil.Hasher
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x comment.Italic
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x serde.ID
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.IPv6Mreq
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.Package
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.TypeParam
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Initializer
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syntax.Flags
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x doc.Type
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x int8
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Termios
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.NetlinkRouteRequest
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.PtraceRegs
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.Field
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x big.Word
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Error
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.ParenExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x log.Logger
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.BadStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x objectpath.Encoder
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x string
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Named
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.SocketControlMessage
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.SockFprog
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.CommentGroup
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.IndexListExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.PkgName
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x runtime.StackRecord
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.FuncType
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.ImportMode
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x comment.LinkDef
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Fsid
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.BranchStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.ArgumentError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x io.LimitedReader
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x packages.Config
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x parser.Mode
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x sort.StringSlice
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.RawSockaddrUnix
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x os.SyscallError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x build.Context
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x json.Delim
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x Frame
-		t = reflect.TypeOf(x)
-		sw := func(s *serde.Serializer, x any, b []byte) []byte {
-			return Serialize_Frame(s, x.(Frame), b)
-		}
-		dw := func(d *serde.Deserializer, b []byte) (any, []byte) {
-			return Deserialize_Frame(d, b)
-		}
-		serde.RegisterTypeWithCodec(t, sw, dw)
-	}
-	{
-		var x scanner.Error
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x time.Weekday
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.ICMPv6Filter
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x scanner.Mode
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x doc.Mode
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x comment.Doc
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x strconv.NumError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.TCPInfo
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.DeferStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x slog.TextHandler
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Basic
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x sync.WaitGroup
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x unicode.Range16
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x os.File
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x exec.Cmd
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.FuncDecl
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x uint8
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.NetlinkMessage
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x os.LinkError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x reflect.Value
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x io.SectionReader
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x reflect.ValueError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x unicode.Range32
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Msghdr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.SockaddrLinklayer
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.FuncLit
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x comment.Printer
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x rune
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x int32
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x runtime.MemStats
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.BinaryExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Checker
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.BasicInfo
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x comment.ListItem
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x comment.Link
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x float64
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Credential
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x token.Pos
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.SendStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.SelectionKind
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x bufio.Scanner
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x int64
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x uint
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Sysinfo_t
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.IndexExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x comment.List
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x comment.DocLink
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x atomic.Uintptr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x bytes.Buffer
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x time.Time
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.ExprStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.SockaddrInet4
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x doc.Note
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x slog.LevelVar
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x json.SyntaxError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x json.Encoder
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x time.Duration
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.NlMsghdr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.IPMreqn
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Utimbuf
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.ArrayType
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x constraint.SyntaxError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x exec.Error
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Config
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Inet6Pktinfo
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x os.Process
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.DeclStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x comment.Paragraph
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x unicode.CaseRange
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Timespec
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.CompositeLit
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x json.UnmarshalTypeError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x packages.Package
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x uint64
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x atomic.Uint64
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x time.ParseError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Statfs_t
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Rusage
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x semver.ByVersion
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x serde.Serializer
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Errno
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.IPMreq
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.IfAddrmsg
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.SliceExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x sort.IntSlice
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.RawSockaddrAny
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x crypto.Hash
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.GoStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Union
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Builtin
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x slog.Record
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x strings.Builder
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x runtime.MemProfileRecord
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.AssignStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.GenDecl
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Array
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syntax.InstOp
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x sync.Once
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x packages.LoadMode
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Linger
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Iovec
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.MethodSet
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x doc.Func
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Scope
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.ChanDir
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x byte
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x sync.RWMutex
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.File
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.KeyValueExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.IfStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.IncDecStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x objectpath.Path
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syntax.Regexp
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.RawSockaddrInet6
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.FdSet
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x os.ProcessState
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.InterfaceType
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.TypeSpec
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.TypeName
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x slog.Value
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.IPv6MTUInfo
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.StructType
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x unsafe.Pointer
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Interface
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x token.Position
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x sync.Cond
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x reflect.Method
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x regexp.Regexp
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x json.MarshalerError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.CommClause
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x scanner.ErrorList
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x int16
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x sync.Map
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x reflect.SelectCase
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x fs.PathError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x time.Timer
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.TypeSwitchStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.BasicKind
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x constraint.OrExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x slog.Logger
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.StarExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x bufio.Reader
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Struct
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x atomic.Int64
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.ProcAttr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.IfInfomsg
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x token.Token
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.BasicLit
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x json.RawMessage
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x float32
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x packages.ErrorKind
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x time.Ticker
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.SockaddrInet6
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.RawSockaddrLinklayer
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.CaseClause
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x reflect.StringHeader
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Selection
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x slog.Level
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x fs.FileMode
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.ValueSpec
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Time_t
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Chan
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x doc.Example
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x json.UnmarshalFieldError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x sync.Mutex
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x unicode.RangeTable
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.SelectorExpr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x constant.Kind
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x bufio.ReadWriter
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x slog.Source
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x big.ErrNaN
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x comment.Plain
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x io.PipeWriter
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x io.OffsetWriter
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Rlimit
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.Comment
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syntax.Op
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x typeutil.MethodSetCache
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x runtime.Frame
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x unicode.SpecialCase
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x sort.Float64Slice
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Timex
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Tuple
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.TypeAndValue
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.Ident
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Tms
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Stat_t
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.InotifyEvent
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.SockaddrNetlink
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x big.RoundingMode
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x comment.Parser
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x packages.Error
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.SysProcAttr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.ReturnStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x big.Rat
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Slice
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Info
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.RtAttr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.Scope
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.TypeList
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.StdSizes
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x slog.JSONHandler
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x typeutil.Map
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x complex64
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x token.FileSet
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Inet4Pktinfo
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.BlockStmt
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Func
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.ObjKind
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x scanner.Scanner
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x serde.Generator
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Var
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x reflect.Kind
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Signal
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.RtGenmsg
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Ustat_t
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x big.Accuracy
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x json.InvalidUnmarshalError
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x Storage
-		t = reflect.TypeOf(x)
-		sw := func(s *serde.Serializer, x any, b []byte) []byte {
-			return Serialize_Storage(s, x.(Storage), b)
-		}
-		dw := func(d *serde.Deserializer, b []byte) (any, []byte) {
-			return Deserialize_Storage(d, b)
-		}
-		serde.RegisterTypeWithCodec(t, sw, dw)
-	}
-	{
-		var x syscall.RtMsg
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.NlMsgerr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x reflect.MapIter
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x types.Pointer
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x time.Month
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.EpollEvent
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.RawSockaddrInet4
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.Utsname
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.MergeMode
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syntax.Error
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x json.Number
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x syscall.RawSockaddr
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
-	{
-		var x ast.CommentMap
-		t = reflect.TypeOf(x)
-		serde.RegisterType(t)
-	}
+	serde.RegisterType[syscall.SysProcAttr]()
+	serde.RegisterType[time.Ticker]()
+	serde.RegisterType[syscall.SockaddrNetlink]()
+	serde.RegisterType[json.RawMessage]()
+	serde.RegisterType[objectpath.Encoder]()
+	serde.RegisterType[io.PipeReader]()
+	serde.RegisterType[ast.IndexListExpr]()
+	serde.RegisterType[atomic.Int32]()
+	serde.RegisterType[io.OffsetWriter]()
+	serde.RegisterType[reflect.SliceHeader]()
+	serde.RegisterType[syscall.Ucred]()
+	serde.RegisterType[syscall.Timex]()
+	serde.RegisterType[types.Info]()
+	serde.RegisterType[types.Union]()
+	serde.RegisterType[syscall.Time_t]()
+	serde.RegisterType[ast.CompositeLit]()
+	serde.RegisterType[strings.Replacer]()
+	serde.RegisterType[constraint.NotExpr]()
+	serde.RegisterType[doc.Type]()
+	serde.RegisterType[comment.DocLink]()
+	serde.RegisterType[serde.Deserializer]()
+	serde.RegisterType[sort.Float64Slice]()
+	serde.RegisterType[unicode.CaseRange]()
+	serde.RegisterType[syscall.Rusage]()
+	serde.RegisterType[syscall.Dirent]()
+	serde.RegisterType[syscall.RtNexthop]()
+	serde.RegisterType[slog.LevelVar]()
+	serde.RegisterType[serde.Serializer]()
+	serde.RegisterType[runtime.BlockProfileRecord]()
+	serde.RegisterType[types.Context]()
+	serde.RegisterType[types.Selection]()
+	serde.RegisterType[objectpath.Path]()
+	serde.RegisterType[build.MultiplePackageError]()
+	serde.RegisterType[types.Error]()
+	serde.RegisterType[types.Pointer]()
+	serde.RegisterType[types.MethodSet]()
+	serde.RegisterType[json.MarshalerError]()
+	serde.RegisterType[complex128]()
+	serde.RegisterType[runtime.Func]()
+	serde.RegisterType[reflect.ChanDir]()
+	serde.RegisterType[syscall.IfAddrmsg]()
+	serde.RegisterType[syntax.Regexp]()
+	serde.RegisterType[json.InvalidUTF8Error]()
+	serde.RegisterType[slog.Attr]()
+	serde.RegisterType[syscall.Ustat_t]()
+	serde.RegisterType[syscall.Tms]()
+	serde.RegisterType[types.Var]()
+	serde.RegisterType[ast.LabeledStmt]()
+	serde.RegisterType[ast.Object]()
+	serde.RegisterType[json.SyntaxError]()
+	serde.RegisterType[slog.Logger]()
+	serde.RegisterType[sync.Cond]()
+	serde.RegisterType[fs.PathError]()
+	serde.RegisterType[ast.CaseClause]()
+	serde.RegisterType[ast.ForStmt]()
+	serde.RegisterType[ast.CommentGroup]()
+	serde.RegisterType[json.UnsupportedTypeError]()
+	serde.RegisterType[bufio.Writer]()
+	serde.RegisterType[uint16]()
+	serde.RegisterType[os.Process]()
+	serde.RegisterType[typeutil.Hasher]()
+	serde.RegisterType[complex64]()
+	serde.RegisterType[syscall.RawSockaddrLinklayer]()
+	serde.RegisterType[syscall.NlMsgerr]()
+	serde.RegisterType[ast.IncDecStmt]()
+	serde.RegisterType[string]()
+	serde.RegisterType[atomic.Value]()
+	serde.RegisterType[syscall.Linger]()
+	serde.RegisterType[exec.Error]()
+	serde.RegisterType[ast.MapType]()
+	serde.RegisterType[build.ImportMode]()
+	serde.RegisterType[reflect.MapIter]()
+	serde.RegisterType[atomic.Uint32]()
+	serde.RegisterType[ast.Comment]()
+	serde.RegisterType[log.Logger]()
+	serde.RegisterType[build.Context]()
+	serde.RegisterType[comment.Link]()
+	serde.RegisterType[slog.Kind]()
+	serde.RegisterType[int]()
+	serde.RegisterType[atomic.Uint64]()
+	serde.RegisterType[types.TypeParam]()
+	serde.RegisterType[ast.CallExpr]()
+	serde.RegisterType[ast.Scope]()
+	serde.RegisterType[int32]()
+	serde.RegisterType[syscall.IPv6MTUInfo]()
+	serde.RegisterType[syscall.NetlinkMessage]()
+	serde.RegisterType[syscall.NetlinkRouteAttr]()
+	serde.RegisterType[types.Scope]()
+	serde.RegisterType[types.Nil]()
+	serde.RegisterType[ast.ChanDir]()
+	serde.RegisterType[byte]()
+	serde.RegisterType[reflect.Method]()
+	serde.RegisterType[ast.RangeStmt]()
+	serde.RegisterType[reflect.Kind]()
+	serde.RegisterType[unicode.Range16]()
+	serde.RegisterType[syscall.Stat_t]()
+	serde.RegisterType[ast.BranchStmt]()
+	serde.RegisterType[bytes.Reader]()
+	serde.RegisterType[uint8]()
+	serde.RegisterType[runtime.MemStats]()
+	serde.RegisterType[reflect.ValueError]()
+	serde.RegisterType[syscall.EpollEvent]()
+	serde.RegisterType[exec.ExitError]()
+	serde.RegisterType[ast.BlockStmt]()
+	serde.RegisterType[big.Float]()
+	serde.RegisterType[token.Position]()
+	serde.RegisterType[token.FileSet]()
+	serde.RegisterType[big.Accuracy]()
+	serde.RegisterType[json.Encoder]()
+	serde.RegisterType[build.Directive]()
+	serde.RegisterType[types.Tuple]()
+	serde.RegisterType[json.Number]()
+	serde.RegisterType[base64.Encoding]()
+	serde.RegisterType[types.Interface]()
+	serde.RegisterType[rune]()
+	serde.RegisterType[strconv.NumError]()
+	serde.RegisterType[sync.Map]()
+	serde.RegisterType[reflect.SelectDir]()
+	serde.RegisterType[syscall.SocketControlMessage]()
+	serde.RegisterType[syscall.Sysinfo_t]()
+	serde.RegisterType[os.ProcAttr]()
+	serde.RegisterType[time.Location]()
+	serde.RegisterType[syscall.NlMsghdr]()
+	serde.RegisterType[syscall.IPv6Mreq]()
+	serde.RegisterType[ast.IndexExpr]()
+	serde.RegisterType[Storage]()
+	serde.RegisterType[types.Instance]()
+	serde.RegisterType[sync.Pool]()
+	serde.RegisterType[fs.FileMode]()
+	serde.RegisterType[ast.ArrayType]()
+	serde.RegisterType[syscall.Utsname]()
+	serde.RegisterType[ast.ImportSpec]()
+	serde.RegisterType[types.ChanDir]()
+	serde.RegisterType[rand.Zipf]()
+	serde.RegisterType[comment.Printer]()
+	serde.RegisterType[slog.Source]()
+	serde.RegisterType[slog.Level]()
+	serde.RegisterType[runtime.Frame]()
+	serde.RegisterType[os.File]()
+	serde.RegisterType[syscall.SysProcIDMap]()
+	serde.RegisterType[types.ImportMode]()
+	serde.RegisterType[token.File]()
+	serde.RegisterType[syntax.Inst]()
+	serde.RegisterType[comment.Paragraph]()
+	serde.RegisterType[big.Word]()
+	serde.RegisterType[sync.Once]()
+	serde.RegisterType[atomic.Bool]()
+	serde.RegisterType[atomic.Uintptr]()
+	serde.RegisterType[time.Timer]()
+	serde.RegisterType[ast.StructType]()
+	serde.RegisterType[scanner.ErrorList]()
+	serde.RegisterType[big.Rat]()
+	serde.RegisterType[big.RoundingMode]()
+	serde.RegisterType[scanner.Scanner]()
+	serde.RegisterType[syntax.EmptyOp]()
+	serde.RegisterType[os.SyscallError]()
+	serde.RegisterType[syscall.Inet4Pktinfo]()
+	serde.RegisterType[syscall.Inet6Pktinfo]()
+	serde.RegisterType[types.Const]()
+	serde.RegisterType[syntax.Error]()
+	serde.RegisterType[comment.Heading]()
+	serde.RegisterType[json.InvalidUnmarshalError]()
+	serde.RegisterType[packages.Package]()
+	serde.RegisterType[io.SectionReader]()
+	serde.RegisterType[syscall.RtMsg]()
+	serde.RegisterType[ast.ValueSpec]()
+	serde.RegisterType[ast.UnaryExpr]()
+	serde.RegisterType[ast.BadExpr]()
+	serde.RegisterType[semver.ByVersion]()
+	serde.RegisterType[comment.Code]()
+	serde.RegisterType[sync.WaitGroup]()
+	serde.RegisterType[types.ArgumentError]()
+	serde.RegisterType[types.Chan]()
+	serde.RegisterType[ast.CommClause]()
+	serde.RegisterType[astutil.Cursor]()
+	serde.RegisterType[uint64]()
+	serde.RegisterType[ast.GenDecl]()
+	serde.RegisterType[ast.DeclStmt]()
+	serde.RegisterType[syntax.ErrorCode]()
+	serde.RegisterType[crypto.Hash]()
+	serde.RegisterType[build.NoGoError]()
+	serde.RegisterType[syscall.Errno]()
+	serde.RegisterType[time.ParseError]()
+	serde.RegisterType[syscall.RawSockaddr]()
+	serde.RegisterType[ast.File]()
+	serde.RegisterType[ast.KeyValueExpr]()
+	serde.RegisterType[ast.StarExpr]()
+	serde.RegisterType[ast.GoStmt]()
+	serde.RegisterType[doc.Func]()
+	serde.RegisterType[slog.Value]()
+	serde.RegisterType[syscall.Fsid]()
+	serde.RegisterType[scanner.Error]()
+	serde.RegisterType[token.Pos]()
+	serde.RegisterType[ast.ChanType]()
+	serde.RegisterType[rand.Rand]()
+	serde.RegisterType[syscall.RtAttr]()
+	serde.RegisterType[packages.Module]()
+	serde.RegisterType[exec.Cmd]()
+	serde.RegisterType[types.Signature]()
+	serde.RegisterType[ast.TypeAssertExpr]()
+	serde.RegisterType[ast.ParenExpr]()
+	serde.RegisterType[uintptr]()
+	serde.RegisterType[syscall.Signal]()
+	serde.RegisterType[packages.LoadMode]()
+	serde.RegisterType[types.Named]()
+	serde.RegisterType[types.TypeName]()
+	serde.RegisterType[constraint.AndExpr]()
+	serde.RegisterType[types.Array]()
+	serde.RegisterType[uint32]()
+	serde.RegisterType[int64]()
+	serde.RegisterType[int8]()
+	serde.RegisterType[time.Weekday]()
+	serde.RegisterType[syscall.Credential]()
+	serde.RegisterType[syscall.Rlimit]()
+	serde.RegisterType[types.StdSizes]()
+	serde.RegisterType[json.UnmarshalFieldError]()
+	serde.RegisterType[runtime.PanicNilError]()
+	serde.RegisterType[unicode.RangeTable]()
+	serde.RegisterType[syscall.FdSet]()
+	serde.RegisterType[syscall.IfInfomsg]()
+	serde.RegisterType[types.TypeParamList]()
+	serde.RegisterType[ast.CommentMap]()
+	serde.RegisterType[doc.Mode]()
+	serde.RegisterType[types.BasicKind]()
+	serde.RegisterType[ast.EmptyStmt]()
+	serde.RegisterType[syscall.Statfs_t]()
+	serde.RegisterType[syscall.Termios]()
+	serde.RegisterType[ast.TypeSwitchStmt]()
+	serde.RegisterType[constraint.TagExpr]()
+	serde.RegisterType[big.ErrNaN]()
+	serde.RegisterType[doc.Package]()
+	serde.RegisterType[serde.Generator]()
+	serde.RegisterType[syscall.WaitStatus]()
+	serde.RegisterType[time.Month]()
+	serde.RegisterType[syscall.RawSockaddrNetlink]()
+	serde.RegisterType[syscall.RawSockaddrInet4]()
+	serde.RegisterType[unicode.Range32]()
+	serde.RegisterType[time.Duration]()
+	serde.RegisterType[syscall.Flock_t]()
+	serde.RegisterType[ast.Field]()
+	serde.RegisterType[ast.BinaryExpr]()
+	serde.RegisterType[ast.SendStmt]()
+	serde.RegisterType[syntax.Op]()
+	serde.RegisterType[sync.Mutex]()
+	serde.RegisterType[reflect.StructTag]()
+	serde.RegisterType[ast.FieldList]()
+	serde.RegisterType[ast.Package]()
+	serde.RegisterType[json.UnmarshalTypeError]()
+	serde.RegisterType[bufio.ReadWriter]()
+	serde.RegisterType[syscall.ProcAttr]()
+	serde.RegisterType[syscall.RawSockaddrInet6]()
+	serde.RegisterType[types.SelectionKind]()
+	serde.RegisterType[ast.BadStmt]()
+	serde.RegisterType[ast.BadDecl]()
+	serde.RegisterType[syscall.SockaddrLinklayer]()
+	serde.RegisterType[syscall.SockFilter]()
+	serde.RegisterType[ast.TypeSpec]()
+	serde.RegisterType[io.PipeWriter]()
+	serde.RegisterType[big.Int]()
+	serde.RegisterType[typeutil.MethodSetCache]()
+	serde.RegisterType[runtime.Pinner]()
+	serde.RegisterType[syscall.Utimbuf]()
+	serde.RegisterType[comment.List]()
+	serde.RegisterType[Frame]()
+	serde.RegisterType[syscall.Timespec]()
+	serde.RegisterType[syscall.InotifyEvent]()
+	serde.RegisterType[packages.ErrorKind]()
+	serde.RegisterType[types.TypeList]()
+	serde.RegisterType[types.Checker]()
+	serde.RegisterType[reflect.Value]()
+	serde.RegisterType[types.BasicInfo]()
+	serde.RegisterType[constant.Kind]()
+	serde.RegisterType[comment.ListItem]()
+	serde.RegisterType[comment.Italic]()
+	serde.RegisterType[syntax.InstOp]()
+	serde.RegisterType[float64]()
+	serde.RegisterType[sort.IntSlice]()
+	serde.RegisterType[syscall.RawSockaddrAny]()
+	serde.RegisterType[syscall.SockFprog]()
+	serde.RegisterType[packages.Error]()
+	serde.RegisterType[strings.Reader]()
+	serde.RegisterType[constraint.OrExpr]()
+	serde.RegisterType[json.UnsupportedValueError]()
+	serde.RegisterType[comment.Parser]()
+	serde.RegisterType[types.Struct]()
+	serde.RegisterType[unsafe.Pointer]()
+	serde.RegisterType[runtime.StackRecord]()
+	serde.RegisterType[runtime.MemProfileRecord]()
+	serde.RegisterType[reflect.SelectCase]()
+	serde.RegisterType[syscall.Msghdr]()
+	serde.RegisterType[syscall.PtraceRegs]()
+	serde.RegisterType[syscall.RawSockaddrUnix]()
+	serde.RegisterType[types.TypeAndValue]()
+	serde.RegisterType[ast.MergeMode]()
+	serde.RegisterType[ast.Ident]()
+	serde.RegisterType[uint]()
+	serde.RegisterType[syscall.IPMreqn]()
+	serde.RegisterType[parser.Mode]()
+	serde.RegisterType[ast.SelectorExpr]()
+	serde.RegisterType[reflect.StructField]()
+	serde.RegisterType[syscall.TCPInfo]()
+	serde.RegisterType[types.Label]()
+	serde.RegisterType[ast.AssignStmt]()
+	serde.RegisterType[ast.InterfaceType]()
+	serde.RegisterType[slog.JSONHandler]()
+	serde.RegisterType[slog.TextHandler]()
+	serde.RegisterType[build.Package]()
+	serde.RegisterType[serde.ID]()
+	serde.RegisterType[syscall.NlAttr]()
+	serde.RegisterType[regexp.Regexp]()
+	serde.RegisterType[types.Initializer]()
+	serde.RegisterType[scanner.Mode]()
+	serde.RegisterType[constraint.SyntaxError]()
+	serde.RegisterType[doc.Note]()
+	serde.RegisterType[ast.ExprStmt]()
+	serde.RegisterType[time.Time]()
+	serde.RegisterType[syscall.RtGenmsg]()
+	serde.RegisterType[syscall.IPMreq]()
+	serde.RegisterType[types.Basic]()
+	serde.RegisterType[types.Slice]()
+	serde.RegisterType[ast.IfStmt]()
+	serde.RegisterType[ast.ReturnStmt]()
+	serde.RegisterType[slog.Record]()
+	serde.RegisterType[Stack]()
+	serde.RegisterType[reflect.StringHeader]()
+	serde.RegisterType[syscall.Cmsghdr]()
+	serde.RegisterType[types.Package]()
+	serde.RegisterType[ast.FuncDecl]()
+	serde.RegisterType[types.PkgName]()
+	serde.RegisterType[ast.SwitchStmt]()
+	serde.RegisterType[comment.Doc]()
+	serde.RegisterType[base64.CorruptInputError]()
+	serde.RegisterType[sync.RWMutex]()
+	serde.RegisterType[os.ProcessState]()
+	serde.RegisterType[types.Config]()
+	serde.RegisterType[packages.ModuleError]()
+	serde.RegisterType[types.Func]()
+	serde.RegisterType[types.Map]()
+	serde.RegisterType[ast.Ellipsis]()
+	serde.RegisterType[strings.Builder]()
+	serde.RegisterType[runtime.TypeAssertionError]()
+	serde.RegisterType[runtime.Frames]()
+	serde.RegisterType[syscall.SockaddrUnix]()
+	serde.RegisterType[ast.SliceExpr]()
+	serde.RegisterType[doc.Example]()
+	serde.RegisterType[bool]()
+	serde.RegisterType[serde.Typedef]()
+	serde.RegisterType[int16]()
+	serde.RegisterType[syscall.ICMPv6Filter]()
+	serde.RegisterType[packages.Config]()
+	serde.RegisterType[bufio.Scanner]()
+	serde.RegisterType[sort.StringSlice]()
+	serde.RegisterType[os.LinkError]()
+	serde.RegisterType[syscall.SockaddrInet4]()
+	serde.RegisterType[json.Delim]()
+	serde.RegisterType[bufio.Reader]()
+	serde.RegisterType[comment.LinkDef]()
+	serde.RegisterType[atomic.Int64]()
+	serde.RegisterType[syscall.Iovec]()
+	serde.RegisterType[packages.OverlayJSON]()
+	serde.RegisterType[json.Decoder]()
+	serde.RegisterType[types.Term]()
+	serde.RegisterType[ast.BasicLit]()
+	serde.RegisterType[ast.FuncType]()
+	serde.RegisterType[slog.HandlerOptions]()
+	serde.RegisterType[syscall.SockaddrInet6]()
+	serde.RegisterType[types.Builtin]()
+	serde.RegisterType[ast.SelectStmt]()
+	serde.RegisterType[ast.FuncLit]()
+	serde.RegisterType[ast.DeferStmt]()
+	serde.RegisterType[syntax.Prog]()
+	serde.RegisterType[syntax.Flags]()
+	serde.RegisterType[token.Token]()
+	serde.RegisterType[float32]()
+	serde.RegisterType[typeutil.Map]()
+	serde.RegisterType[io.LimitedReader]()
+	serde.RegisterType[unicode.SpecialCase]()
+	serde.RegisterType[syscall.Timeval]()
+	serde.RegisterType[syscall.NetlinkRouteRequest]()
+	serde.RegisterType[bytes.Buffer]()
+	serde.RegisterType[ast.ObjKind]()
+	serde.RegisterType[doc.Value]()
+	serde.RegisterType[comment.Plain]()
 }

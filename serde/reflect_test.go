@@ -56,21 +56,14 @@ func TestReflect(t *testing.T) {
 
 	for i, x := range cases {
 		x := x
-		t.Run(fmt.Sprintf("%d-%T", i, reflect.TypeOf(x)), func(t *testing.T) {
-			r := reflect.ValueOf(x)
-			rt := r.Type()
-
-			r2 := reflect.New(rt)
-			p2 := r2.UnsafePointer()
-
+		typ := reflect.TypeOf(x)
+		t.Run(fmt.Sprintf("%d-%s", i, typ), func(t *testing.T) {
 			var b []byte
-			s := EnsureSerializer(nil)
-			d := EnsureDeserializer(nil)
 
-			b = serializeAny(s, r, b)
-			b = deserializeAny(d, rt, p2, b)
+			b = Serialize(x, b)
+			out, b := Deserialize(b)
 
-			if diff := cmp.Diff(x, r2.Elem().Interface()); diff != "" {
+			if diff := cmp.Diff(x, out); diff != "" {
 				t.Fatalf("mismatch (-want +got):\n%s", diff)
 			}
 

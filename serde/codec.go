@@ -8,80 +8,70 @@ import (
 // ID is the unique ID of a pointer or type in the serialized format.
 type ID int64
 
-type SerializeFn func(s *Serializer, x any, b []byte) []byte
-type DeserializeFn func(s *Deserializer, b []byte) (any, []byte)
-
-type typeCodec struct {
-	id           ID
-	rtype        reflect.Type
-	serializer   SerializeFn
-	deserializer DeserializeFn
-}
-
 type typeMap struct {
-	byID   map[ID]typeCodec
+	byID   map[ID]reflect.Type
 	byType map[reflect.Type]ID
 }
 
 func newTypeMap() *typeMap {
 	return &typeMap{
-		byID:   make(map[ID]typeCodec),
+		byID:   make(map[ID]reflect.Type),
 		byType: make(map[reflect.Type]ID),
 	}
 }
 
-func (t *typeMap) Add(x reflect.Type) ID {
-	return t.AddWithCodec(x, nil, nil)
+func (m *typeMap) add(t reflect.Type) {
+	if _, ok := m.byType[t]; ok {
+		return
+	}
+	id := ID(len(m.byID)) + 1
+	m.byType[t] = id
+	m.byID[id] = t
 }
 
-func (t *typeMap) AddWithCodec(x reflect.Type, ser SerializeFn, des DeserializeFn) ID {
-	if id, ok := t.byType[x]; ok {
-		return id
-	}
-	i := ID(len(t.byID))
-	t.byID[i] = typeCodec{
-		id:           i,
-		rtype:        x,
-		serializer:   ser,
-		deserializer: des,
-	}
-	t.byType[x] = i
-	return i
+func (m *typeMap) exists(t reflect.Type) bool {
+	_, ok := m.byType[t]
+	return ok
 }
 
-func (t *typeMap) IDof(x reflect.Type) ID {
-	id, ok := t.byType[x]
+func (m *typeMap) Add(t reflect.Type) {
+	if m.exists(t) {
+		return
+	}
+	m.add(t)
+	m.add(reflect.PointerTo(t))
+
+	switch t.Kind() {
+	case reflect.Ptr, reflect.Slice, reflect.Array:
+		m.Add(t.Elem())
+	case reflect.Map:
+		m.Add(t.Key())
+		m.Add(t.Elem())
+	case reflect.Struct:
+		for i := 0; i < t.NumField(); i++ {
+			m.Add(t.Field(i).Type)
+		}
+	}
+}
+
+func (m *typeMap) IDof(x reflect.Type) ID {
+	id, ok := m.byType[x]
 	if !ok {
 		panic(fmt.Errorf("type '%s' is not registered", x))
 	}
 	return id
 }
 
-func (t *typeMap) TypeOf(x ID) reflect.Type {
-	codec, ok := t.byID[x]
+func (m *typeMap) TypeOf(x ID) reflect.Type {
+	t, ok := m.byID[x]
 	if !ok {
 		panic(fmt.Errorf("type id '%d' not registered", x))
 	}
-	return codec.rtype
-}
-
-func (t *typeMap) CodecOf(x reflect.Type) (typeCodec, bool) {
-	if t == nil {
-		return typeCodec{}, false
-	}
-	id, ok := t.byType[x]
-	if !ok {
-		return typeCodec{}, false
-	}
-	return t.byID[id], true
+	return t
 }
 
 var tm *typeMap = newTypeMap()
 
-func RegisterType(x reflect.Type) {
-	tm.Add(x)
-}
-
-func RegisterTypeWithCodec(x reflect.Type, ser SerializeFn, des DeserializeFn) {
-	tm.AddWithCodec(x, ser, des)
+func RegisterType[T any]() {
+	tm.Add(reflect.TypeOf((*T)(nil)).Elem())
 }
