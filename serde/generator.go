@@ -153,7 +153,15 @@ func (g *Generator) GenRegister(pkgs []*packages.Package) {
 				continue
 			}
 			t := derefType(o.Type())
-			//	fullname := types.TypeString(t, nil)
+			name, ok := g.supported(t)
+			if !ok {
+				continue
+			}
+			s[name] = t
+		}
+
+		for _, i := range p.TypesInfo.Instances {
+			t := derefType(i.Type)
 			name, ok := g.supported(t)
 			if !ok {
 				continue
