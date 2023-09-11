@@ -4,34 +4,13 @@ import (
 	"fmt"
 	"go/types"
 	"io"
-	"log/slog"
 	"math"
 	"path"
 	"path/filepath"
-	"reflect"
-	"runtime"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/go/types/typeutil"
 )
-
-type location struct {
-	pkg  string
-	name string
-}
-
-func (l location) FullName() string {
-	if l.pkg != "" {
-		return fmt.Sprintf("%s.%s", l.pkg, l.name)
-	}
-	return l.name
-}
-
-type locations struct {
-	serializer   location
-	deserializer location
-}
 
 type importsmap struct {
 	byName map[string]string
@@ -83,9 +62,6 @@ type Generator struct {
 	tags []string
 	// Type of the serde.Serializable interface.
 	serializable *types.Interface
-	// Map[types.Type] -> locations to track the types that already have
-	// their serialization functions emitted.
-	known typeutil.Map
 	// Map a package name to its import path.
 	imports importsmap
 
@@ -103,7 +79,6 @@ func NewGenerator(tags []string, pkgs []*packages.Package, target *packages.Pack
 		panic("could not find built-in Serializable interface; make sure coroutine/serde is in pkgs")
 	}
 	serializableIface := serializable.Obj.Type().(*types.Named).Underlying().(*types.Interface)
-	slog.Debug("found Serializable interface", "type", serializableIface)
 	return &Generator{
 		tags:         tags,
 		serializable: serializableIface,
@@ -133,9 +108,8 @@ func public(name string) bool {
 }
 
 func (g *Generator) GenRegister(pkgs []*packages.Package) {
-	// Generate a reflect.Type <> ID mapping.
-	s := map[string]types.Type{}
-	ps := map[string]struct{}{}
+	s := map[string]struct{}{}  // set of types seen
+	ps := map[string]struct{}{} // packages already visited
 
 	var findTypes func(p *packages.Package)
 	findTypes = func(p *packages.Package) {
@@ -153,7 +127,7 @@ func (g *Generator) GenRegister(pkgs []*packages.Package) {
 			if !ok {
 				continue
 			}
-			s[name] = t
+			s[name] = struct{}{}
 		}
 
 		for _, i := range p.TypesInfo.Instances {
@@ -162,7 +136,7 @@ func (g *Generator) GenRegister(pkgs []*packages.Package) {
 			if !ok {
 				continue
 			}
-			s[name] = t
+			s[name] = struct{}{}
 		}
 
 		for _, i := range p.Imports {
@@ -175,7 +149,7 @@ func (g *Generator) GenRegister(pkgs []*packages.Package) {
 	}
 
 	g.W(`func init() {`)
-	for k, _ := range s {
+	for k := range s {
 		g.W(`serde.RegisterType[%s]()`, k)
 	}
 	g.W(`}`)
@@ -297,20 +271,6 @@ func (g *Generator) WriteTo(w io.Writer) (int64, error) {
 
 	n2, err := w.Write([]byte(g.s.String()))
 	return int64(n) + int64(n2), err
-}
-
-func isInvalidChar(r rune) bool {
-	valid := (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r == '_')
-	return !valid
-}
-
-func nameof(x interface{}) string {
-	if s, ok := x.(string); ok {
-		return s
-	}
-
-	full := runtime.FuncForPC(reflect.ValueOf(x).Pointer()).Name()
-	return full[strings.LastIndexByte(full, '.')+1:]
 }
 
 func (g *Generator) TypeNameFor(t types.Type) string {

@@ -34,7 +34,6 @@ func Deserialize(b []byte) (interface{}, []byte) {
 }
 
 var (
-	//	ifaceptrtype reflect.Type = reflect.TypeOf((*interface{})(nil))
 	serializableT = reflect.TypeOf((*Serializable)(nil)).Elem()
 )
 
