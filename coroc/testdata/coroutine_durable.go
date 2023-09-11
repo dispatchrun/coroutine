@@ -55,11 +55,11 @@ func SquareGeneratorTwice(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
 	if _f.IP > 0 {
-		n = int(_f.Get(0).(coroutine.Int))
+		n = _f.Get(0).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, coroutine.Int(n))
+			_f.Set(0, n)
 		} else {
 			_c.Pop()
 		}
