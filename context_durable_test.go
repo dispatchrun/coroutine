@@ -17,22 +17,23 @@ func TestContextSerialization(t *testing.T) {
 				{
 					IP: 3,
 					Storage: NewStorage([]any{
-						1: Int(3),
-						5: Int(-1),
+						1: int(3),
+						5: int(-1),
 					}),
 				},
 				{
 					IP: 5,
 					Storage: NewStorage([]any{
-						0: Int(4),
-						2: Int(math.MaxInt),
+						0: int(4),
+						2: int(math.MaxInt),
 					}),
 				},
 			},
 		},
-		Heap: NewStorage([]any{
-			32: Int(11),
-		}),
+		// TODO: heap ignored for now
+		// Heap: NewStorage([]any{
+		// 	32: int(11),
+		// }),
 	}
 
 	b, err := original.MarshalAppend(nil)

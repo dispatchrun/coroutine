@@ -3,8 +3,6 @@
 package coroutine
 
 import (
-	"encoding/binary"
-	"fmt"
 	"slices"
 	"strconv"
 )
@@ -58,75 +56,4 @@ func (v *Storage) shrink() {
 		i--
 	}
 	v.objects = v.objects[:i+1]
-}
-
-// MarshalAppend appends objects to the provided buffer.
-func (v *Storage) MarshalAppend(b []byte) ([]byte, error) {
-	v.shrink()
-
-	// This is a sparse map. For each object we encode the object as well
-	// as its index into the map. We also encode the number of objects as
-	// well as the length of the data structure. The latter isn't strictly
-	// required, but is used as a hint for the deserializer so that it can
-	// preallocate the necessary space.
-	var objectCount int
-	for _, s := range v.objects {
-		if s == nil {
-			continue
-		}
-		objectCount++
-	}
-
-	b = binary.AppendVarint(b, int64(len(v.objects)))
-	b = binary.AppendVarint(b, int64(objectCount))
-
-	for i, s := range v.objects {
-		if s == nil {
-			continue
-		}
-		b = binary.AppendVarint(b, int64(i))
-
-		var err error
-		b, err = MarshalAppend(b, s)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return b, nil
-}
-
-// Unmarshal deserializes a Frame from the provided buffer, returning
-// the number of bytes that were read in order to reconstruct the
-// frame.
-func (v *Storage) Unmarshal(b []byte) (int, error) {
-	size, n := binary.Varint(b)
-	if n <= 0 || int64(int(size)) != size {
-		return 0, fmt.Errorf("invalid storage size: %v", b)
-	}
-
-	count, vn := binary.Varint(b[n:])
-	if vn <= 0 || int64(int(count)) != count {
-		return 0, fmt.Errorf("invalid storage count: %v", b)
-	}
-	n += vn
-
-	objects := make([]any, size)
-	for i := 0; i < int(count); i++ {
-		id, vn := binary.Varint(b[n:])
-		if vn <= 0 || int64(int(id)) != id {
-			return 0, fmt.Errorf("invalid storage id: %v", b)
-		}
-		n += vn
-
-		s, sn, err := Unmarshal(b[n:])
-		if err != nil {
-			return 0, fmt.Errorf("invalid storage object: %w", err)
-		}
-		n += sn
-
-		objects[id] = s
-	}
-
-	v.objects = objects
-	return n, nil
 }

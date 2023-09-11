@@ -32,7 +32,8 @@ type Context[R, S any] struct {
 func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
 	s := serde.EnsureSerializer(nil)
 	b = Serialize_Stack(s, c.Stack, b)
-	return c.Heap.MarshalAppend(b)
+	// TODO: heap is ignored for now
+	return b, nil
 }
 
 // Unmarshal deserializes a Context from the provided buffer, returning
@@ -45,11 +46,8 @@ func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
 	c.Stack = s
 	sn := start - len(b)
 
-	hn, err := c.Heap.Unmarshal(b)
-	if err != nil {
-		return 0, err
-	}
-	return sn + hn, err
+	// TODO: heap is ignored for now
+	return sn, nil
 }
 
 // TODO: do we have use cases for yielding more than one value?
