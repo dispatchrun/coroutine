@@ -44,8 +44,6 @@ func main() {
 	enableDebugLogs()
 	typeName := ""
 	flag.StringVar(&typeName, "type", "", "non-optional type name")
-	output := ""
-	flag.StringVar(&output, "output", "", "output file name; defaults to <type_serde.go")
 	buildTags := ""
 	flag.StringVar(&buildTags, "tags", "", "comma-separated list of build tags to apply")
 	flag.Usage = usage
@@ -64,14 +62,14 @@ func main() {
 
 	tags := strings.Split(buildTags, ",")
 
-	err := generate(typeName, args, tags, output)
+	err := generate(typeName, args, tags)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		os.Exit(1)
 	}
 }
 
-func generate(typeName string, patterns []string, tags []string, output string) error {
+func generate(typeName string, patterns []string, tags []string) error {
 	// Add the serde support library to the search to bring the built-ins
 	// into the type system. At the moment it's only used for the
 	// Serializable interface, but eventually it should be used to reference
@@ -91,7 +89,7 @@ func generate(typeName string, patterns []string, tags []string, output string) 
 		return fmt.Errorf("could not find type definition")
 	}
 
-	output = td.TargetFile()
+	output := td.TargetFile()
 
 	g := serde.NewGenerator(tags, pkgs, td.Pkg)
 	g.GenType(td.Obj.Type())

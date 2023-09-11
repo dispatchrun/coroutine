@@ -798,18 +798,14 @@ func (t Typedef) TargetFile() string {
 	pos := t.Pkg.Fset.Position(t.Obj.Pos())
 	dir, file := filepath.Split(pos.Filename)
 
+	// Try to preserve build tags in the file name.
 	i := strings.LastIndexByte(file, '.')
 	if i == -1 {
 		panic(fmt.Errorf("files does not end in .go: %s", file))
 	}
 	noext := file[:i]
-
 	parts := strings.Split(noext, "_")
-
-	fmt.Println(parts)
-	parts = append(parts, "")
-	copy(parts[2:], parts[1:])
-	parts[1] = "serde"
+	parts[0] = "serdegenerated"
 
 	outFile := strings.Join(parts, "_") + ".go"
 	return filepath.Join(dir, outFile)
