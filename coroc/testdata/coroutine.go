@@ -18,6 +18,11 @@ func SquareGenerator(n int) {
 	}
 }
 
+func SquareGeneratorTwice(n int) {
+	SquareGenerator(n)
+	SquareGenerator(n)
+}
+
 func EvenSquareGenerator(n int) {
 	for i := 1; i <= n; i++ {
 		if mod2 := i % 2; mod2 == 0 {

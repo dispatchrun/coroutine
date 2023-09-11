@@ -51,6 +51,29 @@ func SquareGenerator(n int) {
 	}
 }
 
+func SquareGeneratorTwice(n int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f := _c.Push()
+	if _f.IP > 0 {
+		n = int(_f.Get(0).(coroutine.Int))
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, coroutine.Int(n))
+		} else {
+			_c.Pop()
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		SquareGenerator(n)
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 3:
+		SquareGenerator(n)
+	}
+}
+
 func EvenSquareGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()

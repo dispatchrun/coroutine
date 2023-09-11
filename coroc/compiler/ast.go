@@ -6,8 +6,6 @@ import (
 	"go/token"
 	"go/types"
 	"strconv"
-
-	"golang.org/x/tools/go/packages"
 )
 
 // desugar recursively desugars an AST. The goal is to hoist initialization
@@ -110,48 +108,6 @@ func isUnderscore(e ast.Expr) bool {
 	return ok && i.Name == "_"
 }
 
-// scanYields searches for cases of coroutine.Yield[R,S] in a tree.
-//
-// It handles cases where the coroutine package was imported with an alias
-// or with a dot import. It doesn't currently handle cases where the yield
-// types are inferred. It only partially handles references to the yield
-// function (e.g. a := coroutine.Yield[R,S]; a()); if the reference is taken
-// within the tree then the yield and its types will be reported, however if
-// the reference was taken outside the tree it will not be seen here.
-func scanYields(p *packages.Package, tree ast.Node, fn func(types []ast.Expr) bool) {
-	ast.Inspect(tree, func(node ast.Node) bool {
-		indexListExpr, ok := node.(*ast.IndexListExpr)
-		if !ok {
-			return true
-		}
-		switch x := indexListExpr.X.(type) {
-		case *ast.Ident: // Yield[R,S]
-			if x.Name != coroutineYield {
-				return true
-			} else if uses, ok := p.TypesInfo.Uses[x]; !ok {
-				return true
-			} else if fn, ok := uses.(*types.Func); !ok {
-				return true
-			} else if pkg := fn.Pkg(); pkg == nil || pkg.Path() != coroutinePackage {
-				return true
-			}
-		case *ast.SelectorExpr: // coroutine.Yield[R,S]
-			if x.Sel.Name != coroutineYield {
-				return true
-			} else if selX, ok := x.X.(*ast.Ident); !ok {
-				return true
-			} else if uses, ok := p.TypesInfo.Uses[selX]; !ok {
-				return true
-			} else if pkg, ok := uses.(*types.PkgName); !ok || pkg.Imported().Path() != coroutinePackage {
-				return true
-			}
-		default:
-			return true
-		}
-		return fn(indexListExpr.Indices)
-	})
-}
-
 type span struct{ start, end int }
 
 // trackSpans assigns a non-zero monotonically increasing integer ID to each
@@ -213,7 +169,10 @@ func typeExpr(typ types.Type) ast.Expr {
 			Len: &ast.BasicLit{Kind: token.INT, Value: strconv.FormatInt(t.Len(), 10)},
 			Elt: typeExpr(t.Elem()),
 		}
-	default:
-		panic(fmt.Sprintf("not implemented: %T", t))
+	case *types.Interface:
+		if t.Empty() {
+			return ast.NewIdent("any")
+		}
 	}
+	panic(fmt.Sprintf("not implemented: %T", typ))
 }
