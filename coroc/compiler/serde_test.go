@@ -1,14 +1,14 @@
-package examples
+package compiler_test
 
 import (
 	"fmt"
 	"log/slog"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/stealthrocket/coroutine/serde"
+	"github.com/stealthrocket/coroutine"
+	testdata "github.com/stealthrocket/coroutine/coroc/testdata/serde"
 )
 
 func enableDebugLogs() {
@@ -31,7 +31,7 @@ func enableDebugLogs() {
 func TestStruct1Empty(t *testing.T) {
 	enableDebugLogs()
 
-	s := Struct1{}
+	s := testdata.Struct1{}
 
 	roundtripStruct1(t, s)
 }
@@ -39,11 +39,11 @@ func TestStruct1Empty(t *testing.T) {
 func TestStruct1Iface(t *testing.T) {
 	enableDebugLogs()
 
-	for i, s := range []Struct1{
+	for i, s := range []testdata.Struct1{
 		{Iface: int(42)},
 		{Iface: true},
 		{Iface: "hello"},
-		{Iface: Inner{
+		{Iface: testdata.Inner{
 			A: 111,
 			B: "test1",
 		}},
@@ -56,21 +56,21 @@ func TestStruct1Iface(t *testing.T) {
 
 }
 
-func makes1() Struct1 {
+func makes1() testdata.Struct1 {
 	str := "pointed at"
 	myint := 999
 	myintptr := &myint
 
-	bounce1 := &Bounce{
+	bounce1 := &testdata.Bounce{
 		Value: 1,
 	}
-	bounce2 := &Bounce{
+	bounce2 := &testdata.Bounce{
 		Value: 2,
 	}
 	bounce1.Other = bounce2
 	bounce2.Other = bounce1
 
-	return Struct1{
+	return testdata.Struct1{
 		Str:  "hello",
 		Int:  42,
 		Ints: []int64{1, 2, 3},
@@ -89,17 +89,17 @@ func makes1() Struct1 {
 		Complex64:  42 + 11i,
 		Complex128: 420 + 110i,
 
-		FooSer:    Foo{t: time.Now()},
+		FooSer:    testdata.NewFoo(),
 		StrPtr:    &str,
 		IntPtr:    &myint,
 		IntPtrPtr: &myintptr,
 
-		InnerV: Inner{
+		InnerV: testdata.Inner{
 			A: 53,
 			B: "test",
 		},
 
-		InnerP: &Inner{
+		InnerP: &testdata.Inner{
 			A: 99,
 			B: "hello",
 		},
@@ -117,16 +117,16 @@ func TestStruct1(t *testing.T) {
 	roundtripStruct1(t, s)
 }
 
-func roundtripStruct1(t *testing.T, s Struct1) {
+func roundtripStruct1(t *testing.T, s testdata.Struct1) {
 	t.Helper()
 
 	var b []byte
-	serde.RegisterType[Struct1]()
-	b = serde.Serialize(s, b)
-	s2, b := serde.Deserialize(b)
+	coroutine.RegisterType[testdata.Struct1]()
+	b = coroutine.Serialize(s, b)
+	s2, b := coroutine.Deserialize(b)
 
 	opts := []cmp.Option{
-		cmp.AllowUnexported(Foo{}),
+		cmp.AllowUnexported(testdata.Foo{}),
 	}
 
 	if diff := cmp.Diff(s, s2, opts...); diff != "" {

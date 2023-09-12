@@ -1,4 +1,4 @@
-package serde
+package compiler
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ import (
 
 // GenerateTypesInit searches pkg for types that serde can handle and append an
 // init() function to the provided ast to register them on package load.
-func GenerateTypesInit(fset *token.FileSet, gen *ast.File, pkg *packages.Package) error {
+func generateTypesInit(fset *token.FileSet, gen *ast.File, pkg *packages.Package) error {
 	// Prepare the imports map with the imports already in the AST.
 	w := typesWalker{
 		imports:   makeImportsMap(fset, gen),
@@ -34,7 +34,7 @@ func GenerateTypesInit(fset *token.FileSet, gen *ast.File, pkg *packages.Package
 		return nil
 	}
 
-	serdepkg := ast.NewIdent(w.addImport("github.com/stealthrocket/coroutine/serde"))
+	coropkg := ast.NewIdent(w.addImport(coroutinePackage))
 
 	sort.Slice(w.newimports, func(i, j int) bool {
 		return w.newimports[i][0] < w.newimports[j][0]
@@ -58,13 +58,13 @@ func GenerateTypesInit(fset *token.FileSet, gen *ast.File, pkg *packages.Package
 		var typeExpr ast.Expr
 		pkg, name, found := strings.Cut(t, ".")
 		if found {
-			// eg: serde.RegisterType[syscall.RtGenmsg]()
+			// eg: coroutine.RegisterType[syscall.RtGenmsg]()
 			typeExpr = &ast.SelectorExpr{
 				X:   ast.NewIdent(pkg),
 				Sel: ast.NewIdent(name),
 			}
 		} else {
-			// eg: serde.RegisterType[MyStruct]()
+			// eg: coroutine.RegisterType[MyStruct]()
 			typeExpr = ast.NewIdent(pkg)
 		}
 
@@ -72,7 +72,7 @@ func GenerateTypesInit(fset *token.FileSet, gen *ast.File, pkg *packages.Package
 			X: &ast.CallExpr{
 				Fun: &ast.IndexListExpr{
 					X: &ast.SelectorExpr{
-						X:   serdepkg,
+						X:   coropkg,
 						Sel: ast.NewIdent("RegisterType"),
 					},
 					Indices: []ast.Expr{

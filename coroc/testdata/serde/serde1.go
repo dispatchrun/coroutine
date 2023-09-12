@@ -1,4 +1,4 @@
-package examples
+package serde
 
 import (
 	"encoding/binary"
@@ -8,6 +8,10 @@ import (
 
 type Foo struct {
 	t time.Time
+}
+
+func NewFoo() Foo {
+	return Foo{t: time.Now()}
 }
 
 func (f *Foo) MarshalAppend(b []byte) ([]byte, error) {

@@ -1,11 +1,9 @@
-package serde
+package coroutine
 
 import (
 	"fmt"
 	"reflect"
 	"testing"
-
-	"github.com/google/go-cmp/cmp"
 )
 
 type EasyStruct struct {
@@ -63,8 +61,10 @@ func TestReflect(t *testing.T) {
 			b = Serialize(x, b)
 			out, b := Deserialize(b)
 
-			if diff := cmp.Diff(x, out); diff != "" {
-				t.Fatalf("mismatch (-want +got):\n%s", diff)
+			if !reflect.DeepEqual(x, out) {
+				t.Error("unexpected context")
+				t.Logf("   got: %#v", out)
+				t.Logf("expect: %#v", x)
 			}
 
 			if len(b) > 0 {

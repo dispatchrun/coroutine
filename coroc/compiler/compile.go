@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/stealthrocket/coroutine/serde"
 	"golang.org/x/tools/go/callgraph/cha"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
@@ -286,8 +285,8 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 		}
 	}
 
-	// Build type register init() function.
-	if err := serde.GenerateTypesInit(c.fset, gen, p); err != nil {
+	log.Print("building type register init function")
+	if err := generateTypesInit(c.fset, gen, p); err != nil {
 		return err
 	}
 
