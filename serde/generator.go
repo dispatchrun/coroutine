@@ -202,7 +202,12 @@ func supported(from string, t types.Type) bool {
 func supportedImport(from string, t types.Type) bool {
 	typename := types.TypeString(t, nil)
 	path, name, found := cutLast(typename, ".")
-	if !validPathOrName(path) || !validPathOrName(name) {
+	if !found {
+		name = path
+		path = ""
+	}
+
+	if !validPath(path) {
 		return false
 	}
 	if !found {
@@ -217,7 +222,7 @@ func supportedImport(from string, t types.Type) bool {
 	return true
 }
 
-func validPathOrName(s string) bool {
+func validPath(s string) bool {
 	return !strings.ContainsAny(s, "[]<>{}* ")
 }
 
@@ -231,6 +236,16 @@ func supportedType(t types.Type) bool {
 		if x.Origin() != t {
 			return false
 		}
+
+		tp := x.TypeParams()
+		if tp != nil {
+			// Had type parameters at some point. need to check if
+			// they are instantiated.
+			if x.TypeArgs().Len() != tp.Len() {
+				return false
+			}
+		}
+
 		return supportedType(t.Underlying())
 	case *types.Interface:
 		// TODO: should this be relaxed?
@@ -239,9 +254,28 @@ func supportedType(t types.Type) bool {
 		return false
 	case *types.Chan:
 		return false
-	default:
-		return true
+	case *types.Pointer:
+		return supportedType(x.Elem())
+	case *types.Array:
+		return supportedType(x.Elem())
+	case *types.Slice:
+		return supportedType(x.Elem())
+	case *types.Map:
+		return supportedType(x.Elem()) && supportedType(x.Key())
+	case *types.Basic:
+		switch x.Kind() {
+		case types.UntypedBool,
+			types.UntypedInt,
+			types.UntypedRune,
+			types.UntypedFloat,
+			types.UntypedComplex,
+			types.UntypedString,
+			types.UntypedNil,
+			types.Invalid:
+			return false
+		}
 	}
+	return true
 }
 
 type importsmap struct {
