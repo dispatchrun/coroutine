@@ -28,27 +28,22 @@ type Context[R, S any] struct {
 
 // MarshalAppend appends a serialized Context to the provided buffer.
 func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
-	var err error
-	b, err = c.Stack.MarshalAppend(b)
-	if err != nil {
-		return b, err
-	}
-	return c.Heap.MarshalAppend(b)
+	b = Serialize(c.Stack, b)
+	// TODO: heap is ignored for now
+	return b, nil
 }
 
 // Unmarshal deserializes a Context from the provided buffer, returning
 // the number of bytes that were read in order to reconstruct the
 // context.
 func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
-	sn, err := c.Stack.Unmarshal(b)
-	if err != nil {
-		return 0, err
-	}
-	hn, err := c.Heap.Unmarshal(b[sn:])
-	if err != nil {
-		return 0, err
-	}
-	return sn + hn, err
+	start := len(b)
+	s, b := Deserialize(b)
+	c.Stack = s.(Stack)
+	sn := start - len(b)
+
+	// TODO: heap is ignored for now
+	return sn, nil
 }
 
 // TODO: do we have use cases for yielding more than one value?
@@ -77,3 +72,7 @@ func (c *Context[R, S]) Unwinding() bool {
 }
 
 type unwind struct{}
+
+func init() {
+	RegisterType[Stack]()
+}

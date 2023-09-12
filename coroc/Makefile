@@ -3,8 +3,8 @@ GO ?= go
 TARGET = testdata/coroutine_durable.go
 
 test: generate
-	$(GO) test -v -count 1
-	$(GO) test -tags durable -count 1 -v
+	$(GO) test -v -count 1 ./...
+	$(GO) test -tags durable -count 1 -v ./...
 
 generate: coroc
 	PATH="$$(pwd):$$PATH" $(GO) generate ./testdata

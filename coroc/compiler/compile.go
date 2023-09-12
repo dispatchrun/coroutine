@@ -87,6 +87,7 @@ func (c *compiler) compile(path string) error {
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedImports | packages.NeedDeps | packages.NeedTypesInfo,
 		Fset: c.fset,
 	}
+
 	pkgs, err := packages.Load(conf, path)
 	if err != nil {
 		return fmt.Errorf("packages.Load %q: %w", path, err)
@@ -284,6 +285,11 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 		}
 	}
 
+	log.Print("building type register init function")
+	if err := generateTypesInit(c.fset, gen, p); err != nil {
+		return err
+	}
+
 	// Get ready to write.
 	packageDir := filepath.Dir(p.GoFiles[0])
 	outputPath := filepath.Join(packageDir, c.outputFilename)
@@ -311,6 +317,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 	if err := format.Node(outputFile, c.fset, gen); err != nil {
 		return err
 	}
+
 	return outputFile.Close()
 }
 
