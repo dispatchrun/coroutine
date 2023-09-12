@@ -28,7 +28,7 @@ type Context[R, S any] struct {
 	Heap
 }
 
-//go:generate go run ./cmd/serde -type Stack -tags durable
+//go:generate go run ./cmd/serde -tags durable .
 
 // MarshalAppend appends a serialized Context to the provided buffer.
 func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {

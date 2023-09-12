@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/stealthrocket/coroutine/serde"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -80,12 +81,7 @@ func (c *compiler) compile(path string) error {
 		Fset: c.fset,
 	}
 
-	// Add the serde support library to the search to bring the built-ins
-	// into the type system. At the moment it's only used for the
-	// Serializable interface, but eventually it should be used to reference
-	// helpers and basic types serialization functions by their ast.Ident
-	// directly.
-	pkgs, err := packages.Load(conf, path, "github.com/stealthrocket/coroutine/serde")
+	pkgs, err := packages.Load(conf, path)
 	if err != nil {
 		return fmt.Errorf("packages.Load %q: %w", path, err)
 	}
@@ -241,6 +237,11 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 		gen.Decls = append(gen.Decls, c.compileFunction(p, fn, yieldType))
 	}
 
+	// Build type register init() function.
+	if err := serde.GenerateTypesInit(c.fset, gen, p); err != nil {
+		return err
+	}
+
 	// Get ready to write.
 	packageDir := filepath.Dir(p.GoFiles[0])
 	outputPath := filepath.Join(packageDir, c.outputFilename)
@@ -268,6 +269,7 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 	if err := format.Node(outputFile, c.fset, gen); err != nil {
 		return err
 	}
+
 	return outputFile.Close()
 }
 
