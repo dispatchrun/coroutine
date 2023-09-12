@@ -28,8 +28,6 @@ func unsupported(tree ast.Node, info *types.Info) (err error) {
 			err = fmt.Errorf("not implemented: select")
 		case *ast.CommClause:
 			err = fmt.Errorf("not implemented: select case")
-		case *ast.DeclStmt:
-			err = fmt.Errorf("not implemented: inline decls")
 
 		// Partially supported:
 		case *ast.RangeStmt:
@@ -39,11 +37,26 @@ func unsupported(tree ast.Node, info *types.Info) (err error) {
 				err = fmt.Errorf("not implemented: for range for %T", t)
 			}
 		case *ast.AssignStmt:
-			if len(n.Lhs) != 1 || len(n.Lhs) != len(n.Rhs) {
-				err = fmt.Errorf("not implemented: multiple assign")
+			for _, lhs := range n.Lhs {
+				if _, ok := lhs.(*ast.Ident); !ok {
+					err = fmt.Errorf("not implemented: assign to non-ident")
+				}
 			}
-			if _, ok := n.Lhs[0].(*ast.Ident); !ok {
-				err = fmt.Errorf("not implemented: assign to non-ident")
+		case *ast.DeclStmt:
+			gen := n.Decl.(*ast.GenDecl)
+			switch gen.Tok {
+			case token.CONST:
+				err = fmt.Errorf("not implemented: inline const decl")
+			case token.TYPE:
+				err = fmt.Errorf("not implemented: inline type decl")
+			case token.VAR:
+				for _, spec := range gen.Specs {
+					switch s := spec.(type) {
+					case *ast.ValueSpec:
+						// TODO
+						_ = s
+					}
+				}
 			}
 		case *ast.BranchStmt:
 			if n.Tok == token.GOTO {

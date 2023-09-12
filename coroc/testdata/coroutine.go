@@ -83,9 +83,28 @@ func Shadowing(_ int) {
 	coroutine.Yield[int, any](i) // 0
 	switch i := 1; i {
 	case 1:
+		switch i := 2; i {
+		default:
+			coroutine.Yield[int, any](i) // 2
+		}
 		coroutine.Yield[int, any](i) // 1
 	}
 	coroutine.Yield[int, any](i) // 0
+	{
+		i := 1
+		{
+			i := 2
+			coroutine.Yield[int, any](i) // 2
+		}
+		coroutine.Yield[int, any](i) // 1
+	}
+	coroutine.Yield[int, any](i) // 0
+	var j = i
+	{
+		j := 1
+		coroutine.Yield[int, any](j) // 1
+	}
+	coroutine.Yield[int, any](j) // 0
 }
 
 func RangeSliceIndexGenerator(_ int) {

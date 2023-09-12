@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/callgraph/cha"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
@@ -294,32 +295,84 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 	// Scan/replace variables defined in the function.
 	//
 	// Variable declarations are moved to the function prologue so that
-	// they can be saved and restored. To handle cases of shadowing, variables
-	// are given new unique names of the form _v[0-9]+.
+	// variables can be saved and restored. To handle cases of shadowing,
+	// all variables are given new unique names of the form _v[0-9]+.
+	// Inline declarations (via var or :=) are downgraded to an assignment
+	// using =.
 	objectVars := map[types.Object]*ast.Ident{}
 	var varNames []*ast.Ident
 	var varTypes []types.Type
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.AssignStmt:
-			name := n.Lhs[0].(*ast.Ident)
 			if n.Tok == token.DEFINE {
+				// Rewrite := to = here, since it doesn't require an AST
+				// node replacement.
 				n.Tok = token.ASSIGN
 			}
-			obj := p.TypesInfo.ObjectOf(name)
-			if obj == nil {
-				return true
+			for _, lhs := range n.Lhs {
+				name := lhs.(*ast.Ident)
+				obj := p.TypesInfo.ObjectOf(name)
+				if obj == nil {
+					return true
+				}
+				if _, ok := objectVars[obj]; ok {
+					return true
+				}
+				varName := ast.NewIdent("_v" + strconv.Itoa(len(varNames)))
+				varTypes = append(varTypes, p.TypesInfo.TypeOf(name))
+				varNames = append(varNames, varName)
+				objectVars[obj] = varName
 			}
-			if _, ok := objectVars[obj]; ok {
-				return true
+		case *ast.ValueSpec:
+			// Rewrite var decls in a pass below, since it does require an AST
+			// node replacement.
+			for _, name := range n.Names {
+				obj := p.TypesInfo.ObjectOf(name)
+				if obj == nil {
+					return true
+				}
+				if _, ok := objectVars[obj]; ok {
+					return true
+				}
+				varName := ast.NewIdent("_v" + strconv.Itoa(len(varNames)))
+				varTypes = append(varTypes, p.TypesInfo.TypeOf(name))
+				varNames = append(varNames, varName)
+				objectVars[obj] = varName
 			}
-			varName := ast.NewIdent("_v" + strconv.Itoa(len(varNames)))
-			varTypes = append(varTypes, p.TypesInfo.TypeOf(name))
-			varNames = append(varNames, varName)
-			objectVars[obj] = varName
 		}
 		return true
 	})
+	astutil.Apply(fn.Body, func(cursor *astutil.Cursor) bool {
+		declStmt, ok := cursor.Node().(*ast.DeclStmt)
+		if !ok {
+			return true
+		}
+		g, ok := declStmt.Decl.(*ast.GenDecl)
+		if !ok {
+			return true
+		}
+		if !ok || g.Tok != token.VAR {
+			return true
+		}
+		var assigns []ast.Stmt
+		// The var decl could have one spec, e.g. var foo=0, or multiple
+		// specs, e.g. var ( foo=0; bar=1; baz=2 ). Replace them with a
+		// block that has one or more assignments. Pure decls can be omitted.
+		for _, spec := range g.Specs {
+			s, ok := spec.(*ast.ValueSpec)
+			if !ok || len(s.Values) == 0 {
+				continue
+			}
+			lhs := make([]ast.Expr, len(s.Names))
+			for i, name := range s.Names {
+				lhs[i] = name
+			}
+			assigns = append(assigns, &ast.AssignStmt{Lhs: lhs, Tok: token.ASSIGN, Rhs: s.Values})
+		}
+		cursor.Replace(&ast.BlockStmt{List: assigns})
+		return true
+	}, nil)
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
 		if ident, ok := node.(*ast.Ident); ok {
 			obj := p.TypesInfo.ObjectOf(ident)
