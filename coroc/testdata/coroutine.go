@@ -3,6 +3,8 @@
 package testdata
 
 import (
+	"unsafe"
+
 	"github.com/stealthrocket/coroutine"
 )
 
@@ -121,6 +123,13 @@ func Shadowing(_ int) {
 		coroutine.Yield[int, any](k) // 12
 	}
 	coroutine.Yield[int, any](k) // 11
+
+	type foo uint16
+	{
+		type foo uint32
+		coroutine.Yield[int, any](int(unsafe.Sizeof(foo(0)))) // 4
+	}
+	coroutine.Yield[int, any](int(unsafe.Sizeof(foo(0)))) // 2
 }
 
 func RangeSliceIndexGenerator(_ int) {

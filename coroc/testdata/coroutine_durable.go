@@ -281,6 +281,11 @@ func FizzBuzzSwitchGenerator(n int) {
 func Shadowing(_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
+	type (
+		_t0 uint16
+
+		_t1 uint32
+	)
 	const (
 		_c0 = 11
 		_c1 = 12
@@ -482,6 +487,16 @@ func Shadowing(_ int) {
 	case _f.IP < 27:
 
 		coroutine.Yield[int, any](_c0)
+		_f.IP = 27
+		fallthrough
+	case _f.IP < 28:
+
+		coroutine.Yield[int, any](int(unsafe.Sizeof(_t1(0))))
+		_f.IP = 28
+		fallthrough
+	case _f.IP < 29:
+
+		coroutine.Yield[int, any](int(unsafe.Sizeof(_t0(0))))
 	}
 }
 

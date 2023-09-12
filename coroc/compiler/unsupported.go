@@ -42,11 +42,6 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 					err = fmt.Errorf("not implemented: assign to non-ident")
 				}
 			}
-		case *ast.DeclStmt:
-			gen := n.Decl.(*ast.GenDecl)
-			if gen.Tok == token.TYPE { // CONST/VAR ok, and IMPORT not possible
-				err = fmt.Errorf("not implemented: inline type decl")
-			}
 		case *ast.BranchStmt:
 			if n.Tok == token.GOTO {
 				err = fmt.Errorf("not implemented: goto")
@@ -76,6 +71,7 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 		// Fully supported:
 		case *ast.BlockStmt:
 		case *ast.CaseClause:
+		case *ast.DeclStmt:
 		case *ast.EmptyStmt:
 		case *ast.ExprStmt:
 		case *ast.IfStmt:

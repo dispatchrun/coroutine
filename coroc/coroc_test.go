@@ -60,7 +60,7 @@ func TestCoroutineYield(t *testing.T) {
 		{
 			name:   "shadowing",
 			coro:   Shadowing,
-			yields: []int{0, 1, 0, 1, 2, 0, 2, 1, 0, 2, 1, 0, 1, 0, 13, 12, 11},
+			yields: []int{0, 1, 0, 1, 2, 0, 2, 1, 0, 2, 1, 0, 1, 0, 13, 12, 11, 4, 2},
 		},
 		{
 			name:   "range over slice indices",
