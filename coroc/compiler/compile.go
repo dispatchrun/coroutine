@@ -292,14 +292,24 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 	// Desugar statements in the tree.
 	desugar(fn.Body, p.TypesInfo)
 
-	// Scan/replace variables defined in the function.
+	// Scan/replace variables/constants defined in the function.
 	//
-	// Variable declarations are moved to the function prologue so that
-	// variables can be saved and restored. To handle cases of shadowing,
-	// all variables are given new unique names of the form _v[0-9]+.
-	// Inline declarations (via var or :=) are downgraded to an assignment
-	// using =.
-	objectVars := map[types.Object]*ast.Ident{}
+	// Constants and variables can be defined within any scope in the
+	// function, and can shadow previous declarations. The coroutine
+	// dispatch mechanism introduces new scopes, which may prevent
+	// variables/constants from being visible to other statements, or
+	// may cause some statements to see the unshadowed value of a variable
+	// or constant
+	//
+	// To handle shadowing, we assign each variable and constant a unique name
+	// within the function body. To handle scoping issues, we hoist
+	// declarations to the function prologue and then downgrade inline var
+	// decls and assignments that use := to assignments that use =. Constant
+	// decls are hoisted and also have their value assigned in the function
+	// prologue.
+	newObjNames := map[types.Object]*ast.Ident{}
+	var constNames []*ast.Ident
+	var constValues []ast.Expr
 	var varNames []*ast.Ident
 	var varTypes []types.Type
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
@@ -313,32 +323,43 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 			for _, lhs := range n.Lhs {
 				name := lhs.(*ast.Ident)
 				obj := p.TypesInfo.ObjectOf(name)
-				if obj == nil {
-					return true
-				}
-				if _, ok := objectVars[obj]; ok {
-					return true
+				if _, ok := newObjNames[obj]; ok {
+					return true // already seen
 				}
 				varName := ast.NewIdent("_v" + strconv.Itoa(len(varNames)))
 				varTypes = append(varTypes, p.TypesInfo.TypeOf(name))
 				varNames = append(varNames, varName)
-				objectVars[obj] = varName
+				newObjNames[obj] = varName
 			}
-		case *ast.ValueSpec:
-			// Rewrite var decls in a pass below, since it does require an AST
+		case *ast.GenDecl:
+			// Rewrite decls in a pass below, since it does require an AST
 			// node replacement.
-			for _, name := range n.Names {
-				obj := p.TypesInfo.ObjectOf(name)
-				if obj == nil {
-					return true
+			for _, spec := range n.Specs {
+				vs, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
 				}
-				if _, ok := objectVars[obj]; ok {
-					return true
+				switch n.Tok {
+				case token.CONST:
+					for i, name := range vs.Names {
+						constName := ast.NewIdent("_c" + strconv.Itoa(len(constNames)))
+						constNames = append(constNames, constName)
+						constValues = append(constValues, vs.Values[i])
+						obj := p.TypesInfo.ObjectOf(name)
+						newObjNames[obj] = constName
+					}
+				case token.VAR:
+					for _, name := range vs.Names {
+						obj := p.TypesInfo.ObjectOf(name)
+						if _, ok := newObjNames[obj]; ok {
+							return true // already seen
+						}
+						varName := ast.NewIdent("_v" + strconv.Itoa(len(varNames)))
+						varTypes = append(varTypes, p.TypesInfo.TypeOf(name))
+						varNames = append(varNames, varName)
+						newObjNames[obj] = varName
+					}
 				}
-				varName := ast.NewIdent("_v" + strconv.Itoa(len(varNames)))
-				varTypes = append(varTypes, p.TypesInfo.TypeOf(name))
-				varNames = append(varNames, varName)
-				objectVars[obj] = varName
 			}
 		}
 		return true
@@ -352,38 +373,54 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 		if !ok {
 			return true
 		}
-		if !ok || g.Tok != token.VAR {
-			return true
-		}
-		var assigns []ast.Stmt
-		// The var decl could have one spec, e.g. var foo=0, or multiple
-		// specs, e.g. var ( foo=0; bar=1; baz=2 ). Replace them with a
-		// block that has one or more assignments. Pure decls can be omitted.
-		for _, spec := range g.Specs {
-			s, ok := spec.(*ast.ValueSpec)
-			if !ok || len(s.Values) == 0 {
-				continue
+		switch g.Tok {
+		case token.CONST:
+			// Delete the const decl, since it'll be hoisted to the
+			// function prologue.
+			cursor.Delete()
+		case token.VAR:
+			var assigns []ast.Stmt
+			// The var decl could have one spec, e.g. var foo=0, or multiple
+			// specs, e.g. var ( foo=0; bar=1; baz=2 ). Replace them with a
+			// block that has one or more assignments. Pure decls can be omitted.
+			for _, spec := range g.Specs {
+				s, ok := spec.(*ast.ValueSpec)
+				if !ok || len(s.Values) == 0 {
+					continue
+				}
+				lhs := make([]ast.Expr, len(s.Names))
+				for i, name := range s.Names {
+					lhs[i] = name
+				}
+				assigns = append(assigns, &ast.AssignStmt{Lhs: lhs, Tok: token.ASSIGN, Rhs: s.Values})
 			}
-			lhs := make([]ast.Expr, len(s.Names))
-			for i, name := range s.Names {
-				lhs[i] = name
-			}
-			assigns = append(assigns, &ast.AssignStmt{Lhs: lhs, Tok: token.ASSIGN, Rhs: s.Values})
+			cursor.Replace(&ast.BlockStmt{List: assigns})
 		}
-		cursor.Replace(&ast.BlockStmt{List: assigns})
 		return true
 	}, nil)
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
 		if ident, ok := node.(*ast.Ident); ok {
 			obj := p.TypesInfo.ObjectOf(ident)
-			if replacement, ok := objectVars[obj]; ok {
+			if replacement, ok := newObjNames[obj]; ok {
 				ident.Name = replacement.Name
 			}
 		}
 		return true
 	})
 
-	// Declare variables upfront.
+	// Declare constants.
+	if len(constNames) > 0 {
+		varDecl := &ast.GenDecl{Tok: token.CONST}
+		for i, name := range constNames {
+			varDecl.Specs = append(varDecl.Specs, &ast.ValueSpec{
+				Names:  []*ast.Ident{name},
+				Values: []ast.Expr{constValues[i]},
+			})
+		}
+		gen.Body.List = append(gen.Body.List, &ast.DeclStmt{Decl: varDecl})
+	}
+
+	// Declare variables.
 	if len(varTypes) > 0 {
 		varDecl := &ast.GenDecl{Tok: token.VAR}
 		for i, t := range varTypes {

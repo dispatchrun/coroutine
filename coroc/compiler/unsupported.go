@@ -7,9 +7,9 @@ import (
 	"go/types"
 )
 
-// unsupported checks a tree for unsupported language features.
-func unsupported(tree ast.Node, info *types.Info) (err error) {
-	ast.Inspect(tree, func(node ast.Node) bool {
+// unsupported checks a function for unsupported language features.
+func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
+	ast.Inspect(decl, func(node ast.Node) bool {
 		stmt, ok := node.(ast.Stmt)
 		if !ok {
 			return true
@@ -34,7 +34,7 @@ func unsupported(tree ast.Node, info *types.Info) (err error) {
 			switch t := info.TypeOf(n.X).(type) {
 			case *types.Array, *types.Slice:
 			default:
-				err = fmt.Errorf("not implemented: for range for %T", t)
+				err = fmt.Errorf("not implemented: for range for %T", t) // e.g. *types.Map
 			}
 		case *ast.AssignStmt:
 			for _, lhs := range n.Lhs {
@@ -44,19 +44,8 @@ func unsupported(tree ast.Node, info *types.Info) (err error) {
 			}
 		case *ast.DeclStmt:
 			gen := n.Decl.(*ast.GenDecl)
-			switch gen.Tok {
-			case token.CONST:
-				err = fmt.Errorf("not implemented: inline const decl")
-			case token.TYPE:
+			if gen.Tok == token.TYPE { // CONST/VAR ok, and IMPORT not possible
 				err = fmt.Errorf("not implemented: inline type decl")
-			case token.VAR:
-				for _, spec := range gen.Specs {
-					switch s := spec.(type) {
-					case *ast.ValueSpec:
-						// TODO
-						_ = s
-					}
-				}
 			}
 		case *ast.BranchStmt:
 			if n.Tok == token.GOTO {

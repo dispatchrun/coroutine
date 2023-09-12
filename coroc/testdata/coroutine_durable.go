@@ -281,6 +281,10 @@ func FizzBuzzSwitchGenerator(n int) {
 func Shadowing(_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
+	const (
+		_c0 = 11
+		_c1 = 12
+	)
 	var (
 		_v0 int
 		_v1 int
@@ -291,6 +295,7 @@ func Shadowing(_ int) {
 		_v6 int
 		_v7 int
 		_v8 int
+		_v9 int
 	)
 	if _f.IP > 0 {
 		_v0 = _f.Get(0).(int)
@@ -302,6 +307,7 @@ func Shadowing(_ int) {
 		_v6 = _f.Get(6).(int)
 		_v7 = _f.Get(7).(int)
 		_v8 = _f.Get(8).(int)
+		_v9 = _f.Get(9).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -314,6 +320,7 @@ func Shadowing(_ int) {
 			_f.Set(6, _v6)
 			_f.Set(7, _v7)
 			_f.Set(8, _v8)
+			_f.Set(9, _v9)
 		} else {
 			_c.Pop()
 		}
@@ -330,6 +337,7 @@ func Shadowing(_ int) {
 	case _f.IP < 5:
 		switch {
 		case _f.IP < 4:
+
 			_v1 = 1
 			_f.IP = 4
 			fallthrough
@@ -347,6 +355,7 @@ func Shadowing(_ int) {
 	case _f.IP < 8:
 		switch {
 		case _f.IP < 7:
+
 			_v2 = 1
 			_f.IP = 7
 			fallthrough
@@ -365,6 +374,7 @@ func Shadowing(_ int) {
 	case _f.IP < 13:
 		switch {
 		case _f.IP < 10:
+
 			_v3 = 1
 			_f.IP = 10
 			fallthrough
@@ -394,6 +404,7 @@ func Shadowing(_ int) {
 		_f.IP = 13
 		fallthrough
 	case _f.IP < 14:
+
 		coroutine.Yield[int, any](_v0)
 		_f.IP = 14
 		fallthrough
@@ -446,6 +457,31 @@ func Shadowing(_ int) {
 	case _f.IP < 23:
 
 		coroutine.Yield[int, any](_v7)
+		_f.IP = 23
+		fallthrough
+	case _f.IP < 26:
+		switch {
+		case _f.IP < 25:
+			switch {
+			case _f.IP < 24:
+
+				_v9 = 13
+				_f.IP = 24
+				fallthrough
+			case _f.IP < 25:
+				coroutine.Yield[int, any](_v9)
+			}
+			_f.IP = 25
+			fallthrough
+		case _f.IP < 26:
+
+			coroutine.Yield[int, any](_c1)
+		}
+		_f.IP = 26
+		fallthrough
+	case _f.IP < 27:
+
+		coroutine.Yield[int, any](_c0)
 	}
 }
 
