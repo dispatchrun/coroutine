@@ -372,7 +372,11 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 	desugar(fn.Body, p.TypesInfo)
 
 	// Scan/replace variables defined in the function.
-	objectVars := map[*ast.Object]*ast.Ident{}
+	//
+	// Variable declarations are moved to the function prologue so that
+	// they can be saved and restored. To handle cases of shadowing, variables
+	// are given new unique names of the form _v[0-9]+.
+	objectVars := map[types.Object]*ast.Ident{}
 	var varNames []*ast.Ident
 	var varTypes []types.Type
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
@@ -382,22 +386,24 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 			if n.Tok == token.DEFINE {
 				n.Tok = token.ASSIGN
 			}
-			if name.Obj == nil {
+			obj := p.TypesInfo.ObjectOf(name)
+			if obj == nil {
 				return true
 			}
-			if _, ok := objectVars[name.Obj]; ok {
+			if _, ok := objectVars[obj]; ok {
 				return true
 			}
 			varName := ast.NewIdent("_v" + strconv.Itoa(len(varNames)))
 			varTypes = append(varTypes, p.TypesInfo.TypeOf(name))
 			varNames = append(varNames, varName)
-			objectVars[name.Obj] = varName
+			objectVars[obj] = varName
 		}
 		return true
 	})
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
 		if ident, ok := node.(*ast.Ident); ok {
-			if replacement, ok := objectVars[ident.Obj]; ok {
+			obj := p.TypesInfo.ObjectOf(ident)
+			if replacement, ok := objectVars[obj]; ok {
 				ident.Name = replacement.Name
 			}
 		}
@@ -511,76 +517,11 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 		},
 	})
 
-	spans := trackSpans(fn.Body)
+	spans := trackDispatchSpans(fn.Body)
 
-	compiledBody := c.compileStatement(fn.Body, spans).(*ast.BlockStmt)
+	compiledBody := compileDispatch(fn.Body, spans).(*ast.BlockStmt)
 
 	gen.Body.List = append(gen.Body.List, compiledBody.List...)
 
 	return gen
-}
-
-func (c *compiler) compileStatement(stmt ast.Stmt, spans map[ast.Stmt]span) ast.Stmt {
-	switch s := stmt.(type) {
-	case *ast.BlockStmt:
-		switch {
-		case len(s.List) == 1:
-			child := c.compileStatement(s.List[0], spans)
-			s.List[0] = unnestBlocks(child)
-		case len(s.List) > 1:
-			stmt = &ast.BlockStmt{List: []ast.Stmt{c.compileDispatch(s.List, spans)}}
-		}
-	case *ast.IfStmt:
-		s.Body = c.compileStatement(s.Body, spans).(*ast.BlockStmt)
-	case *ast.ForStmt:
-		forSpan := spans[s]
-		s.Body = c.compileStatement(s.Body, spans).(*ast.BlockStmt)
-		s.Body.List = append(s.Body.List, &ast.AssignStmt{
-			Lhs: []ast.Expr{&ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")}},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(forSpan.start)}},
-		})
-	case *ast.SwitchStmt:
-		for i, child := range s.Body.List {
-			s.Body.List[i] = c.compileStatement(child, spans)
-		}
-	case *ast.CaseClause:
-		switch {
-		case len(s.Body) == 1:
-			child := c.compileStatement(s.Body[0], spans)
-			s.Body[0] = unnestBlocks(child)
-		case len(s.Body) > 1:
-			s.Body = []ast.Stmt{c.compileDispatch(s.Body, spans)}
-		}
-	}
-	return stmt
-}
-
-func (c *compiler) compileDispatch(stmts []ast.Stmt, spans map[ast.Stmt]span) ast.Stmt {
-	var cases []ast.Stmt
-	for i, child := range stmts {
-		childSpan := spans[child]
-		compiledChild := c.compileStatement(child, spans)
-		compiledChild = unnestBlocks(compiledChild)
-		caseBody := []ast.Stmt{compiledChild}
-		if i < len(stmts)-1 {
-			caseBody = append(caseBody,
-				&ast.AssignStmt{
-					Lhs: []ast.Expr{&ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")}},
-					Tok: token.ASSIGN,
-					Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(childSpan.end)}},
-				},
-				&ast.BranchStmt{Tok: token.FALLTHROUGH})
-		}
-		cases = append(cases, &ast.CaseClause{
-			List: []ast.Expr{
-				&ast.BinaryExpr{
-					X:  &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")},
-					Op: token.LSS, /* < */
-					Y:  &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(childSpan.end)}},
-			},
-			Body: caseBody,
-		})
-	}
-	return &ast.SwitchStmt{Body: &ast.BlockStmt{List: cases}}
 }

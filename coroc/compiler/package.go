@@ -2,8 +2,8 @@ package compiler
 
 import "golang.org/x/tools/go/packages"
 
-// flattenPackages walks the package import graph to produce a unique set
-// of all packages. Note that the order of packages is currently unstable.
+// flattenPackages walks the package import graph to produce the set of all
+// packages in the graph. The order of packages is currently unstable.
 func flattenPackages(pp []*packages.Package) (flattened []*packages.Package) {
 	seen := map[*packages.Package]struct{}{}
 	for _, p := range pp {
