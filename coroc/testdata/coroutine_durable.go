@@ -4,7 +4,14 @@
 
 package testdata
 
-import "github.com/stealthrocket/coroutine"
+import (
+	"github.com/stealthrocket/coroutine"
+	serde "github.com/stealthrocket/coroutine/serde"
+	runtime "runtime"
+	sync "sync"
+	atomic "sync/atomic"
+	unsafe "unsafe"
+)
 
 func Identity(n int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -435,4 +442,49 @@ func RangeArrayIndexValueGenerator(_ int) {
 			}
 		}
 	}
+}
+func init() {
+	serde.RegisterType[atomic.Bool]()
+	serde.RegisterType[atomic.Int32]()
+	serde.RegisterType[atomic.Int64]()
+	serde.RegisterType[atomic.Uint32]()
+	serde.RegisterType[atomic.Uint64]()
+	serde.RegisterType[atomic.Uintptr]()
+	serde.RegisterType[atomic.Value]()
+	serde.RegisterType[bool]()
+	serde.RegisterType[byte]()
+	serde.RegisterType[complex128]()
+	serde.RegisterType[float32]()
+	serde.RegisterType[float64]()
+	serde.RegisterType[int]()
+	serde.RegisterType[int16]()
+	serde.RegisterType[int32]()
+	serde.RegisterType[int64]()
+	serde.RegisterType[int8]()
+	serde.RegisterType[rune]()
+	serde.RegisterType[runtime.BlockProfileRecord]()
+	serde.RegisterType[runtime.Frame]()
+	serde.RegisterType[runtime.Frames]()
+	serde.RegisterType[runtime.Func]()
+	serde.RegisterType[runtime.MemProfileRecord]()
+	serde.RegisterType[runtime.MemStats]()
+	serde.RegisterType[runtime.PanicNilError]()
+	serde.RegisterType[runtime.Pinner]()
+	serde.RegisterType[runtime.StackRecord]()
+	serde.RegisterType[runtime.TypeAssertionError]()
+	serde.RegisterType[string]()
+	serde.RegisterType[sync.Cond]()
+	serde.RegisterType[sync.Map]()
+	serde.RegisterType[sync.Mutex]()
+	serde.RegisterType[sync.Once]()
+	serde.RegisterType[sync.Pool]()
+	serde.RegisterType[sync.RWMutex]()
+	serde.RegisterType[sync.WaitGroup]()
+	serde.RegisterType[uint]()
+	serde.RegisterType[uint16]()
+	serde.RegisterType[uint32]()
+	serde.RegisterType[uint64]()
+	serde.RegisterType[uint8]()
+	serde.RegisterType[uintptr]()
+	serde.RegisterType[unsafe.Pointer]()
 }

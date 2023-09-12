@@ -8,7 +8,6 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/stealthrocket/coroutine/serde"
@@ -73,22 +72,13 @@ func generate(path string, tags []string) error {
 	return nil
 }
 
-const (
-	serdePackage = "github.com/stealthrocket/coroutine/serde"
-)
-
 func genpkg(fset *token.FileSet, tags []string, p *packages.Package) error {
 	gen := &ast.File{
 		Name: ast.NewIdent(p.Name),
 	}
 	gen.Decls = append(gen.Decls, &ast.GenDecl{
-		Tok: token.IMPORT,
-		Specs: []ast.Spec{
-			&ast.ImportSpec{
-				Name: ast.NewIdent("serde"),
-				Path: &ast.BasicLit{Kind: token.STRING, Value: strconv.Quote(serdePackage)},
-			},
-		},
+		Tok:   token.IMPORT,
+		Specs: []ast.Spec{},
 	})
 
 	if err := serde.GenerateTypesInit(fset, gen, p); err != nil {

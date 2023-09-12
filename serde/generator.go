@@ -29,6 +29,13 @@ func GenerateTypesInit(fset *token.FileSet, gen *ast.File, pkg *packages.Package
 
 	w.Walk(pkg)
 
+	// Found no type.
+	if len(w.types) == 0 {
+		return nil
+	}
+
+	serdepkg := ast.NewIdent(w.addImport("github.com/stealthrocket/coroutine/serde"))
+
 	sort.Slice(w.newimports, func(i, j int) bool {
 		return w.newimports[i][0] < w.newimports[j][0]
 	})
@@ -65,7 +72,7 @@ func GenerateTypesInit(fset *token.FileSet, gen *ast.File, pkg *packages.Package
 			X: &ast.CallExpr{
 				Fun: &ast.IndexListExpr{
 					X: &ast.SelectorExpr{
-						X:   ast.NewIdent("serde"),
+						X:   serdepkg,
 						Sel: ast.NewIdent("RegisterType"),
 					},
 					Indices: []ast.Expr{
@@ -126,6 +133,16 @@ func (w *typesWalker) Walk(p *packages.Package) {
 	}
 }
 
+// Import the given package path, and return the actual name used in case of
+// conflict.
+func (w *typesWalker) addImport(path string) string {
+	new, importname := w.imports.Add(path)
+	if new {
+		w.newimports = append(w.newimports, [2]string{importname, path})
+	}
+	return importname
+}
+
 func (w *typesWalker) add(t types.Type) {
 	typename := types.TypeString(t, nil)
 	if _, ok := w.seenTypes[typename]; ok {
@@ -136,10 +153,7 @@ func (w *typesWalker) add(t types.Type) {
 	if !found {
 		name = path
 	} else if path != w.from {
-		new, importname := w.imports.Add(path)
-		if new {
-			w.newimports = append(w.newimports, [2]string{importname, path})
-		}
+		importname := w.addImport(path)
 		name = importname + "." + name
 	}
 
