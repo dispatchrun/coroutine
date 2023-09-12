@@ -198,7 +198,12 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 			// Reject certain language features for now.
 			var err error
 			ast.Inspect(decl, func(node ast.Node) bool {
-				switch n := node.(type) {
+				stmt, ok := node.(ast.Stmt)
+				if !ok {
+					return true
+				}
+				switch n := stmt.(type) {
+				// Not supported:
 				case *ast.DeferStmt:
 					err = fmt.Errorf("not implemented: defer")
 				case *ast.GoStmt:
@@ -209,14 +214,18 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 					err = fmt.Errorf("not implemented: type switch")
 				case *ast.SelectStmt:
 					err = fmt.Errorf("not implemented: select")
+				case *ast.CommClause:
+					err = fmt.Errorf("not implemented: select case")
+				case *ast.DeclStmt:
+					err = fmt.Errorf("not implemented: inline decls")
+
+				// Partially supported:
 				case *ast.RangeStmt:
 					switch t := p.TypesInfo.TypeOf(n.X).(type) {
 					case *types.Array, *types.Slice:
 					default:
 						err = fmt.Errorf("not implemented: for range for %T", t)
 					}
-				case *ast.DeclStmt:
-					err = fmt.Errorf("not implemented: inline decls")
 				case *ast.AssignStmt:
 					if len(n.Lhs) != 1 || len(n.Lhs) != len(n.Rhs) {
 						err = fmt.Errorf("not implemented: multiple assign")
@@ -249,6 +258,21 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 					default:
 						err = fmt.Errorf("not implemented: for post %T", p)
 					}
+
+				// Fully supported:
+				case *ast.BlockStmt:
+				case *ast.CaseClause:
+				case *ast.EmptyStmt:
+				case *ast.ExprStmt:
+				case *ast.IfStmt:
+				case *ast.IncDecStmt:
+				case *ast.ReturnStmt:
+				case *ast.SendStmt:
+				case *ast.SwitchStmt:
+
+				// Catch all in case new statements are added:
+				default:
+					err = fmt.Errorf("not implmemented: ast.Stmt(%T)", n)
 				}
 				return err == nil
 			})
