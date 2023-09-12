@@ -6,14 +6,20 @@ import (
 	"go/format"
 	"go/token"
 	"go/types"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/stealthrocket/coroutine/serde"
+	"golang.org/x/tools/go/callgraph/cha"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/ssa/ssautil"
 )
+
+const coroutinePackage = "github.com/stealthrocket/coroutine"
 
 // Compile compiles coroutines in one or more packages.
 //
@@ -57,6 +63,8 @@ type compiler struct {
 }
 
 func (c *compiler) compile(path string) error {
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
 	if path != "" && !strings.HasSuffix(path, "...") {
 		s, err := os.Stat(path)
 		if err != nil {
@@ -75,7 +83,7 @@ func (c *compiler) compile(path string) error {
 		path = "." + string(filepath.Separator) + path
 	}
 
-	// Load, parse and type-check packages and their dependencies.
+	log.Printf("reading, parsing and type-checking")
 	conf := &packages.Config{
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedImports | packages.NeedDeps | packages.NeedTypesInfo,
 		Fset: c.fset,
@@ -85,140 +93,77 @@ func (c *compiler) compile(path string) error {
 	if err != nil {
 		return fmt.Errorf("packages.Load %q: %w", path, err)
 	}
-	for _, p := range pkgs {
-		// Keep it simple and only return the first error (the goal is to
-		// compile coroutines, not worry about error reporting UX).
+	flatpkgs := flattenPackages(pkgs)
+	for _, p := range flatpkgs {
 		for _, err := range p.Errors {
 			return err
 		}
 	}
 
-	// At this stage, candidate packages are those that import the
-	// coroutine package and explicitly yield. This could be relaxed
-	// in future so that candidate packages are those that *may*
-	// contain a yield point.
-	for _, p := range pkgs {
-		if _, ok := p.Imports[coroutinePackage]; !ok {
-			continue
+	log.Printf("building SSA program")
+	prog, _ := ssautil.Packages(pkgs, ssa.InstantiateGenerics|ssa.GlobalDebug)
+	prog.Build()
+
+	log.Printf("building call graph")
+	cg := cha.CallGraph(prog)
+
+	log.Printf("finding generic yield instantiations")
+	var coroutinePkg *packages.Package
+	for _, p := range flatpkgs {
+		if p.PkgPath == coroutinePackage {
+			coroutinePkg = p
+			break
 		}
-		if err := c.compilePackage(p); err != nil {
+	}
+	if coroutinePkg == nil {
+		log.Printf("%s not imported by the module. Nothing to do", coroutinePackage)
+		return nil
+	}
+	yieldFunc := prog.FuncValue(coroutinePkg.Types.Scope().Lookup("Yield").(*types.Func))
+	yieldInstances := functionColors{}
+	for fn := range ssautil.AllFunctions(prog) {
+		if fn.Origin() == yieldFunc {
+			yieldInstances[fn] = fn.Signature
+		}
+	}
+
+	log.Printf("coloring functions")
+	colors, err := colorFunctions(cg, yieldInstances)
+	if err != nil {
+		return err
+	}
+	pkgsByTypes := map[*types.Package]*packages.Package{}
+	for _, p := range flatpkgs {
+		pkgsByTypes[p.Types] = p
+	}
+	colorsByPkg := map[*packages.Package]functionColors{}
+	for fn, color := range colors {
+		if fn.Pkg == nil {
+			return fmt.Errorf("unsupported yield function %s (Pkg is nil)", fn)
+		}
+
+		p := pkgsByTypes[fn.Pkg.Pkg]
+		pkgColors := colorsByPkg[p]
+		if pkgColors == nil {
+			pkgColors = functionColors{}
+			colorsByPkg[p] = pkgColors
+		}
+		pkgColors[fn] = color
+	}
+
+	for p, colors := range colorsByPkg {
+		if err := c.compilePackage(p, colors); err != nil {
 			return err
 		}
 	}
+
+	log.Printf("done")
+
 	return nil
 }
 
-func (c *compiler) compilePackage(p *packages.Package) error {
-	// At this stage, candidate functions are those that explicitly
-	// yield. This could be relaxed in future so that candidate packages
-	// are those that *may* yield, or those that are explicitly
-	// whitelisted by the user (either via command-line opt-in, or by
-	// annotating the function with some comment directive).
-	type coroutineCandidate struct {
-		FuncDecl  *ast.FuncDecl
-		YieldType []ast.Expr
-	}
-	var candidates []coroutineCandidate
-	for _, f := range p.Syntax {
-		for _, decl := range f.Decls {
-			fn, ok := decl.(*ast.FuncDecl)
-			if !ok {
-				continue
-			}
-			// Skip function declarations without a body.
-			if fn.Body == nil {
-				continue
-			}
-			// Skip methods (functions with receivers) for now.
-			if fn.Recv != nil {
-				continue
-			}
-			var yieldType []ast.Expr
-			scanYields(p, fn.Body, func(t []ast.Expr) bool {
-				if yieldType == nil {
-					yieldType = t
-				} else {
-					// TODO: fail if t isn't the same as yieldType (i.e. more than one type of yield here)
-				}
-				return true
-			})
-			if yieldType == nil {
-				continue
-			}
-			candidates = append(candidates, coroutineCandidate{
-				FuncDecl:  fn,
-				YieldType: yieldType,
-			})
-		}
-	}
-	if len(candidates) == 0 {
-		return nil
-	}
-
-	// Reject certain language features for now.
-	for _, candidate := range candidates {
-		fn := candidate.FuncDecl
-
-		var err error
-		ast.Inspect(fn, func(node ast.Node) bool {
-			switch n := node.(type) {
-			case *ast.DeferStmt:
-				err = fmt.Errorf("not implemented: defer")
-			case *ast.GoStmt:
-				err = fmt.Errorf("not implemented: go")
-			case *ast.LabeledStmt:
-				err = fmt.Errorf("not implemented: labels")
-			case *ast.TypeSwitchStmt:
-				err = fmt.Errorf("not implemented: type switch")
-			case *ast.SelectStmt:
-				err = fmt.Errorf("not implemented: select")
-			case *ast.RangeStmt:
-				switch t := p.TypesInfo.TypeOf(n.X).(type) {
-				case *types.Array, *types.Slice:
-				default:
-					err = fmt.Errorf("not implemented: for range for %T", t)
-				}
-			case *ast.DeclStmt:
-				err = fmt.Errorf("not implemented: inline decls")
-			case *ast.AssignStmt:
-				if len(n.Lhs) != 1 || len(n.Lhs) != len(n.Rhs) {
-					err = fmt.Errorf("not implemented: multiple assign")
-				}
-				if _, ok := n.Lhs[0].(*ast.Ident); !ok {
-					err = fmt.Errorf("not implemented: assign to non-ident")
-				}
-			case *ast.BranchStmt:
-				if n.Tok == token.GOTO {
-					err = fmt.Errorf("not implemented: goto")
-				} else if n.Tok == token.FALLTHROUGH {
-					err = fmt.Errorf("not implemented: fallthrough")
-				} else if n.Tok == token.BREAK {
-					err = fmt.Errorf("not implemented: break")
-				} else if n.Tok == token.CONTINUE {
-					err = fmt.Errorf("not implemented: continue")
-				} else if n.Label != nil {
-					err = fmt.Errorf("not implemented: labeled branch")
-				}
-			case *ast.ForStmt:
-				// Since we aren't desugaring for loop post iteration
-				// statements yet, check that it's a simple increment
-				// or decrement.
-				switch p := n.Post.(type) {
-				case nil:
-				case *ast.IncDecStmt:
-					if _, ok := p.X.(*ast.Ident); !ok {
-						err = fmt.Errorf("not implemented: for post inc/dec %T", p.X)
-					}
-				default:
-					err = fmt.Errorf("not implemented: for post %T", p)
-				}
-			}
-			return err == nil
-		})
-		if err != nil {
-			return err
-		}
-	}
+func (c *compiler) compilePackage(p *packages.Package, colors functionColors) error {
+	log.Printf("compiling package %s", p.Name)
 
 	// Generate the coroutine AST.
 	gen := &ast.File{
@@ -232,9 +177,113 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 			},
 		},
 	})
-	for _, candidate := range candidates {
-		fn, yieldType := candidate.FuncDecl, candidate.YieldType
-		gen.Decls = append(gen.Decls, c.compileFunction(p, fn, yieldType))
+
+	colorsByDecl := map[*ast.FuncDecl]*types.Signature{}
+	for fn, color := range colors {
+		decl, ok := fn.Syntax().(*ast.FuncDecl)
+		if !ok {
+			return fmt.Errorf("unsupported yield function %s (Syntax is %T, not *ast.FuncDecl)", fn, fn.Syntax())
+		}
+		colorsByDecl[decl] = color
+	}
+	for _, f := range p.Syntax {
+		for _, anydecl := range f.Decls {
+			decl, ok := anydecl.(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
+			color, ok := colorsByDecl[decl]
+			if !ok {
+				continue
+			}
+
+			// Reject certain language features for now.
+			var err error
+			ast.Inspect(decl, func(node ast.Node) bool {
+				stmt, ok := node.(ast.Stmt)
+				if !ok {
+					return true
+				}
+				switch n := stmt.(type) {
+				// Not supported:
+				case *ast.DeferStmt:
+					err = fmt.Errorf("not implemented: defer")
+				case *ast.GoStmt:
+					err = fmt.Errorf("not implemented: go")
+				case *ast.LabeledStmt:
+					err = fmt.Errorf("not implemented: labels")
+				case *ast.TypeSwitchStmt:
+					err = fmt.Errorf("not implemented: type switch")
+				case *ast.SelectStmt:
+					err = fmt.Errorf("not implemented: select")
+				case *ast.CommClause:
+					err = fmt.Errorf("not implemented: select case")
+				case *ast.DeclStmt:
+					err = fmt.Errorf("not implemented: inline decls")
+
+				// Partially supported:
+				case *ast.RangeStmt:
+					switch t := p.TypesInfo.TypeOf(n.X).(type) {
+					case *types.Array, *types.Slice:
+					default:
+						err = fmt.Errorf("not implemented: for range for %T", t)
+					}
+				case *ast.AssignStmt:
+					if len(n.Lhs) != 1 || len(n.Lhs) != len(n.Rhs) {
+						err = fmt.Errorf("not implemented: multiple assign")
+					}
+					if _, ok := n.Lhs[0].(*ast.Ident); !ok {
+						err = fmt.Errorf("not implemented: assign to non-ident")
+					}
+				case *ast.BranchStmt:
+					if n.Tok == token.GOTO {
+						err = fmt.Errorf("not implemented: goto")
+					} else if n.Tok == token.FALLTHROUGH {
+						err = fmt.Errorf("not implemented: fallthrough")
+					} else if n.Tok == token.BREAK {
+						err = fmt.Errorf("not implemented: break")
+					} else if n.Tok == token.CONTINUE {
+						err = fmt.Errorf("not implemented: continue")
+					} else if n.Label != nil {
+						err = fmt.Errorf("not implemented: labeled branch")
+					}
+				case *ast.ForStmt:
+					// Since we aren't desugaring for loop post iteration
+					// statements yet, check that it's a simple increment
+					// or decrement.
+					switch p := n.Post.(type) {
+					case nil:
+					case *ast.IncDecStmt:
+						if _, ok := p.X.(*ast.Ident); !ok {
+							err = fmt.Errorf("not implemented: for post inc/dec %T", p.X)
+						}
+					default:
+						err = fmt.Errorf("not implemented: for post %T", p)
+					}
+
+				// Fully supported:
+				case *ast.BlockStmt:
+				case *ast.CaseClause:
+				case *ast.EmptyStmt:
+				case *ast.ExprStmt:
+				case *ast.IfStmt:
+				case *ast.IncDecStmt:
+				case *ast.ReturnStmt:
+				case *ast.SendStmt:
+				case *ast.SwitchStmt:
+
+				// Catch all in case new statements are added:
+				default:
+					err = fmt.Errorf("not implmemented: ast.Stmt(%T)", n)
+				}
+				return err == nil
+			})
+			if err != nil {
+				return err
+			}
+
+			gen.Decls = append(gen.Decls, c.compileFunction(p, decl, color))
+		}
 	}
 
 	// Build type register init() function.
@@ -273,7 +322,9 @@ func (c *compiler) compilePackage(p *packages.Package) error {
 	return outputFile.Close()
 }
 
-func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldType []ast.Expr) *ast.FuncDecl {
+func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color *types.Signature) *ast.FuncDecl {
+	log.Printf("compiling function %s %s", p.Name, fn.Name)
+
 	// Generate the coroutine function. At this stage, use the same name
 	// as the source function (and require that the caller use build tags
 	// to disambiguate function calls).
@@ -286,6 +337,10 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 	ctx := ast.NewIdent("_c")
 	frame := ast.NewIdent("_f")
 
+	yieldTypeExpr := make([]ast.Expr, 2)
+	yieldTypeExpr[0] = typeExpr(color.Params().At(0).Type())
+	yieldTypeExpr[1] = typeExpr(color.Results().At(0).Type())
+
 	// _c := coroutine.LoadContext[R, S]()
 	gen.Body.List = append(gen.Body.List, &ast.AssignStmt{
 		Lhs: []ast.Expr{ctx},
@@ -297,7 +352,7 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, yieldT
 						X:   ast.NewIdent("coroutine"),
 						Sel: ast.NewIdent("LoadContext"),
 					},
-					Indices: yieldType,
+					Indices: yieldTypeExpr,
 				},
 			},
 		},
