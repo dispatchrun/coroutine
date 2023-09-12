@@ -170,7 +170,10 @@ func importSpecName(imp *ast.ImportSpec) string {
 		return imp.Name.Name
 	}
 	// guess from the path
-	path := imp.Path.Value
+	path, err := strconv.Unquote(imp.Path.Value)
+	if err != nil {
+		panic(fmt.Errorf("package in import not quoted: %w", err))
+	}
 	lastSlash := strings.LastIndex(path, "/")
 	if lastSlash == -1 {
 		return path
