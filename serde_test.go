@@ -164,6 +164,36 @@ func TestReflectSharing(t *testing.T) {
 
 		assertEqual(t, out, out.z)
 	})
+
+	testReflect(t, "slices with same backing array but no joined cap", func(t *testing.T) {
+		data := make([]int, 10)
+		for i := range data {
+			data[i] = i
+		}
+
+		assertEqual(t, 10, cap(data))
+
+		type X struct {
+			s1 []int
+			s2 []int
+		}
+
+		x := X{
+			s1: data[0:3:3],
+			s2: data[8:10:10],
+		}
+
+		assertEqual(t, 3, cap(x.s1))
+		assertEqual(t, 2, cap(x.s2))
+
+		RegisterType[X]()
+
+		out := assertRoundTrip(t, x)
+
+		// check underlying arrays are not shared
+		out.s1 = append(out.s1, 1, 1, 1, 1, 1, 1)
+		assertEqual(t, 8, out.s2[0])
+	})
 }
 
 func assertEqual(t *testing.T, expected, actual any) {
