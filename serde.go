@@ -145,18 +145,6 @@ func newSerializer() *serializer {
 	}
 }
 
-func (s *serializer) writePtr(p unsafe.Pointer, b []byte) (bool, []byte) {
-	if p == nil {
-		return true, binary.AppendVarint(b, 0)
-	}
-	i, ok := s.ptrs[p]
-	if !ok {
-		i = sID(len(s.ptrs) + 1)
-		s.ptrs[p] = i
-	}
-	return ok, binary.AppendVarint(b, int64(i))
-}
-
 func serializeVarint(size int, b []byte) []byte {
 	return binary.AppendVarint(b, int64(size))
 }
