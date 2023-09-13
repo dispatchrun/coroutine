@@ -194,6 +194,28 @@ func TestReflectSharing(t *testing.T) {
 		out.s1 = append(out.s1, 1, 1, 1, 1, 1, 1)
 		assertEqual(t, 8, out.s2[0])
 	})
+
+	testReflect(t, "pointers to shared data in maps", func(t *testing.T) {
+		data := make([]int, 3)
+		for i := range data {
+			data[i] = i
+		}
+
+		x := map[string][]int{
+			"un":    data[0:1],
+			"deux":  data[0:2],
+			"trois": data[0:3],
+		}
+
+		RegisterType[map[string][]int]()
+		out := assertRoundTrip(t, x)
+
+		out["un"][0] = 100
+		out["deux"][1] = 200
+		out["trois"][2] = 300
+
+		assertEqual(t, []int{100, 200, 300}, out["trois"])
+	})
 }
 
 func assertEqual(t *testing.T, expected, actual any) {
