@@ -278,6 +278,16 @@ func deserializeAny(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte)
 	}
 }
 
+func serializePointedAt(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	exists, b := s.WritePtr(p, b)
+	if exists {
+		return b
+	}
+
+	// serialize the actual data if needed
+	return serializeAny(s, t, p, b)
+}
+
 func serializeMap(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	size := 0
 	r := reflect.NewAt(t, p).Elem()
@@ -373,11 +383,7 @@ func deserializeArray(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byt
 func serializePointer(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	r := reflect.NewAt(t, p).Elem()
 	x := r.UnsafePointer()
-	ok, b := s.WritePtr(x, b)
-	if !ok {
-		b = serializeAny(s, t.Elem(), x, b)
-	}
-	return b
+	return serializePointedAt(s, t.Elem(), x, b)
 }
 
 func deserializePointer(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
@@ -385,28 +391,23 @@ func deserializePointer(d *deserializer, t reflect.Type, p unsafe.Pointer, b []b
 	x, i, b := d.ReadPtr(b)
 	if x != nil || i == 0 { // pointer already seen or nil
 		r.Elem().Set(reflect.NewAt(t.Elem(), x))
-	} else {
-		newthing := reflect.New(t.Elem())
-		r.Elem().Set(newthing)
-		d.Store(i, newthing.UnsafePointer())
-		b = deserializeAny(d, t.Elem(), newthing.UnsafePointer(), b)
+		return b
 	}
-	return b
-}
 
-func reflectFieldSupported(ft reflect.StructField) bool {
-	// TODO
-	return true
-	//	return !ft.Anonymous //&& ft.IsExported()
+	newthing := reflect.New(t.Elem())
+
+	d.Store(i, newthing.UnsafePointer())
+	b = deserializeAny(d, t.Elem(), newthing.UnsafePointer(), b)
+
+	r.Elem().Set(newthing)
+
+	return b
 }
 
 func serializeStruct(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	n := t.NumField()
 	for i := 0; i < n; i++ {
 		ft := t.Field(i)
-		if !reflectFieldSupported(ft) {
-			continue
-		}
 		fp := unsafe.Add(p, ft.Offset)
 		b = serializeAny(s, ft.Type, fp, b)
 	}
@@ -417,10 +418,6 @@ func deserializeStruct(d *deserializer, t reflect.Type, p unsafe.Pointer, b []by
 	n := t.NumField()
 	for i := 0; i < n; i++ {
 		ft := t.Field(i)
-		if !reflectFieldSupported(ft) {
-			continue
-		}
-
 		fp := unsafe.Add(p, ft.Offset)
 		b = deserializeAny(d, ft.Type, fp, b)
 	}
@@ -451,16 +448,11 @@ func serializeInterface(s *serializer, t reflect.Type, p unsafe.Pointer, b []byt
 		// noescape?
 	}
 
-	exists, b := s.WritePtr(eptr, b)
-	if exists {
-		return b
-	}
-
-	// serialize the actual data if needed
-	return serializeAny(s, et, eptr, b)
+	return serializePointedAt(s, et, eptr, b)
 }
 
 func deserializeInterface(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	// Deserialize the type id
 	tid, n := binary.Varint(b)
 	b = b[n:]
 	if tid == -1 {
@@ -468,27 +460,26 @@ func deserializeInterface(d *deserializer, t reflect.Type, p unsafe.Pointer, b [
 		return b
 	}
 
-	te := tm.TypeOf(sID(tid))
+	// Deserialize the pointer
+
+	et := tm.TypeOf(sID(tid))
 
 	pe, id, b := d.ReadPtr(b)
-	if pe != nil { // already been deserialized
+	if pe != nil || id == 0 { // already seen or nil
+		// create interface
 		r := reflect.NewAt(t, p)
-		val := reflect.NewAt(t, pe).Elem()
-		r.Elem().Set(val)
-		return b
-	}
-	if id == 0 { // nil pointer
-		r := reflect.NewAt(t, p)
-		val := reflect.Zero(reflect.PointerTo(te)).Elem()
+		// if pe is nil, it just creates a nil pointer of the right type.
+		val := reflect.NewAt(et, pe).Elem()
+		// store the value in the newly created interface
 		r.Elem().Set(val)
 		return b
 	}
 
-	pre := reflect.New(te)
+	pre := reflect.New(et)
 	pe = pre.UnsafePointer()
-	d.Store(id, p)
+	d.Store(id, pe)
+	b = deserializeAny(d, et, pe, b)
 
-	b = deserializeAny(d, te, pe, b)
 	reflect.NewAt(t, p).Elem().Set(pre.Elem())
 	return b
 }
