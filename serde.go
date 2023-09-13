@@ -1092,6 +1092,9 @@ func scan(s *serializer, t reflect.Type, p unsafe.Pointer) {
 		et := t.Elem()
 		es := int(et.Size())
 		size := es * r.Cap()
+		if size == 0 {
+			return
+		}
 		// Create a new type for the backing array.
 		xt := reflect.ArrayOf(r.Cap(), t.Elem())
 		s.regions.Add(xt, ep, uintptr(size))

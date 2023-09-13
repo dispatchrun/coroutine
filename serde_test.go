@@ -39,6 +39,7 @@ func TestReflect(t *testing.T) {
 				A: 52,
 				B: "test",
 			},
+			[]interface{}{},
 		}
 
 		for _, x := range cases {
