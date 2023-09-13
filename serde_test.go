@@ -49,7 +49,7 @@ func TestReflect(t *testing.T) {
 		}
 
 		for _, x := range cases {
-			tm.Add(reflect.TypeOf(x))
+			tm.add(reflect.TypeOf(x))
 		}
 
 		for i, x := range cases {
