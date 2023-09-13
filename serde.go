@@ -113,13 +113,54 @@ func (s *serializer) WritePtr(p unsafe.Pointer, b []byte) (bool, []byte) {
 	return ok, binary.AppendVarint(b, int64(i))
 }
 
-func serializeSize(size int, b []byte) []byte {
+func serializeVarint(size int, b []byte) []byte {
 	return binary.AppendVarint(b, int64(size))
 }
 
-func deserializeSize(b []byte) (int, []byte) {
+func deserializeVarint(b []byte) (int, []byte) {
 	l, n := binary.Varint(b)
 	return int(l), b[n:]
+}
+
+// A type is serialized as follow:
+//
+// - No type (t is nil) => varint(0)
+// - Any type but array => varint(1-MaxInt)
+// - Array type [X]T    => varint(-1) varint(X) [serialize T]
+//
+// This is so that we can represent slices as pointers to arrays, with a size
+// not known at compile time (so precise array type hasn't been registered.
+func serializeType(t reflect.Type, b []byte) []byte {
+	if t == nil {
+		return serializeVarint(0, b)
+	}
+
+	if t.Kind() != reflect.Array {
+		return serializeVarint(int(tm.IDof(t)), b)
+	}
+
+	b = serializeVarint(-1, b)
+	b = serializeVarint(t.Len(), b)
+	return serializeType(t.Elem(), b)
+}
+
+func deserializeType(b []byte) (reflect.Type, []byte) {
+	n, b := deserializeVarint(b)
+	if n == 0 {
+		return nil, b
+	}
+
+	if n > 0 {
+		return tm.TypeOf(sID(n)), b
+	}
+
+	if n != -1 {
+		panic(fmt.Errorf("unknown type first int: %d", n))
+	}
+
+	l, b := deserializeVarint(b)
+	et, b := deserializeType(b)
+	return reflect.ArrayOf(l, et), b
 }
 
 type iface struct {
@@ -305,7 +346,7 @@ func serializeMap(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []b
 }
 
 func deserializeMap(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
-	n, b := deserializeSize(b)
+	n, b := deserializeVarint(b)
 	if n < 0 { // nil map
 		return b
 	}
@@ -325,8 +366,8 @@ func deserializeMap(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte)
 func serializeSlice(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	r := reflect.NewAt(t, p).Elem()
 
-	b = serializeSize(r.Len(), b)
-	b = serializeSize(r.Cap(), b)
+	b = serializeVarint(r.Len(), b)
+	b = serializeVarint(r.Cap(), b)
 
 	at := reflect.ArrayOf(r.Cap(), t.Elem())
 	ap := r.UnsafePointer()
@@ -338,8 +379,8 @@ func serializeSlice(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) [
 
 func deserializeSlice(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 
-	l, b := deserializeSize(b)
-	c, b := deserializeSize(b)
+	l, b := deserializeVarint(b)
+	c, b := deserializeVarint(b)
 
 	at := reflect.ArrayOf(c, t.Elem())
 	ar, b := deserializePointedAt(d, at, b)
@@ -434,19 +475,15 @@ func deserializeStruct(d *deserializer, t reflect.Type, p unsafe.Pointer, b []by
 func serializeInterface(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	i := (*iface)(p)
 
-	// Serialize empty interface as just -1.
-	//
 	// TODO: there's probably a bug here for an interface with a type
 	// pointer but a nil data pointer.
 	if i.typ == nil || i.ptr == nil {
-		return binary.AppendVarint(b, -1)
+		return serializeType(nil, b)
 	}
 
 	x := *(*interface{})(p)
 	et := reflect.TypeOf(x)
-
-	id := tm.IDof(et)
-	b = binary.AppendVarint(b, int64(id))
+	b = serializeType(et, b)
 
 	eptr := i.ptr
 	if inlined(et) {
@@ -459,14 +496,11 @@ func serializeInterface(s *serializer, t reflect.Type, p unsafe.Pointer, b []byt
 }
 
 func deserializeInterface(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
-	// Deserialize the type id
-	tid, n := binary.Varint(b)
-	b = b[n:]
-	if tid == -1 {
-		// nothing to do?
+	// Deserialize the type
+	et, b := deserializeType(b)
+	if et == nil {
 		return b
 	}
-	et := tm.TypeOf(sID(tid))
 
 	// Deserialize the pointer
 	ep, b := deserializePointedAt(d, et, b)
