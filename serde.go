@@ -11,7 +11,6 @@ import (
 	"log/slog"
 	"math"
 	"reflect"
-	"slices"
 	"sort"
 	"unsafe"
 )
@@ -1051,7 +1050,7 @@ func (r *regions) Add(t reflect.Type, start unsafe.Pointer) {
 	}
 
 	// Just insert it.
-	s = slices.Grow(s, len(s)+1)[:len(s)+1]
+	s = append(s, region{})
 	copy(s[i+1:], s[i:])
 	s[i] = region{start: startAddr, end: endAddr, typ: t}
 	*r = s
