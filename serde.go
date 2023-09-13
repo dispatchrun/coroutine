@@ -34,6 +34,8 @@ func Serialize(x any, b []byte) []byte {
 		delete(s.scanptrs, k)
 	}
 
+	//	s.regions.Dump()
+
 	return serializeAny(s, t, p, b)
 }
 
@@ -149,31 +151,41 @@ func (r *regions) size() int {
 }
 
 func (r *regions) For(p unsafe.Pointer) region {
+	//	fmt.Printf("Searching regions for %d\n", p)
 	addr := uintptr(p)
 	s := *r
 	if len(s) == 0 {
+		//		fmt.Printf("\t=> No regions\n")
 		return region{}
 	}
 
 	i := sort.Search(len(s), func(i int) bool {
 		return s[i].start >= addr
 	})
+	//	fmt.Printf("\t=> i = %d\n", i)
 
-	if i == 0 || s[i-1].start > addr || s[i-1].end <= addr {
-		return region{}
+	if i < len(s) && s[i].start == addr {
+		return s[i]
 	}
 
-	return s[i-1]
+	if i > 0 {
+		i--
+	}
+	if s[i].start > addr || s[i].end <= addr {
+		return region{}
+	}
+	return s[i]
+
 }
 
 func (r *regions) Add(t reflect.Type, start unsafe.Pointer, size uintptr) {
 	startAddr := uintptr(start)
 	endAddr := startAddr + size
 
-	// fmt.Printf("Adding [%d-%d[ %d %s\n", startAddr, endAddr, endAddr-startAddr, t)
+	//	fmt.Printf("Adding [%d-%d[ %d %s\n", startAddr, endAddr, endAddr-startAddr, t)
 	startSize := r.size()
 	defer func() {
-		// r.Dump()
+		//r.Dump()
 		r.validate()
 		endSize := r.size()
 		if endSize < startSize {
@@ -514,18 +526,23 @@ func (s *serializer) assignPointerID(p unsafe.Pointer) (sID, bool) {
 }
 
 func serializePointedAt(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	//	fmt.Printf("Serialize pointed at: %d (%s)\n", p, t)
 	// If this is a nil pointer, write it as such.
 	if p == nil {
+		//		fmt.Printf("\t=>NIL\n")
 		return serializeVarint(0, b)
 	}
 
 	id, new := s.assignPointerID(p)
 	b = serializeVarint(int(id), b)
+	//	fmt.Printf("\t=>Assigned ID %d\n", id)
 	if !new {
+		//		fmt.Printf("\t=>Already seen\n")
 		// This exact pointer has already been serialized. Write its ID
 		// and move on.
 		return b
 	}
+	//	fmt.Printf("\t=>New pointer\n")
 
 	// Now, this is pointer that is seen for the first time.
 
@@ -536,6 +553,7 @@ func serializePointedAt(s *serializer, t reflect.Type, p unsafe.Pointer, b []byt
 	// the region, write a negative offset to flag it is on its own, and
 	// write its data.
 	if !r.Valid() || (r.Offset(p) == 0 && t == r.Type()) {
+		//		fmt.Printf("\t=>Is container (region %t)\n", r.Valid())
 		b = serializeVarint(-1, b)
 		return serializeAny(s, t, p, b)
 	}
@@ -544,11 +562,61 @@ func serializePointedAt(s *serializer, t reflect.Type, p unsafe.Pointer, b []byt
 	offset := r.Offset(p)
 	b = serializeVarint(offset, b)
 
+	//	fmt.Printf("\t=>Offset in container: %d\n", offset)
+
 	// Write the type of the container.
 	b = serializeType(r.Type(), b)
+	//	fmt.Printf("\t=>Container at: %d (%s)\n", r.Pointer(), r.Type())
 
 	// Serialize the parent.
 	return serializePointedAt(s, r.Type(), r.Pointer(), b)
+}
+
+func deserializePointedAt(d *deserializer, t reflect.Type, b []byte) (reflect.Value, []byte) {
+
+	// This function is a bit different than the other deserialize* ones
+	// because it deserializes into an unknown location. As a result,
+	// instead of taking an unsafe.Pointer as an input, it returns a
+	// reflect.Value that contains a *T (where T is given by the argument
+	// t).
+
+	//	fmt.Printf("Deserialize pointed at: %s\n", t)
+
+	ptr, id, b := d.ReadPtr(b)
+	//	fmt.Printf("\t=> ptr=%d, id=%d\n", ptr, id)
+	if ptr != nil || id == 0 { // pointer already seen or nil
+		//		fmt.Printf("\t=>Returning existing data\n")
+		return reflect.NewAt(t, ptr), b
+	}
+
+	offset, b := deserializeVarint(b)
+	//	fmt.Printf("\t=>Read offset %d\n", offset)
+
+	// Negative offset means this is either a container or a standalone
+	// value.
+	if offset < 0 {
+		e := reflect.New(t)
+		ep := e.UnsafePointer()
+		d.Store(id, ep)
+		//		fmt.Printf("\t=>Negative offset: container %d\n", ep)
+		return e, deserializeAny(d, t, ep, b)
+	}
+
+	// This pointer points into a container. Deserialize that one first,
+	// then return the pointer itself with an offset.
+	ct, b := deserializeType(b)
+
+	//	fmt.Printf("\t=>Container type: %s\n", ct)
+
+	// cp is a pointer to the container
+	cp, b := deserializePointedAt(d, ct, b)
+
+	// Create the pointer with an offset into the container.
+	ep := unsafe.Add(cp.UnsafePointer(), offset)
+	r := reflect.NewAt(t, ep)
+	d.Store(id, ep)
+	//	fmt.Printf("\t=>Returning id=%d ep=%d\n", id, ep)
+	return r, b
 }
 
 func serializeMap(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
@@ -651,44 +719,6 @@ func serializePointer(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte)
 	r := reflect.NewAt(t, p).Elem()
 	x := r.UnsafePointer()
 	return serializePointedAt(s, t.Elem(), x, b)
-}
-
-func deserializePointedAt(d *deserializer, t reflect.Type, b []byte) (reflect.Value, []byte) {
-
-	// This function is a bit different than the other deserialize* ones
-	// because it deserializes into an unknown location. As a result,
-	// instead of taking an unsafe.Pointer as an input, it returns a
-	// reflect.Value that contains a *T (where T is given by the argument
-	// t).
-
-	ptr, id, b := d.ReadPtr(b)
-	if ptr != nil || id == 0 { // pointer already seen or nil
-		return reflect.NewAt(t, ptr), b
-	}
-
-	offset, b := deserializeVarint(b)
-
-	// Negative offset means this is either a container or a standalone
-	// value.
-	if offset < 0 {
-		e := reflect.New(t)
-		ep := e.UnsafePointer()
-		d.Store(id, ep)
-		return e, deserializeAny(d, t, ep, b)
-	}
-
-	// This pointer points into a container. Deserialize that one first,
-	// then return the pointer itself with an offset.
-	ct, b := deserializeType(b)
-
-	// cp is a pointer to the container
-	cp, b := deserializePointedAt(d, ct, b)
-
-	// Create the pointer with an offset into the container.
-	ep := unsafe.Add(cp.UnsafePointer(), offset)
-	r := reflect.NewAt(t, ep)
-	d.Store(id, ep)
-	return r, b
 }
 
 func deserializePointer(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
