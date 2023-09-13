@@ -139,7 +139,7 @@ func TestReflectSharing(t *testing.T) {
 
 		// verify the resulting pointer is correct
 		out.A.Y = 11
-		assertEqual(t, 11, *x.B.P)
+		assertEqual(t, 11, *out.B.P)
 	})
 }
 
