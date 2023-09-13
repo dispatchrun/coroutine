@@ -316,11 +316,12 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.AssignStmt:
-			if n.Tok == token.DEFINE {
-				// Rewrite := to = here, since it doesn't require an AST
-				// node replacement.
-				n.Tok = token.ASSIGN
+			if n.Tok == token.ASSIGN {
+				return true // only lifting decls (i.e. token.DEFINE)
 			}
+			// Rewrite := to = here, since it doesn't require an AST
+			// node replacement.
+			n.Tok = token.ASSIGN
 			for _, lhs := range n.Lhs {
 				name := lhs.(*ast.Ident)
 				obj := p.TypesInfo.ObjectOf(name)

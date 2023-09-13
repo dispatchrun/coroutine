@@ -36,12 +36,6 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 			default:
 				err = fmt.Errorf("not implemented: for range for %T", t) // e.g. *types.Map
 			}
-		case *ast.AssignStmt:
-			for _, lhs := range n.Lhs {
-				if _, ok := lhs.(*ast.Ident); !ok {
-					err = fmt.Errorf("not implemented: assign to non-ident")
-				}
-			}
 		case *ast.BranchStmt:
 			if n.Tok == token.GOTO {
 				err = fmt.Errorf("not implemented: goto")
@@ -69,6 +63,7 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 			}
 
 		// Fully supported:
+		case *ast.AssignStmt:
 		case *ast.BlockStmt:
 		case *ast.CaseClause:
 		case *ast.DeclStmt:
