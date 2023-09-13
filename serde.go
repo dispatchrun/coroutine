@@ -1153,12 +1153,28 @@ func scan(s *serializer, t reflect.Type, p unsafe.Pointer) {
 		sp := unsafe.StringData(str)
 		xt := reflect.ArrayOf(len(str), byteT)
 		s.regions.Add(xt, unsafe.Pointer(sp))
+	case reflect.Map:
+		m := r.Elem()
+		if m.IsNil() || m.Len() == 0 {
+			return
+		}
+		kt := t.Key()
+		vt := t.Elem()
+		iter := m.MapRange()
+		for iter.Next() {
+			k := iter.Key()
+			kp := (*iface)(unsafe.Pointer(&k)).ptr
+			scan(s, kt, kp)
+
+			v := iter.Value()
+			vp := (*iface)(unsafe.Pointer(&v)).ptr
+			scan(s, vt, vp)
+		}
 
 	default:
 		// TODO:
 		// Chan
 		// Func
-		// Map
 		// UnsafePointer
 	}
 }
