@@ -48,6 +48,10 @@ type rangeArrayIndexValueGenerator struct{ arg int }
 
 func (c rangeArrayIndexValueGenerator) Call() { RangeArrayIndexValueGenerator(c.arg) }
 
+type typeSwitchingGenerator struct{ arg int }
+
+func (c typeSwitchingGenerator) Call() { TypeSwitchingGenerator(c.arg) }
+
 func TestCoroutineYield(t *testing.T) {
 	for _, test := range []struct {
 		name   string
@@ -115,7 +119,7 @@ func TestCoroutineYield(t *testing.T) {
 		},
 		{
 			name:   "type switching",
-			coro:   TypeSwitchingGenerator,
+			coro:   typeSwitchingGenerator{},
 			yields: []int{1, 10, 2, 20, 4, 30, 8, 40},
 		},
 	} {
