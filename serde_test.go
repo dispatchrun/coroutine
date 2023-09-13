@@ -96,11 +96,24 @@ func TestReflectSharingSlice(t *testing.T) {
 		assertEqual(t, []int{2, 3, 4, 5, 6, 7}, orig.s2)
 		assertEqual(t, []int{7, 8, 9}, orig.s3)
 
+		assertEqual(t, 10, cap(orig.s1))
+		assertEqual(t, 3, len(orig.s1))
+		assertEqual(t, 8, cap(orig.s2))
+		assertEqual(t, 6, len(orig.s2))
+		assertEqual(t, 3, cap(orig.s3))
+		assertEqual(t, 3, len(orig.s3))
+
 		RegisterType[X]()
 
 		out := assertRoundTrip(t, orig)
 
-		// verify the underlying array is shared
+		// verify that the initial arrays were shared
+		orig.s1[2] = 42
+		assertEqual(t, 42, orig.s2[0])
+		orig.s2[5] = 11
+		assertEqual(t, 11, orig.s3[0])
+
+		// verify the result's underlying array is shared
 		out.s1[2] = 42
 		assertEqual(t, 42, out.s2[0])
 		out.s2[5] = 11

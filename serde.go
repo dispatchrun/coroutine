@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"math"
 	"reflect"
+	"slices"
+	"sort"
 	"unsafe"
 )
 
@@ -25,6 +27,13 @@ func Serialize(x any, b []byte) []byte {
 	wr := reflect.ValueOf(w)
 	p := wr.UnsafePointer() // *interface{}
 	t := wr.Elem().Type()   // what x contains
+
+	scan(s, t, p)
+	// scan dirties s.scanptrs, so clean it up.
+	for k := range s.scanptrs {
+		delete(s.scanptrs, k)
+	}
+
 	return serializeAny(s, t, p, b)
 }
 
@@ -89,19 +98,202 @@ func (d *deserializer) Store(i sID, p unsafe.Pointer) {
 }
 
 type serializer struct {
-	ptrs map[unsafe.Pointer]sID
+	ptrs    map[unsafe.Pointer]sID
+	regions regions
+
+	// TODO: move out. just used temporarily by scan
+	scanptrs map[reflect.Value]struct{}
+}
+
+type regions []region
+
+func (r *regions) Dump() {
+	fmt.Println("========== MEMORY REGIONS ==========")
+	fmt.Println("Found", len(*r), "regions.")
+	for i, r := range *r {
+		fmt.Printf("#%d: [%d-%d[ %d %s\n", i, r.start, r.end, r.end-r.start, r.typ)
+	}
+	fmt.Println("====================================")
+}
+
+// debug function to ensure the state hold its invariants. panic if they don't.
+func (r *regions) validate() {
+	s := *r
+	if len(s) == 0 {
+		return
+	}
+
+	for i := 0; i < len(s); i++ {
+		if s[i].start >= s[i].end {
+			panic(fmt.Errorf("region #%d has invalid bounds: start=%d end=%d delta=%d", i, s[i].start, s[i].end, s[i].end-s[i].start))
+		}
+		if s[i].typ == nil {
+			panic(fmt.Errorf("region #%d has nil type", i))
+		}
+		if i == 0 {
+			continue
+		}
+		if s[i].start < s[i-1].end {
+			panic(fmt.Errorf("region #%d and #%d overlap", i-1, i))
+		}
+	}
+}
+
+// size computes the amount of bytes coverred by all known regions.
+func (r *regions) size() int {
+	n := 0
+	for _, r := range *r {
+		n += int(r.end - r.start)
+	}
+	return n
+}
+
+func (r *regions) For(p unsafe.Pointer) region {
+	addr := uintptr(p)
+	s := *r
+	if len(s) == 0 {
+		return region{}
+	}
+
+	i := sort.Search(len(s), func(i int) bool {
+		return s[i].start >= addr
+	})
+
+	if i == 0 || s[i-1].start > addr || s[i-1].end <= addr {
+		return region{}
+	}
+
+	return s[i-1]
+}
+
+func (r *regions) Add(t reflect.Type, start unsafe.Pointer, size uintptr) {
+	startAddr := uintptr(start)
+	endAddr := startAddr + size
+
+	// fmt.Printf("Adding [%d-%d[ %d %s\n", startAddr, endAddr, endAddr-startAddr, t)
+	startSize := r.size()
+	defer func() {
+		// r.Dump()
+		r.validate()
+		endSize := r.size()
+		if endSize < startSize {
+			panic(fmt.Errorf("regions shrunk (%d -> %d)", startSize, endSize))
+		}
+	}()
+
+	s := *r
+
+	if len(s) == 0 {
+		*r = append(s, region{
+			start: startAddr,
+			end:   endAddr,
+			typ:   t,
+		})
+		return
+	}
+
+	// Invariants:
+	// (1) len(s) > 0
+	// (2) s is sorted by start address
+	// (3) s contains no overlapping range
+
+	i := sort.Search(len(s), func(i int) bool {
+		return s[i].start >= startAddr
+	})
+	//fmt.Println("\ti =", i)
+
+	if i < len(s) && s[i].start == startAddr {
+		// Pointer is present in the set. If it's contained in the
+		// region that already exists, we are done.
+		if s[i].end >= endAddr {
+			return
+		}
+
+		// Otherwise extend the region.
+		s[i].end = endAddr
+		s[i].typ = t
+
+		// To maintain invariant (3), keep extending the selected region
+		// until it becomes the last one or the next range is disjoint.
+		r.extend(i)
+		return
+	}
+	// Pointer did not point to the beginning of a region.
+
+	// Attempt to grow the previous region.
+	if i > 0 {
+		if startAddr < s[i-1].end {
+			if endAddr > s[i-1].end {
+				s[i-1].end = endAddr
+				r.extend(i - 1)
+			}
+			return
+		}
+	}
+
+	// Attempt to grow the next region.
+	if i+1 < len(s) {
+		if endAddr > s[i+1].start {
+			s[i+1].start = startAddr
+			s[i+1].end = max(endAddr, s[i+1].end)
+			s[i+1].typ = t
+			r.extend(i + 1)
+			return
+		}
+	}
+
+	// Just insert it.
+	s = slices.Grow(s, len(s)+1)[:len(s)+1]
+	copy(s[i+1:], s[i:])
+	s[i] = region{start: startAddr, end: endAddr, typ: t}
+	*r = s
+}
+
+// extend attempts to grow region i by swallowing any region after it, as long
+// as it would make one continous region. It is used after a modification of
+// region i to maintain the invariants.
+func (r *regions) extend(i int) {
+	s := *r
+	grown := 0
+	for next := i + 1; next < len(s) && s[i].end > s[next].start; next++ {
+		s[i].end = s[next].end
+		grown++
+	}
+	copy(s[i+1:], s[i+1+grown:])
+	*r = s[:len(s)-grown]
+}
+
+type region struct {
+	start uintptr // inclusive
+	end   uintptr // exclusive
+	typ   reflect.Type
+}
+
+func (r region) Valid() bool {
+	return r.typ != nil
+}
+
+func (r region) Offset(p unsafe.Pointer) int {
+	return int(uintptr(p) - r.start)
+}
+
+func (r region) Pointer() unsafe.Pointer {
+	return unsafe.Pointer(r.start)
+}
+
+func (r region) Type() reflect.Type {
+	return r.typ
 }
 
 func newSerializer() *serializer {
 	return &serializer{
-		ptrs: make(map[unsafe.Pointer]sID),
+		ptrs:     make(map[unsafe.Pointer]sID),
+		scanptrs: make(map[reflect.Value]struct{}),
 	}
 }
 
 func (s *serializer) WritePtr(p unsafe.Pointer, b []byte) (bool, []byte) {
-	off := len(b)
 	if p == nil {
-		slog.Debug("Serializer WritePtr wrote <nil> pointer", "offset", off)
 		return true, binary.AppendVarint(b, 0)
 	}
 	i, ok := s.ptrs[p]
@@ -109,7 +301,6 @@ func (s *serializer) WritePtr(p unsafe.Pointer, b []byte) (bool, []byte) {
 		i = sID(len(s.ptrs) + 1)
 		s.ptrs[p] = i
 	}
-	slog.Debug("Serializer WritePtr", "i", i, "p", p, "offset", off)
 	return ok, binary.AppendVarint(b, int64(i))
 }
 
@@ -312,14 +503,52 @@ func deserializeAny(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte)
 	}
 }
 
+// Returns true if it created a new ID (false if reused one).
+func (s *serializer) assignPointerID(p unsafe.Pointer) (sID, bool) {
+	id, ok := s.ptrs[p]
+	if !ok {
+		id = sID(len(s.ptrs) + 1)
+		s.ptrs[p] = id
+	}
+	return id, !ok
+}
+
 func serializePointedAt(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
-	exists, b := s.WritePtr(p, b)
-	if exists {
+	// If this is a nil pointer, write it as such.
+	if p == nil {
+		return serializeVarint(0, b)
+	}
+
+	id, new := s.assignPointerID(p)
+	b = serializeVarint(int(id), b)
+	if !new {
+		// This exact pointer has already been serialized. Write its ID
+		// and move on.
 		return b
 	}
 
-	// serialize the actual data if needed
-	return serializeAny(s, t, p, b)
+	// Now, this is pointer that is seen for the first time.
+
+	// Check the region of this pointer.
+	r := s.regions.For(p)
+
+	// If this pointer does not belong to any region or is the container of
+	// the region, write a negative offset to flag it is on its own, and
+	// write its data.
+	if !r.Valid() || (r.Offset(p) == 0 && t == r.Type()) {
+		b = serializeVarint(-1, b)
+		return serializeAny(s, t, p, b)
+	}
+
+	// The pointer points into a memory region.
+	offset := r.Offset(p)
+	b = serializeVarint(offset, b)
+
+	// Write the type of the container.
+	b = serializeType(r.Type(), b)
+
+	// Serialize the parent.
+	return serializePointedAt(s, r.Type(), r.Pointer(), b)
 }
 
 func serializeMap(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
@@ -389,6 +618,7 @@ func deserializeSlice(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byt
 		return b
 	}
 
+	// TODO: non-deprecated version
 	s := (*reflect.SliceHeader)(p)
 	s.Data = uintptr(ar.UnsafePointer())
 	s.Cap = c
@@ -431,16 +661,34 @@ func deserializePointedAt(d *deserializer, t reflect.Type, b []byte) (reflect.Va
 	// reflect.Value that contains a *T (where T is given by the argument
 	// t).
 
-	x, i, b := d.ReadPtr(b)
-	if x != nil || i == 0 { // pointer already seen or nil
-		return reflect.NewAt(t, x), b
+	ptr, id, b := d.ReadPtr(b)
+	if ptr != nil || id == 0 { // pointer already seen or nil
+		return reflect.NewAt(t, ptr), b
 	}
 
-	e := reflect.New(t)
-	ep := e.UnsafePointer()
-	d.Store(i, ep)
+	offset, b := deserializeVarint(b)
 
-	return e, deserializeAny(d, t, ep, b)
+	// Negative offset means this is either a container or a standalone
+	// value.
+	if offset < 0 {
+		e := reflect.New(t)
+		ep := e.UnsafePointer()
+		d.Store(id, ep)
+		return e, deserializeAny(d, t, ep, b)
+	}
+
+	// This pointer points into a container. Deserialize that one first,
+	// then return the pointer itself with an offset.
+	ct, b := deserializeType(b)
+
+	// cp is a pointer to the container
+	cp, b := deserializePointedAt(d, ct, b)
+
+	// Create the pointer with an offset into the container.
+	ep := unsafe.Add(cp.UnsafePointer(), offset)
+	r := reflect.NewAt(t, ep)
+	d.Store(id, ep)
+	return r, b
 }
 
 func deserializePointer(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
@@ -755,3 +1003,102 @@ func (m *typeMap) TypeOf(x sID) reflect.Type {
 
 // Global type register.
 var tm *typeMap = newTypeMap()
+
+// scan the value of type t at address p recursively to build up the serializer
+// state with necessary information for decoding. At the moment it only creates
+// the memory regions table.
+//
+// It uses s.ptrs to track which pointers it has already visited to avoid
+// infinite loops. It does not clean it up after. I'm sure there is something
+// more useful we could do with that.
+func scan(s *serializer, t reflect.Type, p unsafe.Pointer) {
+	if p == nil {
+		return
+	}
+
+	r := reflect.NewAt(t, p)
+	if _, ok := s.scanptrs[r]; ok {
+		return
+	}
+	s.scanptrs[r] = struct{}{}
+
+	switch t.Kind() {
+	case reflect.Invalid:
+		panic("handling invalid reflect.Type")
+	case reflect.Bool,
+		reflect.Int,
+		reflect.Int8,
+		reflect.Int16,
+		reflect.Int32,
+		reflect.Int64,
+		reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64,
+		reflect.Uintptr,
+		reflect.Float32,
+		reflect.Float64,
+		reflect.Complex64,
+		reflect.Complex128:
+		s.regions.Add(t, p, t.Size())
+	case reflect.Array:
+		s.regions.Add(t, p, t.Size())
+		et := t.Elem()
+		es := int(et.Size())
+		for i := 0; i < t.Len(); i++ {
+			ep := unsafe.Add(p, es*i)
+			scan(s, et, ep)
+		}
+	case reflect.Slice:
+		r := reflect.NewAt(t, p).Elem()
+		ep := r.UnsafePointer()
+		if ep == nil {
+			return
+		}
+		// Estimate size of backing array.
+		et := t.Elem()
+		es := int(et.Size())
+		size := es * r.Cap()
+		// Create a new type for the backing array.
+		xt := reflect.ArrayOf(r.Cap(), t.Elem())
+		s.regions.Add(xt, ep, uintptr(size))
+		for i := 0; i < r.Len(); i++ {
+			ep := unsafe.Add(ep, es*i)
+			scan(s, et, ep)
+		}
+	case reflect.Interface:
+		x := *(*interface{})(p)
+		et := reflect.TypeOf(x)
+		ep := (*iface)(p).ptr
+		if ep == nil {
+			return
+		}
+		//		s.regions.Add(et, ep, et.Size())
+		scan(s, et, ep)
+	case reflect.Struct:
+		s.regions.Add(t, p, t.Size())
+		n := t.NumField()
+		for i := 0; i < n; i++ {
+			f := t.Field(i)
+			ft := f.Type
+			fp := unsafe.Add(p, f.Offset)
+			scan(s, ft, fp)
+		}
+
+	case reflect.Pointer:
+		if p == nil {
+			return
+		}
+		ep := reflect.NewAt(t, p).Elem().UnsafePointer()
+		scan(s, t.Elem(), ep)
+
+	default:
+		// TODO:
+		// Chan
+		// Func
+		// Map
+		// String
+		// UnsafePointer
+	}
+}
