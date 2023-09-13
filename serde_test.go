@@ -40,6 +40,9 @@ func TestReflect(t *testing.T) {
 				B: "test",
 			},
 			[]interface{}{},
+			*new([]interface{}),
+			[]interface{}{nil, nil, nil},
+			[]interface{}{nil, 42, nil},
 		}
 
 		for _, x := range cases {
