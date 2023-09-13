@@ -1,5 +1,10 @@
 package coroutine
 
+// serde.go contains the reflection based serialization and deserialization
+// procedures. It does not do any type memoization, as eventually codegen should
+// be able to generate code for types. Almost nothing is optimized, as we are
+// iterating on how it works to get it right first.
+
 import (
 	"encoding/binary"
 	"fmt"
@@ -11,16 +16,17 @@ import (
 	"unsafe"
 )
 
-// serde.go contains the reflection based serialization and deserialization
-// procedures. It does not do any type memoization, as eventually codegen should
-// be able to generate code for types.
-//
-// It depends on the global type register being fed with possible types
-// contained in interfaces. coroc automatically generates init() functions to
-// register the types likely to be used in the program. Use RegisterType[T] to
-// manually add a type to the register.
-
 // Serialize x at the end of b, returning it.
+//
+// To serialize interfaces, the global type register needs to be fed with
+// possible types they can contain. If using coroc, it automatically generates
+// init functions to register types likely to be used in the program. If not,
+// use [RegisterType] to manually add a type to the register. Because
+// [Serialize] starts with an interface, at least the type of the provided value
+// needs to be registered.
+//
+// The output of Serialize can be reconstructed back to a Go value using
+// [Deserialize].
 func Serialize(x any, b []byte) []byte {
 	s := newSerializer()
 	w := &x // w is *interface{}
@@ -48,9 +54,9 @@ func Deserialize(b []byte) (interface{}, []byte) {
 	return x, b
 }
 
-// Serializable objects can be manually serialized to bytes. Types that
-// implement this interface are serialized with the MarshalAppend method and
-// deserialized with Unmarshal, instead of the built-in decoders.
+// Serializable values can be manually serialized to bytes. Types that implement
+// this interface are serialized with the MarshalAppend method and deserialized
+// with Unmarshal, instead of the built-in decoders.
 type Serializable interface {
 	// MarshalAppend marshals the object and appends the resulting bytes to
 	// the provided buffer.
@@ -98,6 +104,33 @@ func (d *deserializer) Store(i sID, p unsafe.Pointer) {
 	d.ptrs[i] = p
 }
 
+// serializer holds the state for serialization.
+//
+// The ptrs value maps from pointers to IDs. Each time the serialization process
+// encounters a pointer, it assigns it a new unique ID for its given address.
+// This mechanism allows writing shared data only once. The actual value is
+// written the first time a given pointer ID is encountered.
+//
+// The regions value contains ranges of memory held by container types. They are
+// the values that actually own memory: basic types (bool, numbers), structs,
+// and arrays.
+//
+// Serialization starts with scanning the graph of values to find all the
+// containers and add the range of memory they occupy into the map. Regions
+// belong to the outermost container. For example:
+//
+//	struct X {
+//	  struct Y {
+//	    int
+//	  }
+//	}
+//
+// creates only one region: the struct X. Both struct Y and the int are
+// containers, but they are included in the region of struct X.
+//
+// Those two mechanisms allow the deserialization of pointers that point to
+// shared memory. Only outermost containers are serialized. All pointers either
+// point to a container, or an offset into that container.
 type serializer struct {
 	ptrs    map[unsafe.Pointer]sID
 	regions regions
@@ -175,6 +208,7 @@ func deserializeType(b []byte) (reflect.Type, []byte) {
 	return reflect.ArrayOf(l, et), b
 }
 
+// Used for unsafe access to internals of interface{} and reflect.Value.
 type iface struct {
 	typ unsafe.Pointer
 	ptr unsafe.Pointer
@@ -1061,7 +1095,7 @@ func (r region) Type() reflect.Type {
 }
 
 // scan the value of type t at address p recursively to build up the serializer
-// state with necessary information for decoding. At the moment it only creates
+// state with necessary information for encoding. At the moment it only creates
 // the memory regions table.
 //
 // It uses s.scanptrs to track which pointers it has already visited to avoid
