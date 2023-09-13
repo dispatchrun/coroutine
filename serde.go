@@ -781,6 +781,7 @@ func deserializeComplex128(d *deserializer, x *complex128, b []byte) []byte {
 	return b
 }
 
+// returns true iff type t would be inlined in an interface.
 func inlined(t reflect.Type) bool {
 	switch t.Kind() {
 	case reflect.Ptr:
@@ -1106,8 +1107,8 @@ func scan(s *serializer, t reflect.Type, p unsafe.Pointer) {
 			scan(s, et, ep)
 		}
 	case reflect.Slice:
-		r := reflect.NewAt(t, p).Elem()
-		ep := r.UnsafePointer()
+		sr := r.Elem()
+		ep := sr.UnsafePointer()
 		if ep == nil {
 			return
 		}
@@ -1116,20 +1117,25 @@ func scan(s *serializer, t reflect.Type, p unsafe.Pointer) {
 		es := int(et.Size())
 
 		// Create a new type for the backing array.
-		xt := reflect.ArrayOf(r.Cap(), t.Elem())
+		xt := reflect.ArrayOf(sr.Cap(), t.Elem())
 		s.regions.Add(xt, ep)
-		for i := 0; i < r.Len(); i++ {
+		for i := 0; i < sr.Len(); i++ {
 			ep := unsafe.Add(ep, es*i)
 			scan(s, et, ep)
 		}
 	case reflect.Interface:
 		x := *(*interface{})(p)
 		et := reflect.TypeOf(x)
-		ep := (*iface)(p).ptr
-		if ep == nil {
+		eptr := (*iface)(p).ptr
+		if eptr == nil {
 			return
 		}
-		scan(s, et, ep)
+		if inlined(et) {
+			xp := (*iface)(p).ptr
+			eptr = unsafe.Pointer(&xp)
+		}
+
+		scan(s, et, eptr)
 	case reflect.Struct:
 		s.regions.Add(t, p)
 		n := t.NumField()
@@ -1140,7 +1146,7 @@ func scan(s *serializer, t reflect.Type, p unsafe.Pointer) {
 			scan(s, ft, fp)
 		}
 	case reflect.Pointer:
-		ep := reflect.NewAt(t, p).Elem().UnsafePointer()
+		ep := r.Elem().UnsafePointer()
 		scan(s, t.Elem(), ep)
 	case reflect.String:
 		str := *(*string)(p)
