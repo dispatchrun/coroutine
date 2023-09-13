@@ -7,9 +7,9 @@ import (
 	"go/types"
 )
 
-// unsupported checks a tree for unsupported language features.
-func unsupported(tree ast.Node, info *types.Info) (err error) {
-	ast.Inspect(tree, func(node ast.Node) bool {
+// unsupported checks a function for unsupported language features.
+func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
+	ast.Inspect(decl, func(node ast.Node) bool {
 		stmt, ok := node.(ast.Stmt)
 		if !ok {
 			return true
@@ -28,22 +28,13 @@ func unsupported(tree ast.Node, info *types.Info) (err error) {
 			err = fmt.Errorf("not implemented: select")
 		case *ast.CommClause:
 			err = fmt.Errorf("not implemented: select case")
-		case *ast.DeclStmt:
-			err = fmt.Errorf("not implemented: inline decls")
 
 		// Partially supported:
 		case *ast.RangeStmt:
 			switch t := info.TypeOf(n.X).(type) {
 			case *types.Array, *types.Slice:
 			default:
-				err = fmt.Errorf("not implemented: for range for %T", t)
-			}
-		case *ast.AssignStmt:
-			if len(n.Lhs) != 1 || len(n.Lhs) != len(n.Rhs) {
-				err = fmt.Errorf("not implemented: multiple assign")
-			}
-			if _, ok := n.Lhs[0].(*ast.Ident); !ok {
-				err = fmt.Errorf("not implemented: assign to non-ident")
+				err = fmt.Errorf("not implemented: for range for %T", t) // e.g. *types.Map
 			}
 		case *ast.BranchStmt:
 			if n.Tok == token.GOTO {
@@ -72,8 +63,10 @@ func unsupported(tree ast.Node, info *types.Info) (err error) {
 			}
 
 		// Fully supported:
+		case *ast.AssignStmt:
 		case *ast.BlockStmt:
 		case *ast.CaseClause:
+		case *ast.DeclStmt:
 		case *ast.EmptyStmt:
 		case *ast.ExprStmt:
 		case *ast.IfStmt:

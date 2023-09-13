@@ -3,6 +3,8 @@
 package testdata
 
 import (
+	"unsafe"
+
 	"github.com/stealthrocket/coroutine"
 )
 
@@ -73,19 +75,61 @@ func FizzBuzzSwitchGenerator(n int) {
 func Shadowing(_ int) {
 	i := 0
 	coroutine.Yield[int, any](i) // 0
+
 	if i := 1; true {
 		coroutine.Yield[int, any](i) // 1
 	}
 	coroutine.Yield[int, any](i) // 0
+
 	for i := 1; i < 3; i++ {
 		coroutine.Yield[int, any](i) // 1, 2
 	}
 	coroutine.Yield[int, any](i) // 0
+
 	switch i := 1; i {
 	case 1:
+		switch i := 2; i {
+		default:
+			coroutine.Yield[int, any](i) // 2
+		}
 		coroutine.Yield[int, any](i) // 1
 	}
+
 	coroutine.Yield[int, any](i) // 0
+	{
+		i := 1
+		{
+			i := 2
+			coroutine.Yield[int, any](i) // 2
+		}
+		coroutine.Yield[int, any](i) // 1
+	}
+
+	coroutine.Yield[int, any](i) // 0
+	var j = i
+	{
+		j := 1
+		coroutine.Yield[int, any](j) // 1
+	}
+	coroutine.Yield[int, any](j) // 0
+
+	const k = 11
+	{
+		const k = 12
+		{
+			k := 13
+			coroutine.Yield[int, any](k) // 13
+		}
+		coroutine.Yield[int, any](k) // 12
+	}
+	coroutine.Yield[int, any](k) // 11
+
+	type foo uint16
+	{
+		type foo uint32
+		coroutine.Yield[int, any](int(unsafe.Sizeof(foo(0)))) // 4
+	}
+	coroutine.Yield[int, any](int(unsafe.Sizeof(foo(0)))) // 2
 }
 
 func RangeSliceIndexGenerator(_ int) {
