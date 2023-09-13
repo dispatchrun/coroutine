@@ -113,17 +113,10 @@ func (s *serializer) WritePtr(p unsafe.Pointer, b []byte) (bool, []byte) {
 	return ok, binary.AppendVarint(b, int64(i))
 }
 
-// Write size of slice or map because we want to distinguish an initialized
-// empty value from a a nil value.
-func serializeSize(v reflect.Value, b []byte) []byte {
-	size := -1
-	if !v.IsNil() {
-		size = v.Len()
-	}
+func serializeSize(size int, b []byte) []byte {
 	return binary.AppendVarint(b, int64(size))
 }
 
-// returns -1 if the original value was nil
 func deserializeSize(b []byte) (int, []byte) {
 	l, n := binary.Varint(b)
 	return int(l), b[n:]
@@ -331,31 +324,34 @@ func deserializeMap(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte)
 
 func serializeSlice(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	r := reflect.NewAt(t, p).Elem()
-	b = serializeSize(r, b)
-	te := t.Elem()
-	start := r.UnsafePointer()
-	size := int(te.Size())
-	for i := 0; i < r.Len(); i++ {
-		pe := unsafe.Add(start, i*size)
-		b = serializeAny(s, te, pe, b)
-	}
+
+	b = serializeSize(r.Len(), b)
+	b = serializeSize(r.Cap(), b)
+
+	at := reflect.ArrayOf(r.Cap(), t.Elem())
+	ap := r.UnsafePointer()
+
+	b = serializePointedAt(s, at, ap, b)
+
 	return b
 }
 
 func deserializeSlice(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
-	n, b := deserializeSize(b)
-	if n < 0 {
+
+	l, b := deserializeSize(b)
+	c, b := deserializeSize(b)
+
+	at := reflect.ArrayOf(c, t.Elem())
+	ar, b := deserializePointedAt(d, at, b)
+
+	if ar.IsNil() {
 		return b
 	}
-	nv := reflect.MakeSlice(t, n, n)
-	r := reflect.NewAt(t, p)
-	r.Elem().Set(nv)
-	size := int(t.Elem().Size())
-	p = nv.UnsafePointer()
-	for i := 0; i < n; i++ {
-		e := unsafe.Add(p, size*i)
-		b = deserializeAny(d, t.Elem(), e, b)
-	}
+
+	s := (*reflect.SliceHeader)(p)
+	s.Data = uintptr(ar.UnsafePointer())
+	s.Cap = c
+	s.Len = l
 	return b
 }
 
