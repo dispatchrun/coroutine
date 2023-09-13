@@ -386,20 +386,31 @@ func serializePointer(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte)
 	return serializePointedAt(s, t.Elem(), x, b)
 }
 
-func deserializePointer(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
-	r := reflect.NewAt(t, p)
+func deserializePointedAt(d *deserializer, t reflect.Type, b []byte) (reflect.Value, []byte) {
+
+	// This function is a bit different than the other deserialize* ones
+	// because it deserializes into an unknown location. As a result,
+	// instead of taking an unsafe.Pointer as an input, it returns a
+	// reflect.Value that contains a *T (where T is given by the argument
+	// t).
+
 	x, i, b := d.ReadPtr(b)
 	if x != nil || i == 0 { // pointer already seen or nil
-		r.Elem().Set(reflect.NewAt(t.Elem(), x))
-		return b
+		return reflect.NewAt(t, x), b
 	}
 
-	newthing := reflect.New(t.Elem())
+	e := reflect.New(t)
+	ep := e.UnsafePointer()
+	d.Store(i, ep)
 
-	d.Store(i, newthing.UnsafePointer())
-	b = deserializeAny(d, t.Elem(), newthing.UnsafePointer(), b)
+	return e, deserializeAny(d, t, ep, b)
+}
 
-	r.Elem().Set(newthing)
+func deserializePointer(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	ep, b := deserializePointedAt(d, t.Elem(), b)
+
+	r := reflect.NewAt(t, p)
+	r.Elem().Set(ep)
 
 	return b
 }
@@ -459,28 +470,15 @@ func deserializeInterface(d *deserializer, t reflect.Type, p unsafe.Pointer, b [
 		// nothing to do?
 		return b
 	}
-
-	// Deserialize the pointer
-
 	et := tm.TypeOf(sID(tid))
 
-	pe, id, b := d.ReadPtr(b)
-	if pe != nil || id == 0 { // already seen or nil
-		// create interface
-		r := reflect.NewAt(t, p)
-		// if pe is nil, it just creates a nil pointer of the right type.
-		val := reflect.NewAt(et, pe).Elem()
-		// store the value in the newly created interface
-		r.Elem().Set(val)
-		return b
-	}
+	// Deserialize the pointer
+	ep, b := deserializePointedAt(d, et, b)
 
-	pre := reflect.New(et)
-	pe = pre.UnsafePointer()
-	d.Store(id, pe)
-	b = deserializeAny(d, et, pe, b)
+	// Store the result in the interface
+	r := reflect.NewAt(t, p)
+	r.Elem().Set(ep.Elem())
 
-	reflect.NewAt(t, p).Elem().Set(pre.Elem())
 	return b
 }
 
