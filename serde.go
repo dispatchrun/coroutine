@@ -975,8 +975,6 @@ func (r *regions) Add(t reflect.Type, start unsafe.Pointer) {
 	}
 
 	end := unsafe.Add(start, size)
-	startAddr := uintptr(start)
-	endAddr := uintptr(end)
 
 	//	fmt.Printf("Adding [%d-%d[ %d %s\n", startAddr, endAddr, endAddr-startAddr, t)
 	startSize := r.size()
@@ -1006,14 +1004,14 @@ func (r *regions) Add(t reflect.Type, start unsafe.Pointer) {
 	// (3) s contains no overlapping range
 
 	i := sort.Search(len(s), func(i int) bool {
-		return uintptr(s[i].start) >= startAddr
+		return uintptr(s[i].start) >= uintptr(start)
 	})
 	//fmt.Println("\ti =", i)
 
-	if i < len(s) && uintptr(s[i].start) == startAddr {
+	if i < len(s) && uintptr(s[i].start) == uintptr(start) {
 		// Pointer is present in the set. If it's contained in the
 		// region that already exists, we are done.
-		if uintptr(s[i].end) >= endAddr {
+		if uintptr(s[i].end) >= uintptr(end) {
 			return
 		}
 
@@ -1030,8 +1028,8 @@ func (r *regions) Add(t reflect.Type, start unsafe.Pointer) {
 
 	// Attempt to grow the previous region.
 	if i > 0 {
-		if startAddr < uintptr(s[i-1].end) {
-			if endAddr > uintptr(s[i-1].end) {
+		if uintptr(start) < uintptr(s[i-1].end) {
+			if uintptr(end) > uintptr(s[i-1].end) {
 				s[i-1].end = end
 				r.extend(i - 1)
 			}
@@ -1041,9 +1039,9 @@ func (r *regions) Add(t reflect.Type, start unsafe.Pointer) {
 
 	// Attempt to grow the next region.
 	if i+1 < len(s) {
-		if endAddr > uintptr(s[i+1].start) {
+		if uintptr(end) > uintptr(s[i+1].start) {
 			s[i+1].start = start
-			if endAddr > uintptr(s[i+1].end) {
+			if uintptr(end) > uintptr(s[i+1].end) {
 				s[i+1].end = end
 			}
 			s[i+1].typ = t
