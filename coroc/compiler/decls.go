@@ -35,6 +35,9 @@ func extractDecls(fn *ast.FuncDecl, info *types.Info) (decls []*ast.GenDecl) {
 				for _, spec := range n.Specs {
 					s := spec.(*ast.ValueSpec)
 					for _, name := range s.Names {
+						if name.Name == "_" {
+							continue
+						}
 						decls = append(decls, &ast.GenDecl{
 							Tok: token.VAR,
 							Specs: []ast.Spec{
@@ -52,11 +55,15 @@ func extractDecls(fn *ast.FuncDecl, info *types.Info) (decls []*ast.GenDecl) {
 				return true
 			}
 			for _, lhs := range n.Lhs {
+				name := lhs.(*ast.Ident)
+				if name.Name == "_" {
+					continue
+				}
 				decls = append(decls, &ast.GenDecl{
 					Tok: token.VAR,
 					Specs: []ast.Spec{
 						&ast.ValueSpec{
-							Names: []*ast.Ident{lhs.(*ast.Ident)},
+							Names: []*ast.Ident{name},
 							Type:  typeExpr(info.TypeOf(lhs)),
 						},
 					},
@@ -79,10 +86,16 @@ func renameObjects(tree ast.Node, info *types.Info, decls []*ast.GenDecl) {
 		for _, spec := range decl.Specs {
 			switch s := spec.(type) {
 			case *ast.TypeSpec: // type
+				if s.Name.Name == "_" {
+					continue
+				}
 				newNames[info.ObjectOf(s.Name)] = ast.NewIdent("_o" + strconv.Itoa(id))
 				id++
 			case *ast.ValueSpec: // const/var
 				for _, name := range s.Names {
+					if name.Name == "_" {
+						continue
+					}
 					newNames[info.ObjectOf(name)] = ast.NewIdent("_o" + strconv.Itoa(id))
 					id++
 				}
@@ -154,4 +167,44 @@ func removeDecls(tree ast.Node) {
 		}
 		return true
 	}, nil)
+}
+
+func scanDeclVarIdentifiers(decls []*ast.GenDecl, fn func(*ast.Ident)) {
+	for _, decl := range decls {
+		if decl.Tok != token.VAR {
+			continue
+		}
+		for _, spec := range decl.Specs {
+			v, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			for _, name := range v.Names {
+				if name.Name != "_" {
+					fn(name)
+				}
+			}
+		}
+	}
+}
+
+func scanFuncTypeIdentifiers(t *ast.FuncType, fn func(*ast.Ident)) {
+	if t.Params != nil {
+		for _, param := range t.Params.List {
+			for _, name := range param.Names {
+				if name.Name != "_" {
+					fn(name)
+				}
+			}
+		}
+	}
+	if t.Results != nil {
+		for _, result := range t.Results.List {
+			for _, name := range result.Names {
+				if name.Name != "_" {
+					fn(name)
+				}
+			}
+		}
+	}
 }

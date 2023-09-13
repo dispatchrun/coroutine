@@ -314,43 +314,14 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 	// Collect params/results/variables that need to be saved/restored.
 	var saveAndRestoreNames []*ast.Ident
 	var saveAndRestoreTypes []types.Type
-	if fn.Type.Params != nil {
-		for _, param := range fn.Type.Params.List {
-			for _, name := range param.Names {
-				if name.Name != "_" {
-					saveAndRestoreNames = append(saveAndRestoreNames, name)
-					saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
-				}
-			}
-		}
-	}
-	if fn.Type.Results != nil {
-		// Named results could be used as scratch space at any point
-		// during execution, so they need to be saved/restored.
-		for _, result := range fn.Type.Results.List {
-			for _, name := range result.Names {
-				if name.Name != "_" {
-					saveAndRestoreNames = append(saveAndRestoreNames, name)
-					saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
-				}
-			}
-		}
-	}
-	for _, decl := range decls {
-		if decl.Tok != token.VAR {
-			continue
-		}
-		for _, spec := range decl.Specs {
-			v, ok := spec.(*ast.ValueSpec)
-			if !ok {
-				continue
-			}
-			for _, name := range v.Names {
-				saveAndRestoreNames = append(saveAndRestoreNames, name)
-				saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
-			}
-		}
-	}
+	scanFuncTypeIdentifiers(fn.Type, func(name *ast.Ident) {
+		saveAndRestoreNames = append(saveAndRestoreNames, name)
+		saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
+	})
+	scanDeclVarIdentifiers(decls, func(name *ast.Ident) {
+		saveAndRestoreNames = append(saveAndRestoreNames, name)
+		saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
+	})
 
 	// Restore state when rewinding the stack.
 	//
