@@ -902,7 +902,7 @@ func (r *regions) Dump() {
 	fmt.Println("========== MEMORY REGIONS ==========")
 	fmt.Println("Found", len(*r), "regions.")
 	for i, r := range *r {
-		fmt.Printf("#%d: [%d-%d[ %d %s\n", i, r.start, r.end, r.end-r.start, r.typ)
+		fmt.Printf("#%d: [%d-%d[ %d %s\n", i, r.start, r.end, r.Size(), r.typ)
 	}
 	fmt.Println("====================================")
 }
@@ -915,8 +915,8 @@ func (r *regions) validate() {
 	}
 
 	for i := 0; i < len(s); i++ {
-		if s[i].start >= s[i].end {
-			panic(fmt.Errorf("region #%d has invalid bounds: start=%d end=%d delta=%d", i, s[i].start, s[i].end, s[i].end-s[i].start))
+		if uintptr(s[i].start) >= uintptr(s[i].end) {
+			panic(fmt.Errorf("region #%d has invalid bounds: start=%d end=%d delta=%d", i, s[i].start, s[i].end, s[i].Size()))
 		}
 		if s[i].typ == nil {
 			panic(fmt.Errorf("region #%d has nil type", i))
@@ -924,7 +924,7 @@ func (r *regions) validate() {
 		if i == 0 {
 			continue
 		}
-		if s[i].start < s[i-1].end {
+		if uintptr(s[i].start) < uintptr(s[i-1].end) {
 			r.Dump()
 			panic(fmt.Errorf("region #%d and #%d overlap", i-1, i))
 		}
@@ -935,7 +935,7 @@ func (r *regions) validate() {
 func (r *regions) size() int {
 	n := 0
 	for _, r := range *r {
-		n += int(r.end - r.start)
+		n += r.Size()
 	}
 	return n
 }
@@ -950,18 +950,18 @@ func (r *regions) For(p unsafe.Pointer) region {
 	}
 
 	i := sort.Search(len(s), func(i int) bool {
-		return s[i].start >= addr
+		return uintptr(s[i].start) >= addr
 	})
 	//	fmt.Printf("\t=> i = %d\n", i)
 
-	if i < len(s) && s[i].start == addr {
+	if i < len(s) && uintptr(s[i].start) == addr {
 		return s[i]
 	}
 
 	if i > 0 {
 		i--
 	}
-	if s[i].start > addr || s[i].end <= addr {
+	if uintptr(s[i].start) > addr || uintptr(s[i].end) <= addr {
 		return region{}
 	}
 	return s[i]
@@ -974,8 +974,9 @@ func (r *regions) Add(t reflect.Type, start unsafe.Pointer) {
 		return
 	}
 
+	end := unsafe.Add(start, size)
 	startAddr := uintptr(start)
-	endAddr := startAddr + size
+	endAddr := uintptr(end)
 
 	//	fmt.Printf("Adding [%d-%d[ %d %s\n", startAddr, endAddr, endAddr-startAddr, t)
 	startSize := r.size()
@@ -992,8 +993,8 @@ func (r *regions) Add(t reflect.Type, start unsafe.Pointer) {
 
 	if len(s) == 0 {
 		*r = append(s, region{
-			start: startAddr,
-			end:   endAddr,
+			start: start,
+			end:   end,
 			typ:   t,
 		})
 		return
@@ -1005,19 +1006,19 @@ func (r *regions) Add(t reflect.Type, start unsafe.Pointer) {
 	// (3) s contains no overlapping range
 
 	i := sort.Search(len(s), func(i int) bool {
-		return s[i].start >= startAddr
+		return uintptr(s[i].start) >= startAddr
 	})
 	//fmt.Println("\ti =", i)
 
-	if i < len(s) && s[i].start == startAddr {
+	if i < len(s) && uintptr(s[i].start) == startAddr {
 		// Pointer is present in the set. If it's contained in the
 		// region that already exists, we are done.
-		if s[i].end >= endAddr {
+		if uintptr(s[i].end) >= endAddr {
 			return
 		}
 
 		// Otherwise extend the region.
-		s[i].end = endAddr
+		s[i].end = end
 		s[i].typ = t
 
 		// To maintain invariant (3), keep extending the selected region
@@ -1029,9 +1030,9 @@ func (r *regions) Add(t reflect.Type, start unsafe.Pointer) {
 
 	// Attempt to grow the previous region.
 	if i > 0 {
-		if startAddr < s[i-1].end {
-			if endAddr > s[i-1].end {
-				s[i-1].end = endAddr
+		if startAddr < uintptr(s[i-1].end) {
+			if endAddr > uintptr(s[i-1].end) {
+				s[i-1].end = end
 				r.extend(i - 1)
 			}
 			return
@@ -1040,9 +1041,11 @@ func (r *regions) Add(t reflect.Type, start unsafe.Pointer) {
 
 	// Attempt to grow the next region.
 	if i+1 < len(s) {
-		if endAddr > s[i+1].start {
-			s[i+1].start = startAddr
-			s[i+1].end = max(endAddr, s[i+1].end)
+		if endAddr > uintptr(s[i+1].start) {
+			s[i+1].start = start
+			if endAddr > uintptr(s[i+1].end) {
+				s[i+1].end = end
+			}
 			s[i+1].typ = t
 			r.extend(i + 1)
 			return
@@ -1052,7 +1055,7 @@ func (r *regions) Add(t reflect.Type, start unsafe.Pointer) {
 	// Just insert it.
 	s = append(s, region{})
 	copy(s[i+1:], s[i:])
-	s[i] = region{start: startAddr, end: endAddr, typ: t}
+	s[i] = region{start: start, end: end, typ: t}
 	*r = s
 	r.extend(i)
 }
@@ -1063,7 +1066,7 @@ func (r *regions) Add(t reflect.Type, start unsafe.Pointer) {
 func (r *regions) extend(i int) {
 	s := *r
 	grown := 0
-	for next := i + 1; next < len(s) && s[i].end > s[next].start; next++ {
+	for next := i + 1; next < len(s) && uintptr(s[i].end) > uintptr(s[next].start); next++ {
 		s[i].end = s[next].end
 		grown++
 	}
@@ -1072,8 +1075,8 @@ func (r *regions) extend(i int) {
 }
 
 type region struct {
-	start uintptr // inclusive
-	end   uintptr // exclusive
+	start unsafe.Pointer // inclusive
+	end   unsafe.Pointer // exclusive
 	typ   reflect.Type
 }
 
@@ -1081,12 +1084,16 @@ func (r region) Valid() bool {
 	return r.typ != nil
 }
 
+func (r region) Size() int {
+	return int(uintptr(r.end) - uintptr(r.start))
+}
+
 func (r region) Offset(p unsafe.Pointer) int {
-	return int(uintptr(p) - r.start)
+	return int(uintptr(p) - uintptr(r.start))
 }
 
 func (r region) Pointer() unsafe.Pointer {
-	return unsafe.Pointer(r.start)
+	return r.start
 }
 
 func (r region) Type() reflect.Type {
