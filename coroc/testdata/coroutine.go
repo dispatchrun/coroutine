@@ -168,15 +168,15 @@ func TypeSwitchingGenerator(_ int) {
 		case int64:
 			coroutine.Yield[int, any](8)
 		}
-		//switch v := val.(type) {
-		//case int8:
-		//	coroutine.Yield[int, any](int(v))
-		//case int16:
-		//	coroutine.Yield[int, any](int(v))
-		//case int32:
-		//	coroutine.Yield[int, any](int(v))
-		//case int64:
-		//	coroutine.Yield[int, any](int(v))
-		//}
+		switch v := val.(type) {
+		case int8:
+			coroutine.Yield[int, any](int(v))
+		case int16:
+			coroutine.Yield[int, any](int(v))
+		case int32:
+			coroutine.Yield[int, any](int(v))
+		case int64:
+			coroutine.Yield[int, any](int(v))
+		}
 	}
 }

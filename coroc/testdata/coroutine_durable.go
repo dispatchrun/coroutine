@@ -640,13 +640,13 @@ func TypeSwitchingGenerator(_ int) {
 		_o0 = []any{int8(10), int16(20), int32(30), int64(40)}
 		_f.IP = 2
 		fallthrough
-	case _f.IP < 8:
+	case _f.IP < 12:
 		switch {
 		case _f.IP < 3:
 			_o1 = 0
 			_f.IP = 3
 			fallthrough
-		case _f.IP < 8:
+		case _f.IP < 12:
 			for ; _o1 < len(_o0); _o1++ {
 				switch {
 				case _f.IP < 4:
@@ -663,6 +663,19 @@ func TypeSwitchingGenerator(_ int) {
 						coroutine.Yield[int, any](4)
 					case int64:
 						coroutine.Yield[int, any](8)
+					}
+					_f.IP = 8
+					fallthrough
+				case _f.IP < 12:
+					switch v := _o2.(type) {
+					case int8:
+						coroutine.Yield[int, any](int(v))
+					case int16:
+						coroutine.Yield[int, any](int(v))
+					case int32:
+						coroutine.Yield[int, any](int(v))
+					case int64:
+						coroutine.Yield[int, any](int(v))
 					}
 				}
 				_f.IP = 3

@@ -75,8 +75,7 @@ func TestCoroutineYield(t *testing.T) {
 		{
 			name:   "type switching",
 			coro:   TypeSwitchingGenerator,
-			yields: []int{1, 2, 4, 8},
-			//yields: []int{1, 10, 2, 20, 4, 30, 8, 40},
+			yields: []int{1, 10, 2, 20, 4, 30, 8, 40},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
