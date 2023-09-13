@@ -1,5 +1,16 @@
 package coroutine
 
+// Closure is an interface implemented by types which can be used as entry
+// points to coroutines.
+//
+// Closure values are used as entry point when constructing coroutines, and
+// therefore must be serializable when building the package in durable mode.
+//
+// Because Closure values must be serializable, they cannot be functions.
+type Closure interface {
+	Call()
+}
+
 // Run executes a coroutine to completion, calling f for each value that the
 // coroutine yields, and sending back each value that f returns.
 func Run[R, S any](c Coroutine[R, S], f func(R) S) {

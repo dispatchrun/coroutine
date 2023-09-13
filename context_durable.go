@@ -20,7 +20,7 @@ type Context[R, S any] struct {
 	// Entry point of the coroutine, this is captured so the associated
 	// generator can call into the coroutine to start or resume it at the
 	// last yield point.
-	Func func()
+	Entrypoint Closure
 
 	Stack
 	Heap
