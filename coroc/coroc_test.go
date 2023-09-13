@@ -72,6 +72,12 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   RangeArrayIndexValueGenerator,
 			yields: []int{0, 10, 1, 20, 2, 30},
 		},
+		{
+			name:   "type switching",
+			coro:   TypeSwitchingGenerator,
+			yields: []int{1, 2, 4, 8},
+			//yields: []int{1, 10, 2, 20, 4, 30, 8, 40},
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			g := coroutine.New[int, any](func() {

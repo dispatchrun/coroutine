@@ -155,3 +155,28 @@ func RangeArrayIndexValueGenerator(_ int) {
 		coroutine.Yield[int, any](v)
 	}
 }
+
+func TypeSwitchingGenerator(_ int) {
+	for _, val := range []any{int8(10), int16(20), int32(30), int64(40)} {
+		switch val.(type) {
+		case int8:
+			coroutine.Yield[int, any](1)
+		case int16:
+			coroutine.Yield[int, any](2)
+		case int32:
+			coroutine.Yield[int, any](4)
+		case int64:
+			coroutine.Yield[int, any](8)
+		}
+		//switch v := val.(type) {
+		//case int8:
+		//	coroutine.Yield[int, any](int(v))
+		//case int16:
+		//	coroutine.Yield[int, any](int(v))
+		//case int32:
+		//	coroutine.Yield[int, any](int(v))
+		//case int64:
+		//	coroutine.Yield[int, any](int(v))
+		//}
+	}
+}

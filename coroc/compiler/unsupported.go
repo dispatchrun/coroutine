@@ -22,8 +22,6 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 			err = fmt.Errorf("not implemented: go")
 		case *ast.LabeledStmt:
 			err = fmt.Errorf("not implemented: labels")
-		case *ast.TypeSwitchStmt:
-			err = fmt.Errorf("not implemented: type switch")
 		case *ast.SelectStmt:
 			err = fmt.Errorf("not implemented: select")
 		case *ast.CommClause:
@@ -60,6 +58,14 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 				}
 			default:
 				err = fmt.Errorf("not implemented: for post %T", p)
+			}
+		case *ast.TypeSwitchStmt:
+			switch n.Assign.(type) {
+			case *ast.ExprStmt: // e.g. value.(type)
+			case *ast.AssignStmt:
+				err = fmt.Errorf("not implemented: type switch with var decl")
+			default:
+				err = fmt.Errorf("not implemented: type switch with assign of %T", n.Assign)
 			}
 
 		// Fully supported:
