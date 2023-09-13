@@ -30,9 +30,7 @@ func Serialize(x any, b []byte) []byte {
 
 	scan(s, t, p)
 	// scan dirties s.scanptrs, so clean it up.
-	for k := range s.scanptrs {
-		delete(s.scanptrs, k)
-	}
+	clear(s.scanptrs)
 
 	//	s.regions.Dump()
 
