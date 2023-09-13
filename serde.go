@@ -136,6 +136,7 @@ func (r *regions) validate() {
 			continue
 		}
 		if s[i].start < s[i-1].end {
+			r.Dump()
 			panic(fmt.Errorf("region #%d and #%d overlap", i-1, i))
 		}
 	}
@@ -259,6 +260,7 @@ func (r *regions) Add(t reflect.Type, start unsafe.Pointer, size uintptr) {
 	copy(s[i+1:], s[i:])
 	s[i] = region{start: startAddr, end: endAddr, typ: t}
 	*r = s
+	r.extend(i)
 }
 
 // extend attempts to grow region i by swallowing any region after it, as long

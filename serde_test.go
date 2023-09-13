@@ -120,8 +120,11 @@ func TestReflectSharing(t *testing.T) {
 		}
 
 		type X struct {
-			A *A
 			B *B
+			A *A
+			// putting A after B to make sure A gets serialized
+			// first because of dependencies, not just because it's
+			// earlier than B in the fields list.
 		}
 
 		x := X{
