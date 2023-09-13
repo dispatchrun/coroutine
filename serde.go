@@ -71,7 +71,8 @@ func RegisterType[T any]() {
 }
 
 type deserializer struct {
-	// TODO: make it a slice
+	// TODO: make it a slice since pointer ids is the sequence of integers
+	// starting at 1.
 	ptrs map[sID]unsafe.Pointer
 }
 
@@ -103,198 +104,6 @@ type serializer struct {
 
 	// TODO: move out. just used temporarily by scan
 	scanptrs map[reflect.Value]struct{}
-}
-
-type regions []region
-
-func (r *regions) Dump() {
-	fmt.Println("========== MEMORY REGIONS ==========")
-	fmt.Println("Found", len(*r), "regions.")
-	for i, r := range *r {
-		fmt.Printf("#%d: [%d-%d[ %d %s\n", i, r.start, r.end, r.end-r.start, r.typ)
-	}
-	fmt.Println("====================================")
-}
-
-// debug function to ensure the state hold its invariants. panic if they don't.
-func (r *regions) validate() {
-	s := *r
-	if len(s) == 0 {
-		return
-	}
-
-	for i := 0; i < len(s); i++ {
-		if s[i].start >= s[i].end {
-			panic(fmt.Errorf("region #%d has invalid bounds: start=%d end=%d delta=%d", i, s[i].start, s[i].end, s[i].end-s[i].start))
-		}
-		if s[i].typ == nil {
-			panic(fmt.Errorf("region #%d has nil type", i))
-		}
-		if i == 0 {
-			continue
-		}
-		if s[i].start < s[i-1].end {
-			r.Dump()
-			panic(fmt.Errorf("region #%d and #%d overlap", i-1, i))
-		}
-	}
-}
-
-// size computes the amount of bytes coverred by all known regions.
-func (r *regions) size() int {
-	n := 0
-	for _, r := range *r {
-		n += int(r.end - r.start)
-	}
-	return n
-}
-
-func (r *regions) For(p unsafe.Pointer) region {
-	//	fmt.Printf("Searching regions for %d\n", p)
-	addr := uintptr(p)
-	s := *r
-	if len(s) == 0 {
-		//		fmt.Printf("\t=> No regions\n")
-		return region{}
-	}
-
-	i := sort.Search(len(s), func(i int) bool {
-		return s[i].start >= addr
-	})
-	//	fmt.Printf("\t=> i = %d\n", i)
-
-	if i < len(s) && s[i].start == addr {
-		return s[i]
-	}
-
-	if i > 0 {
-		i--
-	}
-	if s[i].start > addr || s[i].end <= addr {
-		return region{}
-	}
-	return s[i]
-
-}
-
-func (r *regions) Add(t reflect.Type, start unsafe.Pointer, size uintptr) {
-	startAddr := uintptr(start)
-	endAddr := startAddr + size
-
-	//	fmt.Printf("Adding [%d-%d[ %d %s\n", startAddr, endAddr, endAddr-startAddr, t)
-	startSize := r.size()
-	defer func() {
-		//r.Dump()
-		r.validate()
-		endSize := r.size()
-		if endSize < startSize {
-			panic(fmt.Errorf("regions shrunk (%d -> %d)", startSize, endSize))
-		}
-	}()
-
-	s := *r
-
-	if len(s) == 0 {
-		*r = append(s, region{
-			start: startAddr,
-			end:   endAddr,
-			typ:   t,
-		})
-		return
-	}
-
-	// Invariants:
-	// (1) len(s) > 0
-	// (2) s is sorted by start address
-	// (3) s contains no overlapping range
-
-	i := sort.Search(len(s), func(i int) bool {
-		return s[i].start >= startAddr
-	})
-	//fmt.Println("\ti =", i)
-
-	if i < len(s) && s[i].start == startAddr {
-		// Pointer is present in the set. If it's contained in the
-		// region that already exists, we are done.
-		if s[i].end >= endAddr {
-			return
-		}
-
-		// Otherwise extend the region.
-		s[i].end = endAddr
-		s[i].typ = t
-
-		// To maintain invariant (3), keep extending the selected region
-		// until it becomes the last one or the next range is disjoint.
-		r.extend(i)
-		return
-	}
-	// Pointer did not point to the beginning of a region.
-
-	// Attempt to grow the previous region.
-	if i > 0 {
-		if startAddr < s[i-1].end {
-			if endAddr > s[i-1].end {
-				s[i-1].end = endAddr
-				r.extend(i - 1)
-			}
-			return
-		}
-	}
-
-	// Attempt to grow the next region.
-	if i+1 < len(s) {
-		if endAddr > s[i+1].start {
-			s[i+1].start = startAddr
-			s[i+1].end = max(endAddr, s[i+1].end)
-			s[i+1].typ = t
-			r.extend(i + 1)
-			return
-		}
-	}
-
-	// Just insert it.
-	s = slices.Grow(s, len(s)+1)[:len(s)+1]
-	copy(s[i+1:], s[i:])
-	s[i] = region{start: startAddr, end: endAddr, typ: t}
-	*r = s
-	r.extend(i)
-}
-
-// extend attempts to grow region i by swallowing any region after it, as long
-// as it would make one continous region. It is used after a modification of
-// region i to maintain the invariants.
-func (r *regions) extend(i int) {
-	s := *r
-	grown := 0
-	for next := i + 1; next < len(s) && s[i].end > s[next].start; next++ {
-		s[i].end = s[next].end
-		grown++
-	}
-	copy(s[i+1:], s[i+1+grown:])
-	*r = s[:len(s)-grown]
-}
-
-type region struct {
-	start uintptr // inclusive
-	end   uintptr // exclusive
-	typ   reflect.Type
-}
-
-func (r region) Valid() bool {
-	return r.typ != nil
-}
-
-func (r region) Offset(p unsafe.Pointer) int {
-	return int(uintptr(p) - r.start)
-}
-
-func (r region) Pointer() unsafe.Pointer {
-	return unsafe.Pointer(r.start)
-}
-
-func (r region) Type() reflect.Type {
-	return r.typ
 }
 
 func newSerializer() *serializer {
@@ -373,6 +182,7 @@ type iface struct {
 
 var (
 	serializableT = reflect.TypeOf((*Serializable)(nil)).Elem()
+	byteT         = reflect.TypeOf(byte(0))
 )
 
 func serializeAny(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
@@ -791,15 +601,33 @@ func deserializeInterface(d *deserializer, t reflect.Type, p unsafe.Pointer, b [
 }
 
 func serializeString(s *serializer, x *string, b []byte) []byte {
-	b = binary.AppendVarint(b, int64(len(*x)))
-	return append(b, *x...)
+	// Serialize string as a size and a pointer to an array of bytes.
+
+	l := len(*x)
+	b = serializeVarint(l, b)
+
+	if l == 0 {
+		return b
+	}
+
+	at := reflect.ArrayOf(l, byteT)
+	ap := unsafe.Pointer(unsafe.StringData(*x))
+
+	return serializePointedAt(s, at, ap, b)
 }
 
 func deserializeString(d *deserializer, x *string, b []byte) []byte {
-	l, n := binary.Varint(b)
-	b = b[n:]
-	*x = string(b[:l])
-	return b[l:]
+	l, b := deserializeVarint(b)
+
+	if l == 0 {
+		return b
+	}
+
+	at := reflect.ArrayOf(l, byteT)
+	ar, b := deserializePointedAt(d, at, b)
+
+	*x = unsafe.String((*byte)(ar.UnsafePointer()), l)
+	return b
 }
 
 func serializeBool(s *serializer, x bool, b []byte) []byte {
@@ -1034,11 +862,208 @@ func (m *typeMap) TypeOf(x sID) reflect.Type {
 // Global type register.
 var tm *typeMap = newTypeMap()
 
+type regions []region
+
+func (r *regions) Dump() {
+	fmt.Println("========== MEMORY REGIONS ==========")
+	fmt.Println("Found", len(*r), "regions.")
+	for i, r := range *r {
+		fmt.Printf("#%d: [%d-%d[ %d %s\n", i, r.start, r.end, r.end-r.start, r.typ)
+	}
+	fmt.Println("====================================")
+}
+
+// debug function to ensure the state hold its invariants. panic if they don't.
+func (r *regions) validate() {
+	s := *r
+	if len(s) == 0 {
+		return
+	}
+
+	for i := 0; i < len(s); i++ {
+		if s[i].start >= s[i].end {
+			panic(fmt.Errorf("region #%d has invalid bounds: start=%d end=%d delta=%d", i, s[i].start, s[i].end, s[i].end-s[i].start))
+		}
+		if s[i].typ == nil {
+			panic(fmt.Errorf("region #%d has nil type", i))
+		}
+		if i == 0 {
+			continue
+		}
+		if s[i].start < s[i-1].end {
+			r.Dump()
+			panic(fmt.Errorf("region #%d and #%d overlap", i-1, i))
+		}
+	}
+}
+
+// size computes the amount of bytes coverred by all known regions.
+func (r *regions) size() int {
+	n := 0
+	for _, r := range *r {
+		n += int(r.end - r.start)
+	}
+	return n
+}
+
+func (r *regions) For(p unsafe.Pointer) region {
+	//	fmt.Printf("Searching regions for %d\n", p)
+	addr := uintptr(p)
+	s := *r
+	if len(s) == 0 {
+		//		fmt.Printf("\t=> No regions\n")
+		return region{}
+	}
+
+	i := sort.Search(len(s), func(i int) bool {
+		return s[i].start >= addr
+	})
+	//	fmt.Printf("\t=> i = %d\n", i)
+
+	if i < len(s) && s[i].start == addr {
+		return s[i]
+	}
+
+	if i > 0 {
+		i--
+	}
+	if s[i].start > addr || s[i].end <= addr {
+		return region{}
+	}
+	return s[i]
+
+}
+
+func (r *regions) Add(t reflect.Type, start unsafe.Pointer) {
+	size := t.Size()
+	if size == 0 {
+		return
+	}
+
+	startAddr := uintptr(start)
+	endAddr := startAddr + size
+
+	//	fmt.Printf("Adding [%d-%d[ %d %s\n", startAddr, endAddr, endAddr-startAddr, t)
+	startSize := r.size()
+	defer func() {
+		//r.Dump()
+		r.validate()
+		endSize := r.size()
+		if endSize < startSize {
+			panic(fmt.Errorf("regions shrunk (%d -> %d)", startSize, endSize))
+		}
+	}()
+
+	s := *r
+
+	if len(s) == 0 {
+		*r = append(s, region{
+			start: startAddr,
+			end:   endAddr,
+			typ:   t,
+		})
+		return
+	}
+
+	// Invariants:
+	// (1) len(s) > 0
+	// (2) s is sorted by start address
+	// (3) s contains no overlapping range
+
+	i := sort.Search(len(s), func(i int) bool {
+		return s[i].start >= startAddr
+	})
+	//fmt.Println("\ti =", i)
+
+	if i < len(s) && s[i].start == startAddr {
+		// Pointer is present in the set. If it's contained in the
+		// region that already exists, we are done.
+		if s[i].end >= endAddr {
+			return
+		}
+
+		// Otherwise extend the region.
+		s[i].end = endAddr
+		s[i].typ = t
+
+		// To maintain invariant (3), keep extending the selected region
+		// until it becomes the last one or the next range is disjoint.
+		r.extend(i)
+		return
+	}
+	// Pointer did not point to the beginning of a region.
+
+	// Attempt to grow the previous region.
+	if i > 0 {
+		if startAddr < s[i-1].end {
+			if endAddr > s[i-1].end {
+				s[i-1].end = endAddr
+				r.extend(i - 1)
+			}
+			return
+		}
+	}
+
+	// Attempt to grow the next region.
+	if i+1 < len(s) {
+		if endAddr > s[i+1].start {
+			s[i+1].start = startAddr
+			s[i+1].end = max(endAddr, s[i+1].end)
+			s[i+1].typ = t
+			r.extend(i + 1)
+			return
+		}
+	}
+
+	// Just insert it.
+	s = slices.Grow(s, len(s)+1)[:len(s)+1]
+	copy(s[i+1:], s[i:])
+	s[i] = region{start: startAddr, end: endAddr, typ: t}
+	*r = s
+	r.extend(i)
+}
+
+// extend attempts to grow region i by swallowing any region after it, as long
+// as it would make one continous region. It is used after a modification of
+// region i to maintain the invariants.
+func (r *regions) extend(i int) {
+	s := *r
+	grown := 0
+	for next := i + 1; next < len(s) && s[i].end > s[next].start; next++ {
+		s[i].end = s[next].end
+		grown++
+	}
+	copy(s[i+1:], s[i+1+grown:])
+	*r = s[:len(s)-grown]
+}
+
+type region struct {
+	start uintptr // inclusive
+	end   uintptr // exclusive
+	typ   reflect.Type
+}
+
+func (r region) Valid() bool {
+	return r.typ != nil
+}
+
+func (r region) Offset(p unsafe.Pointer) int {
+	return int(uintptr(p) - r.start)
+}
+
+func (r region) Pointer() unsafe.Pointer {
+	return unsafe.Pointer(r.start)
+}
+
+func (r region) Type() reflect.Type {
+	return r.typ
+}
+
 // scan the value of type t at address p recursively to build up the serializer
 // state with necessary information for decoding. At the moment it only creates
 // the memory regions table.
 //
-// It uses s.ptrs to track which pointers it has already visited to avoid
+// It uses s.scanptrs to track which pointers it has already visited to avoid
 // infinite loops. It does not clean it up after. I'm sure there is something
 // more useful we could do with that.
 func scan(s *serializer, t reflect.Type, p unsafe.Pointer) {
@@ -1071,9 +1096,9 @@ func scan(s *serializer, t reflect.Type, p unsafe.Pointer) {
 		reflect.Float64,
 		reflect.Complex64,
 		reflect.Complex128:
-		s.regions.Add(t, p, t.Size())
+		s.regions.Add(t, p)
 	case reflect.Array:
-		s.regions.Add(t, p, t.Size())
+		s.regions.Add(t, p)
 		et := t.Elem()
 		es := int(et.Size())
 		for i := 0; i < t.Len(); i++ {
@@ -1089,13 +1114,10 @@ func scan(s *serializer, t reflect.Type, p unsafe.Pointer) {
 		// Estimate size of backing array.
 		et := t.Elem()
 		es := int(et.Size())
-		size := es * r.Cap()
-		if size == 0 {
-			return
-		}
+
 		// Create a new type for the backing array.
 		xt := reflect.ArrayOf(r.Cap(), t.Elem())
-		s.regions.Add(xt, ep, uintptr(size))
+		s.regions.Add(xt, ep)
 		for i := 0; i < r.Len(); i++ {
 			ep := unsafe.Add(ep, es*i)
 			scan(s, et, ep)
@@ -1107,10 +1129,9 @@ func scan(s *serializer, t reflect.Type, p unsafe.Pointer) {
 		if ep == nil {
 			return
 		}
-		//		s.regions.Add(et, ep, et.Size())
 		scan(s, et, ep)
 	case reflect.Struct:
-		s.regions.Add(t, p, t.Size())
+		s.regions.Add(t, p)
 		n := t.NumField()
 		for i := 0; i < n; i++ {
 			f := t.Field(i)
@@ -1118,20 +1139,20 @@ func scan(s *serializer, t reflect.Type, p unsafe.Pointer) {
 			fp := unsafe.Add(p, f.Offset)
 			scan(s, ft, fp)
 		}
-
 	case reflect.Pointer:
-		if p == nil {
-			return
-		}
 		ep := reflect.NewAt(t, p).Elem().UnsafePointer()
 		scan(s, t.Elem(), ep)
+	case reflect.String:
+		str := *(*string)(p)
+		sp := unsafe.StringData(str)
+		xt := reflect.ArrayOf(len(str), byteT)
+		s.regions.Add(xt, unsafe.Pointer(sp))
 
 	default:
 		// TODO:
 		// Chan
 		// Func
 		// Map
-		// String
 		// UnsafePointer
 	}
 }
