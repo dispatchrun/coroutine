@@ -148,6 +148,22 @@ func TestReflectSharing(t *testing.T) {
 		out.A.Y = 11
 		assertEqual(t, 11, *out.B.P)
 	})
+
+	testReflect(t, "struct with pointer to itself", func(t *testing.T) {
+		type X struct {
+			z *X
+		}
+
+		x := &X{}
+		x.z = x
+		assertEqual(t, x, x.z)
+
+		RegisterType[X]()
+
+		out := assertRoundTrip(t, x)
+
+		assertEqual(t, out, out.z)
+	})
 }
 
 func assertEqual(t *testing.T, expected, actual any) {
