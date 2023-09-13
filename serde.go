@@ -201,6 +201,14 @@ type iface struct {
 	ptr unsafe.Pointer
 }
 
+// Used instead of reflect.SliceHeader to use an unsafe.Pointer instead of
+// uintptr.
+type slice struct {
+	data unsafe.Pointer
+	len  int
+	cap  int
+}
+
 var (
 	serializableT = reflect.TypeOf((*Serializable)(nil)).Elem()
 	byteT         = reflect.TypeOf(byte(0))
@@ -516,11 +524,10 @@ func deserializeSlice(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byt
 		return b
 	}
 
-	// TODO: non-deprecated version
-	s := (*reflect.SliceHeader)(p)
-	s.Data = uintptr(ar.UnsafePointer())
-	s.Cap = c
-	s.Len = l
+	s := (*slice)(p)
+	s.data = ar.UnsafePointer()
+	s.cap = c
+	s.len = l
 	return b
 }
 
