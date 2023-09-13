@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"unsafe"
 )
 
 type EasyStruct struct {
@@ -163,6 +164,73 @@ func TestReflectSharing(t *testing.T) {
 		out := assertRoundTrip(t, x)
 
 		assertEqual(t, out, out.z)
+	})
+
+	testReflect(t, "nested struct fields", func(t *testing.T) {
+		type Z struct {
+			v int64
+		}
+		type Y struct {
+			v Z
+		}
+		type X struct {
+			v Y
+		}
+
+		x := X{Y{Z{42}}}
+
+		RegisterType[X]()
+		assertRoundTrip(t, x)
+	})
+
+	testReflect(t, "nested struct fields not first", func(t *testing.T) {
+		type Z struct {
+			v int64
+		}
+		type Y struct {
+			b int
+			v Z
+		}
+		type X struct {
+			a int
+			v Y
+		}
+
+		x := X{a: 1,
+			v: Y{
+				b: 2,
+				v: Z{42},
+			},
+		}
+
+		RegisterType[X]()
+		assertRoundTrip(t, x)
+	})
+
+	testReflect(t, "pointer intra struct field", func(t *testing.T) {
+		type Z struct {
+			v string
+		}
+		type Y struct {
+			z *Z
+		}
+		type X struct {
+			z Z
+			y Y
+		}
+
+		x := &X{}
+		x.z.v = "hello"
+		x.y.z = &x.z
+
+		assertEqual(t, unsafe.Pointer(x), unsafe.Pointer(x.y.z))
+
+		RegisterType[X]()
+		out := assertRoundTrip(t, x)
+
+		out.z.v = "test"
+
+		assertEqual(t, "test", out.y.z.v)
 	})
 
 	testReflect(t, "slices with same backing array but no joined cap", func(t *testing.T) {
