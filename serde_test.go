@@ -11,18 +11,8 @@ type EasyStruct struct {
 	B string
 }
 
-func withBlankTypeMap(t *testing.T, f func(t *testing.T)) {
-	t.Helper()
-
-	oldtm := tm
-	tm = newTypeMap()
-	defer func() { tm = oldtm }()
-
-	f(t)
-}
-
 func TestReflect(t *testing.T) {
-	withBlankTypeMap(t, func(t *testing.T) {
+	withBlankTypeMap(func() {
 		intv := int(100)
 		intp := &intv
 		intpp := &intp
@@ -74,8 +64,8 @@ func TestReflect(t *testing.T) {
 	})
 }
 
-func TestReflectSharingSlice(t *testing.T) {
-	withBlankTypeMap(t, func(t *testing.T) {
+func TestReflectSharing(t *testing.T) {
+	testReflect(t, "slice backing array", func(t *testing.T) {
 		data := make([]int, 10)
 		for i := range data {
 			data[i] = i
@@ -119,6 +109,38 @@ func TestReflectSharingSlice(t *testing.T) {
 		out.s2[5] = 11
 		assertEqual(t, 11, out.s3[0])
 	})
+
+	testReflect(t, "struct fields extra pointers", func(t *testing.T) {
+		type A struct {
+			X, Y int
+		}
+
+		type B struct {
+			P *int
+		}
+
+		type X struct {
+			A *A
+			B *B
+		}
+
+		x := X{
+			A: new(A),
+			B: new(B),
+		}
+		x.B.P = &x.A.Y
+
+		// verify the original pointer is correct
+		x.A.Y = 42
+		assertEqual(t, 42, *x.B.P)
+
+		RegisterType[X]()
+		out := assertRoundTrip(t, x)
+
+		// verify the resulting pointer is correct
+		out.A.Y = 11
+		assertEqual(t, 11, *x.B.P)
+	})
 }
 
 func assertEqual(t *testing.T, expected, actual any) {
@@ -144,4 +166,21 @@ func assertRoundTrip[T any](t *testing.T, orig T) T {
 	}
 
 	return out.(T)
+}
+
+func withBlankTypeMap(f func()) {
+	oldtm := tm
+	tm = newTypeMap()
+	defer func() { tm = oldtm }()
+
+	f()
+}
+
+func testReflect(t *testing.T, name string, f func(t *testing.T)) {
+	t.Helper()
+	t.Run(name, func(t *testing.T) {
+		withBlankTypeMap(func() {
+			f(t)
+		})
+	})
 }
