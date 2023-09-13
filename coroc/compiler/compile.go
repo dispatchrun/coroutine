@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/callgraph/cha"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
@@ -292,157 +291,25 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 	// Desugar statements in the tree.
 	desugar(fn.Body, p.TypesInfo)
 
-	// Scan/replace variables/constants defined in the function.
+	// Handle declarations.
 	//
 	// Types, constants and variables can be defined within any scope in the
-	// function, and can shadow previous declarations. The coroutine
-	// dispatch mechanism introduces new scopes, which may prevent
-	// types/constants/variables from being visible to other statements, or
-	// may cause some statements to unexpectedly observe an unshadowed type or
-	// value.
+	// function, and can shadow previous declarations. The coroutine dispatch
+	// mechanism introduces new scopes, which may prevent the declarations from
+	// being visible to other statements, or may cause some statements to
+	// unexpectedly observe an unshadowed type or value.
 	//
 	// To handle shadowing, we assign each type, constant and variable a unique
 	// name within the function body. To handle scoping issues, we hoist
 	// declarations to the function prologue. We downgrade inline var decls and
 	// assignments that use := to assignments that use =. Constant decls are
 	// hoisted and also have their value assigned in the function prologue.
-	newObjNames := map[types.Object]*ast.Ident{}
-	var typeNames []*ast.Ident
-	var typeSpecs []ast.Spec
-	var constNames []*ast.Ident
-	var constValues []ast.Expr
-	var varNames []*ast.Ident
-	var varTypes []types.Type
-	ast.Inspect(fn.Body, func(node ast.Node) bool {
-		switch n := node.(type) {
-		case *ast.AssignStmt:
-			if n.Tok == token.ASSIGN {
-				return true // only lifting decls (i.e. token.DEFINE)
-			}
-			// Rewrite := to = here, since it doesn't require an AST
-			// node replacement.
-			n.Tok = token.ASSIGN
-			for _, lhs := range n.Lhs {
-				name := lhs.(*ast.Ident)
-				obj := p.TypesInfo.ObjectOf(name)
-				if _, ok := newObjNames[obj]; ok {
-					return true // already seen
-				}
-				varName := ast.NewIdent("_v" + strconv.Itoa(len(varNames)))
-				varTypes = append(varTypes, p.TypesInfo.TypeOf(name))
-				varNames = append(varNames, varName)
-				newObjNames[obj] = varName
-			}
-		case *ast.GenDecl:
-			// Rewrite decls in a pass below, since it does require an AST
-			// node replacement.
-			for _, spec := range n.Specs {
-				switch n.Tok {
-				case token.TYPE:
-					ts := spec.(*ast.TypeSpec)
-					typeName := ast.NewIdent("_t" + strconv.Itoa(len(typeNames)))
-					typeNames = append(typeNames, typeName)
-					typeSpecs = append(typeSpecs, ts)
-					obj := p.TypesInfo.ObjectOf(ts.Name)
-					newObjNames[obj] = typeName
-				case token.CONST:
-					vs := spec.(*ast.ValueSpec)
-					for i, name := range vs.Names {
-						constName := ast.NewIdent("_c" + strconv.Itoa(len(constNames)))
-						constNames = append(constNames, constName)
-						constValues = append(constValues, vs.Values[i])
-						obj := p.TypesInfo.ObjectOf(name)
-						newObjNames[obj] = constName
-					}
-				case token.VAR:
-					vs := spec.(*ast.ValueSpec)
-					for _, name := range vs.Names {
-						obj := p.TypesInfo.ObjectOf(name)
-						if _, ok := newObjNames[obj]; ok {
-							return true // already seen
-						}
-						varName := ast.NewIdent("_v" + strconv.Itoa(len(varNames)))
-						varTypes = append(varTypes, p.TypesInfo.TypeOf(name))
-						varNames = append(varNames, varName)
-						newObjNames[obj] = varName
-					}
-				}
-			}
-		}
-		return true
-	})
-	ast.Inspect(fn.Body, func(node ast.Node) bool {
-		// Rewrite identifiers. This needs to happen before nodes are
-		// deleted from the tree below, since hoisted constants and types
-		// may refer to other rewritten identifiers.
-		if ident, ok := node.(*ast.Ident); ok {
-			obj := p.TypesInfo.ObjectOf(ident)
-			if replacement, ok := newObjNames[obj]; ok {
-				ident.Name = replacement.Name
-			}
-		}
-		return true
-	})
-	astutil.Apply(fn.Body, func(cursor *astutil.Cursor) bool {
-		declStmt, ok := cursor.Node().(*ast.DeclStmt)
-		if !ok {
-			return true
-		}
-		g, ok := declStmt.Decl.(*ast.GenDecl)
-		if !ok {
-			return true
-		}
-		switch g.Tok {
-		case token.TYPE, token.CONST:
-			// Delete type and const decls, since they'll be hoisted to the
-			// function prologue.
-			cursor.Delete()
-		case token.VAR:
-			var assigns []ast.Stmt
-			// The var decl could have one spec, e.g. var foo=0, or multiple
-			// specs, e.g. var ( foo=0; bar=1; baz=2 ). Replace them with a
-			// block that has one or more assignments. Pure decls can be omitted.
-			for _, spec := range g.Specs {
-				s, ok := spec.(*ast.ValueSpec)
-				if !ok || len(s.Values) == 0 {
-					continue
-				}
-				lhs := make([]ast.Expr, len(s.Names))
-				for i, name := range s.Names {
-					lhs[i] = name
-				}
-				assigns = append(assigns, &ast.AssignStmt{Lhs: lhs, Tok: token.ASSIGN, Rhs: s.Values})
-			}
-			cursor.Replace(&ast.BlockStmt{List: assigns})
-		}
-		return true
-	}, nil)
-
-	// Declare types, constants and variables.
-	if len(typeNames) > 0 {
-		typeDecl := &ast.GenDecl{Tok: token.TYPE, Specs: typeSpecs}
-		gen.Body.List = append(gen.Body.List, &ast.DeclStmt{Decl: typeDecl})
+	decls := extractDecls(fn, p.TypesInfo)
+	renameObjects(fn, p.TypesInfo, decls)
+	for _, decl := range decls {
+		gen.Body.List = append(gen.Body.List, &ast.DeclStmt{Decl: decl})
 	}
-	if len(constNames) > 0 {
-		varDecl := &ast.GenDecl{Tok: token.CONST}
-		for i, name := range constNames {
-			varDecl.Specs = append(varDecl.Specs, &ast.ValueSpec{
-				Names:  []*ast.Ident{name},
-				Values: []ast.Expr{constValues[i]},
-			})
-		}
-		gen.Body.List = append(gen.Body.List, &ast.DeclStmt{Decl: varDecl})
-	}
-	if len(varTypes) > 0 {
-		varDecl := &ast.GenDecl{Tok: token.VAR}
-		for i, t := range varTypes {
-			varDecl.Specs = append(varDecl.Specs, &ast.ValueSpec{
-				Names: []*ast.Ident{varNames[i]},
-				Type:  typeExpr(t),
-			})
-		}
-		gen.Body.List = append(gen.Body.List, &ast.DeclStmt{Decl: varDecl})
-	}
+	removeDecls(fn)
 
 	// Collect params/results/variables that need to be saved/restored.
 	var saveAndRestoreNames []*ast.Ident
@@ -469,8 +336,21 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 			}
 		}
 	}
-	saveAndRestoreNames = append(saveAndRestoreNames, varNames...)
-	saveAndRestoreTypes = append(saveAndRestoreTypes, varTypes...)
+	for _, decl := range decls {
+		if decl.Tok != token.VAR {
+			continue
+		}
+		for _, spec := range decl.Specs {
+			v, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			for _, name := range v.Names {
+				saveAndRestoreNames = append(saveAndRestoreNames, name)
+				saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
+			}
+		}
+	}
 
 	// Restore state when rewinding the stack.
 	//

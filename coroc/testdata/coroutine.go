@@ -130,6 +130,17 @@ func Shadowing(_ int) {
 		coroutine.Yield[int, any](int(unsafe.Sizeof(foo(0)))) // 4
 	}
 	coroutine.Yield[int, any](int(unsafe.Sizeof(foo(0)))) // 2
+
+	const siz = 1
+	type baz [siz]uint8
+	{
+		type bar [siz]uint8
+		coroutine.Yield[int, any](int(unsafe.Sizeof(bar{}))) // 1
+		const siz = unsafe.Sizeof(bar{}) * 2
+		type baz [siz]uint8
+		coroutine.Yield[int, any](int(unsafe.Sizeof(baz{}))) // 2
+	}
+	coroutine.Yield[int, any](int(unsafe.Sizeof(baz{}))) // 1
 }
 
 func RangeSliceIndexGenerator(_ int) {

@@ -1,0 +1,157 @@
+package compiler
+
+import (
+	"go/ast"
+	"go/token"
+	"go/types"
+	"strconv"
+
+	"golang.org/x/tools/go/ast/astutil"
+)
+
+// extractDecls extracts type, constant and variable declarations
+// from a function body.
+//
+// Variable declarations via var and via := assignments are included, but
+// only the name and type (not the value).
+//
+// The declaration order is preserved in case types refer to constants and vice
+// versa.
+//
+// Note that declarations are extracted from all nested scopes within the
+// function body, so there may be duplicate identifiers. Identifiers can be
+// disambiguated using (*types.Info).ObjectOf(ident).
+func extractDecls(fn *ast.FuncDecl, info *types.Info) (decls []*ast.GenDecl) {
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.GenDecl: // const, var, type
+			if n.Tok == token.TYPE || n.Tok == token.CONST {
+				decls = append(decls, n)
+			} else {
+				// Var specs can have multiple values on the left and/or right
+				// hand side, and the types may vary (e.g. var wd, err = os.Getwd()).
+				// Since types may vary in the same spec, just generate a new decl
+				// for each declared name.
+				for _, spec := range n.Specs {
+					s := spec.(*ast.ValueSpec)
+					for _, name := range s.Names {
+						decls = append(decls, &ast.GenDecl{
+							Tok: token.VAR,
+							Specs: []ast.Spec{
+								&ast.ValueSpec{
+									Names: []*ast.Ident{name},
+									Type:  typeExpr(info.TypeOf(name)),
+								},
+							},
+						})
+					}
+				}
+			}
+		case *ast.AssignStmt:
+			if n.Tok != token.DEFINE { // := only (not =)
+				return true
+			}
+			for _, lhs := range n.Lhs {
+				decls = append(decls, &ast.GenDecl{
+					Tok: token.VAR,
+					Specs: []ast.Spec{
+						&ast.ValueSpec{
+							Names: []*ast.Ident{lhs.(*ast.Ident)},
+							Type:  typeExpr(info.TypeOf(lhs)),
+						},
+					},
+				})
+			}
+		}
+		return true
+	})
+	return
+}
+
+// renameObjects renames types, constants and variables declared within
+// a function. Each is given a unique name, so that declarations are safe
+// to hoist into the function prologue.
+func renameObjects(tree ast.Node, info *types.Info, decls []*ast.GenDecl) {
+	// Scan decls to find objects, giving each new object a unique name.
+	var id int
+	newNames := map[types.Object]*ast.Ident{}
+	for _, decl := range decls {
+		for _, spec := range decl.Specs {
+			switch s := spec.(type) {
+			case *ast.TypeSpec: // type
+				newNames[info.ObjectOf(s.Name)] = ast.NewIdent("_o" + strconv.Itoa(id))
+				id++
+			case *ast.ValueSpec: // const/var
+				for _, name := range s.Names {
+					newNames[info.ObjectOf(name)] = ast.NewIdent("_o" + strconv.Itoa(id))
+					id++
+				}
+			}
+		}
+	}
+	// Add type info for the new identifiers.
+	for obj, name := range newNames {
+		info.Defs[name] = types.NewVar(0, nil, name.Name, obj.Type())
+	}
+	// Rename identifiers in the tree.
+	ast.Inspect(tree, func(node ast.Node) bool {
+		if ident, ok := node.(*ast.Ident); ok {
+			if replacement, ok := newNames[info.ObjectOf(ident)]; ok {
+				ident.Name = replacement.Name
+			}
+		}
+		return true
+	})
+}
+
+// removeDecls removes type, constant and variable declarations from a tree.
+// Variable declarations via assignment (:=) are instead downgraded to =.
+func removeDecls(tree ast.Node) {
+	astutil.Apply(tree, func(cursor *astutil.Cursor) bool {
+		switch n := cursor.Node().(type) {
+		case *ast.AssignStmt:
+			if n.Tok == token.DEFINE {
+				n.Tok = token.ASSIGN // convert := to =
+			}
+		case *ast.DeclStmt:
+			g, ok := n.Decl.(*ast.GenDecl)
+			if !ok {
+				return true
+			}
+			switch g.Tok {
+			case token.TYPE, token.CONST:
+				// Delete type and const decls, since they'll be hoisted to the
+				// function prologue.
+				cursor.Delete()
+			case token.VAR:
+				// The var decl could have one spec, e.g. var foo=0, or
+				// multiple specs, e.g. var ( foo=0; bar=1; baz=2 ). Some
+				// specs may have values and type and some might not, e.g.
+				// var (foo int; bar = 1; baz int = 2). Remove the pure
+				// decls and the decl assignments with types, leaving only
+				// assignments, e.g. { bar = 1; baz = 2 }
+				var assigns []ast.Stmt
+				for _, spec := range g.Specs {
+					s, ok := spec.(*ast.ValueSpec)
+					if !ok || len(s.Values) == 0 {
+						continue
+					}
+					lhs := make([]ast.Expr, len(s.Names))
+					for i, name := range s.Names {
+						lhs[i] = name
+					}
+					assigns = append(assigns, &ast.AssignStmt{Lhs: lhs, Tok: token.ASSIGN, Rhs: s.Values})
+				}
+				switch len(assigns) {
+				case 0:
+					cursor.Replace(&ast.EmptyStmt{})
+				case 1:
+					cursor.Replace(assigns[0])
+				default:
+					cursor.Replace(&ast.BlockStmt{List: assigns})
+				}
+			}
+		}
+		return true
+	}, nil)
+}

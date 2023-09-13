@@ -46,27 +46,27 @@ func Identity(n int) {
 func SquareGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
-	var _v0 int
+	var _o0 int
 	if _f.IP > 0 {
 		n = _f.Get(0).(int)
-		_v0 = _f.Get(1).(int)
+		_o0 = _f.Get(1).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, n)
-			_f.Set(1, _v0)
+			_f.Set(1, _o0)
 		} else {
 			_c.Pop()
 		}
 	}()
 	switch {
 	case _f.IP < 2:
-		_v0 = 1
+		_o0 = 1
 		_f.IP = 2
 		fallthrough
 	case _f.IP < 3:
-		for ; _v0 <= n; _v0++ {
-			coroutine.Yield[int, any](_v0 * _v0)
+		for ; _o0 <= n; _o0++ {
+			coroutine.Yield[int, any](_o0 * _o0)
 			_f.IP = 2
 		}
 	}
@@ -98,39 +98,37 @@ func SquareGeneratorTwice(n int) {
 func EvenSquareGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
-	var (
-		_v0 int
-		_v1 int
-	)
+	var _o0 int
+	var _o1 int
 	if _f.IP > 0 {
 		n = _f.Get(0).(int)
-		_v0 = _f.Get(1).(int)
-		_v1 = _f.Get(2).(int)
+		_o0 = _f.Get(1).(int)
+		_o1 = _f.Get(2).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, n)
-			_f.Set(1, _v0)
-			_f.Set(2, _v1)
+			_f.Set(1, _o0)
+			_f.Set(2, _o1)
 		} else {
 			_c.Pop()
 		}
 	}()
 	switch {
 	case _f.IP < 2:
-		_v0 = 1
+		_o0 = 1
 		_f.IP = 2
 		fallthrough
 	case _f.IP < 4:
-		for ; _v0 <= n; _v0++ {
+		for ; _o0 <= n; _o0++ {
 			switch {
 			case _f.IP < 3:
-				_v1 = _v0 % 2
+				_o1 = _o0 % 2
 				_f.IP = 3
 				fallthrough
 			case _f.IP < 4:
-				if _v1 == 0 {
-					coroutine.Yield[int, any](_v0 * _v0)
+				if _o1 == 0 {
+					coroutine.Yield[int, any](_o0 * _o0)
 				}
 			}
 			_f.IP = 2
@@ -141,49 +139,47 @@ func EvenSquareGenerator(n int) {
 func NestedLoops(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
-	var (
-		_v0 int
-		_v1 int
-		_v2 int
-	)
+	var _o0 int
+	var _o1 int
+	var _o2 int
 	if _f.IP > 0 {
 		n = _f.Get(0).(int)
-		_v0 = _f.Get(1).(int)
-		_v1 = _f.Get(2).(int)
-		_v2 = _f.Get(3).(int)
+		_o0 = _f.Get(1).(int)
+		_o1 = _f.Get(2).(int)
+		_o2 = _f.Get(3).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, n)
-			_f.Set(1, _v0)
-			_f.Set(2, _v1)
-			_f.Set(3, _v2)
+			_f.Set(1, _o0)
+			_f.Set(2, _o1)
+			_f.Set(3, _o2)
 		} else {
 			_c.Pop()
 		}
 	}()
 	switch {
 	case _f.IP < 2:
-		_v0 = 1
+		_o0 = 1
 		_f.IP = 2
 		fallthrough
 	case _f.IP < 5:
-		for ; _v0 <= n; _v0++ {
+		for ; _o0 <= n; _o0++ {
 			switch {
 			case _f.IP < 3:
-				_v1 = 1
+				_o1 = 1
 				_f.IP = 3
 				fallthrough
 			case _f.IP < 5:
-				for ; _v1 <= n; _v1++ {
+				for ; _o1 <= n; _o1++ {
 					switch {
 					case _f.IP < 4:
-						_v2 = 1
+						_o2 = 1
 						_f.IP = 4
 						fallthrough
 					case _f.IP < 5:
-						for ; _v2 <= n; _v2++ {
-							coroutine.Yield[int, any](_v0 * _v1 * _v2)
+						for ; _o2 <= n; _o2++ {
+							coroutine.Yield[int, any](_o0 * _o1 * _o2)
 							_f.IP = 4
 						}
 					}
@@ -198,41 +194,40 @@ func NestedLoops(n int) {
 func FizzBuzzIfGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
-	var (
-		_v0 int
-		_v1 int
-	)
+	var _o0 int
+	var _o1 int
 	if _f.IP > 0 {
 		n = _f.Get(0).(int)
-		_v0 = _f.Get(1).(int)
-		_v1 = _f.Get(2).(int)
+		_o0 = _f.Get(1).(int)
+
+		_o1 = _f.Get(2).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, n)
-			_f.Set(1, _v0)
-			_f.Set(2, _v1)
+			_f.Set(1, _o0)
+			_f.Set(2, _o1)
 		} else {
 			_c.Pop()
 		}
 	}()
 	switch {
 	case _f.IP < 2:
-		_v0 = 1
+		_o0 = 1
 		_f.IP = 2
 		fallthrough
 	case _f.IP < 7:
-		for ; _v0 <= n; _v0++ {
-			if _v0%3 == 0 && _v0%5 == 0 {
+		for ; _o0 <= n; _o0++ {
+			if _o0%3 == 0 && _o0%5 == 0 {
 				coroutine.Yield[int, any](FizzBuzz)
-			} else if _v0%3 == 0 {
+			} else if _o0%3 == 0 {
 				coroutine.Yield[int, any](Fizz)
 			} else {
-				_v1 = _v0 % 5
-				if _v1 == 0 {
+				_o1 = _o0 % 5
+				if _o1 == 0 {
 					coroutine.Yield[int, any](Buzz)
 				} else {
-					coroutine.Yield[int, any](_v0)
+					coroutine.Yield[int, any](_o0)
 				}
 			}
 			_f.IP = 2
@@ -243,35 +238,35 @@ func FizzBuzzIfGenerator(n int) {
 func FizzBuzzSwitchGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
-	var _v0 int
+	var _o0 int
 	if _f.IP > 0 {
 		n = _f.Get(0).(int)
-		_v0 = _f.Get(1).(int)
+		_o0 = _f.Get(1).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, n)
-			_f.Set(1, _v0)
+			_f.Set(1, _o0)
 		} else {
 			_c.Pop()
 		}
 	}()
 	switch {
 	case _f.IP < 2:
-		_v0 = 1
+		_o0 = 1
 		_f.IP = 2
 		fallthrough
 	case _f.IP < 6:
-		for ; _v0 <= n; _v0++ {
+		for ; _o0 <= n; _o0++ {
 			switch {
-			case _v0%3 == 0 && _v0%5 == 0:
+			case _o0%3 == 0 && _o0%5 == 0:
 				coroutine.Yield[int, any](FizzBuzz)
-			case _v0%3 == 0:
+			case _o0%3 == 0:
 				coroutine.Yield[int, any](Fizz)
-			case _v0%5 == 0:
+			case _o0%5 == 0:
 				coroutine.Yield[int, any](Buzz)
 			default:
-				coroutine.Yield[int, any](_v0)
+				coroutine.Yield[int, any](_o0)
 			}
 			_f.IP = 2
 		}
@@ -281,128 +276,142 @@ func FizzBuzzSwitchGenerator(n int) {
 func Shadowing(_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
-	type (
-		_t0 uint16
+	var _o0 int
+	var _o1 int
+	var _o2 int
+	var _o3 int
+	var _o4 int
+	var _o5 int
+	var _o6 int
+	var _o7 int
+	var _o8 int
 
-		_t1 uint32
-	)
-	const (
-		_c0 = 11
-		_c1 = 12
-	)
-	var (
-		_v0 int
-		_v1 int
-		_v2 int
-		_v3 int
-		_v4 int
-		_v5 int
-		_v6 int
-		_v7 int
-		_v8 int
-		_v9 int
-	)
+	const _o9 = 11
+
+	const _o10 = 12
+	var _o11 int
+
+	type _o12 uint16
+
+	type _o13 uint32
+
+	const _o14 = 1
+	type _o15 [_o14]uint8
+
+	type _o16 [_o14]uint8
+
+	const _o17 = unsafe.Sizeof(_o16{}) * 2
+	type _o18 [_o17]uint8
 	if _f.IP > 0 {
-		_v0 = _f.Get(0).(int)
-		_v1 = _f.Get(1).(int)
-		_v2 = _f.Get(2).(int)
-		_v3 = _f.Get(3).(int)
-		_v4 = _f.Get(4).(int)
-		_v5 = _f.Get(5).(int)
-		_v6 = _f.Get(6).(int)
-		_v7 = _f.Get(7).(int)
-		_v8 = _f.Get(8).(int)
-		_v9 = _f.Get(9).(int)
+		_o0 = _f.Get(0).(int)
+
+		_o1 = _f.Get(1).(int)
+
+		_o2 = _f.Get(2).(int)
+
+		_o3 = _f.Get(3).(int)
+
+		_o4 = _f.Get(4).(int)
+
+		_o5 = _f.Get(5).(int)
+
+		_o6 = _f.Get(6).(int)
+
+		_o7 = _f.Get(7).(int)
+
+		_o8 = _f.Get(8).(int)
+
+		_o11 = _f.Get(9).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, _v0)
-			_f.Set(1, _v1)
-			_f.Set(2, _v2)
-			_f.Set(3, _v3)
-			_f.Set(4, _v4)
-			_f.Set(5, _v5)
-			_f.Set(6, _v6)
-			_f.Set(7, _v7)
-			_f.Set(8, _v8)
-			_f.Set(9, _v9)
+			_f.Set(0, _o0)
+			_f.Set(1, _o1)
+			_f.Set(2, _o2)
+			_f.Set(3, _o3)
+			_f.Set(4, _o4)
+			_f.Set(5, _o5)
+			_f.Set(6, _o6)
+			_f.Set(7, _o7)
+			_f.Set(8, _o8)
+			_f.Set(9, _o11)
 		} else {
 			_c.Pop()
 		}
 	}()
 	switch {
 	case _f.IP < 2:
-		_v0 = 0
+		_o0 = 0
 		_f.IP = 2
 		fallthrough
 	case _f.IP < 3:
-		coroutine.Yield[int, any](_v0)
+		coroutine.Yield[int, any](_o0)
 		_f.IP = 3
 		fallthrough
 	case _f.IP < 5:
 		switch {
 		case _f.IP < 4:
 
-			_v1 = 1
+			_o1 = 1
 			_f.IP = 4
 			fallthrough
 		case _f.IP < 5:
 			if true {
-				coroutine.Yield[int, any](_v1)
+				coroutine.Yield[int, any](_o1)
 			}
 		}
 		_f.IP = 5
 		fallthrough
 	case _f.IP < 6:
-		coroutine.Yield[int, any](_v0)
+		coroutine.Yield[int, any](_o0)
 		_f.IP = 6
 		fallthrough
 	case _f.IP < 8:
 		switch {
 		case _f.IP < 7:
 
-			_v2 = 1
+			_o2 = 1
 			_f.IP = 7
 			fallthrough
 		case _f.IP < 8:
-			for ; _v2 < 3; _v2++ {
-				coroutine.Yield[int, any](_v2)
+			for ; _o2 < 3; _o2++ {
+				coroutine.Yield[int, any](_o2)
 				_f.IP = 7
 			}
 		}
 		_f.IP = 8
 		fallthrough
 	case _f.IP < 9:
-		coroutine.Yield[int, any](_v0)
+		coroutine.Yield[int, any](_o0)
 		_f.IP = 9
 		fallthrough
 	case _f.IP < 13:
 		switch {
 		case _f.IP < 10:
 
-			_v3 = 1
+			_o3 = 1
 			_f.IP = 10
 			fallthrough
 		case _f.IP < 13:
-			switch _v3 {
+			switch _o3 {
 			case 1:
 				switch {
 				case _f.IP < 12:
 					switch {
 					case _f.IP < 11:
-						_v4 = 2
+						_o4 = 2
 						_f.IP = 11
 						fallthrough
 					case _f.IP < 12:
-						switch _v4 {
+						switch _o4 {
 						default:
-							coroutine.Yield[int, any](_v4)
+							coroutine.Yield[int, any](_o4)
 						}
 					}
 					_f.IP = 12
 					fallthrough
 				case _f.IP < 13:
-					coroutine.Yield[int, any](_v3)
+					coroutine.Yield[int, any](_o3)
 				}
 			}
 		}
@@ -410,58 +419,58 @@ func Shadowing(_ int) {
 		fallthrough
 	case _f.IP < 14:
 
-		coroutine.Yield[int, any](_v0)
+		coroutine.Yield[int, any](_o0)
 		_f.IP = 14
 		fallthrough
 	case _f.IP < 18:
 		switch {
 		case _f.IP < 15:
 
-			_v5 = 1
+			_o5 = 1
 			_f.IP = 15
 			fallthrough
 		case _f.IP < 17:
 			switch {
 			case _f.IP < 16:
 
-				_v6 = 2
+				_o6 = 2
 				_f.IP = 16
 				fallthrough
 			case _f.IP < 17:
-				coroutine.Yield[int, any](_v6)
+				coroutine.Yield[int, any](_o6)
 			}
 			_f.IP = 17
 			fallthrough
 		case _f.IP < 18:
 
-			coroutine.Yield[int, any](_v5)
+			coroutine.Yield[int, any](_o5)
 		}
 		_f.IP = 18
 		fallthrough
 	case _f.IP < 19:
 
-		coroutine.Yield[int, any](_v0)
+		coroutine.Yield[int, any](_o0)
 		_f.IP = 19
 		fallthrough
 	case _f.IP < 20:
-		_v7 = _v0
+		_o7 = _o0
 		_f.IP = 20
 		fallthrough
 	case _f.IP < 22:
 		switch {
 		case _f.IP < 21:
 
-			_v8 = 1
+			_o8 = 1
 			_f.IP = 21
 			fallthrough
 		case _f.IP < 22:
-			coroutine.Yield[int, any](_v8)
+			coroutine.Yield[int, any](_o8)
 		}
 		_f.IP = 22
 		fallthrough
 	case _f.IP < 23:
 
-		coroutine.Yield[int, any](_v7)
+		coroutine.Yield[int, any](_o7)
 		_f.IP = 23
 		fallthrough
 	case _f.IP < 26:
@@ -470,69 +479,85 @@ func Shadowing(_ int) {
 			switch {
 			case _f.IP < 24:
 
-				_v9 = 13
+				_o11 = 13
 				_f.IP = 24
 				fallthrough
 			case _f.IP < 25:
-				coroutine.Yield[int, any](_v9)
+				coroutine.Yield[int, any](_o11)
 			}
 			_f.IP = 25
 			fallthrough
 		case _f.IP < 26:
 
-			coroutine.Yield[int, any](_c1)
+			coroutine.Yield[int, any](_o10)
 		}
 		_f.IP = 26
 		fallthrough
 	case _f.IP < 27:
 
-		coroutine.Yield[int, any](_c0)
+		coroutine.Yield[int, any](_o9)
 		_f.IP = 27
 		fallthrough
 	case _f.IP < 28:
 
-		coroutine.Yield[int, any](int(unsafe.Sizeof(_t1(0))))
+		coroutine.Yield[int, any](int(unsafe.Sizeof(_o13(0))))
 		_f.IP = 28
 		fallthrough
 	case _f.IP < 29:
 
-		coroutine.Yield[int, any](int(unsafe.Sizeof(_t0(0))))
+		coroutine.Yield[int, any](int(unsafe.Sizeof(_o12(0))))
+		_f.IP = 29
+		fallthrough
+	case _f.IP < 31:
+		switch {
+		case _f.IP < 30:
+
+			coroutine.Yield[int, any](int(unsafe.Sizeof(_o16{})))
+			_f.IP = 30
+			fallthrough
+		case _f.IP < 31:
+
+			coroutine.Yield[int, any](int(unsafe.Sizeof(_o18{})))
+		}
+		_f.IP = 31
+		fallthrough
+	case _f.IP < 32:
+
+		coroutine.Yield[int, any](int(unsafe.Sizeof(_o15{})))
 	}
 }
 
 func RangeSliceIndexGenerator(_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
-	var (
-		_v0 []int
-		_v1 int
-	)
+	var _o0 []int
+	var _o1 int
 	if _f.IP > 0 {
-		_v0 = _f.Get(0).([]int)
-		_v1 = _f.Get(1).(int)
+		_o0 = _f.Get(0).([]int)
+		_o1 = _f.Get(1).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, _v0)
-			_f.Set(1, _v1)
+			_f.Set(0, _o0)
+			_f.Set(1, _o1)
 		} else {
 			_c.Pop()
 		}
 	}()
 	switch {
 	case _f.IP < 2:
-		_v0 = []int{10, 20, 30}
+		_o0 = []int{10, 20, 30}
 		_f.IP = 2
 		fallthrough
 	case _f.IP < 4:
 		switch {
 		case _f.IP < 3:
-			_v1 = 0
+			_o1 = 0
 			_f.IP = 3
 			fallthrough
 		case _f.IP < 4:
-			for ; _v1 < len(_v0); _v1++ {
-				coroutine.Yield[int, any](_v1)
+			for ; _o1 < len(_o0); _o1++ {
+				coroutine.Yield[int, any](_o1)
 				_f.IP = 3
 			}
 		}
@@ -542,49 +567,47 @@ func RangeSliceIndexGenerator(_ int) {
 func RangeArrayIndexValueGenerator(_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
-	var (
-		_v0 [3]int
-		_v1 int
-		_v2 int
-	)
+	var _o0 [3]int
+	var _o1 int
+	var _o2 int
 	if _f.IP > 0 {
-		_v0 = _f.Get(0).([3]int)
-		_v1 = _f.Get(1).(int)
-		_v2 = _f.Get(2).(int)
+		_o0 = _f.Get(0).([3]int)
+		_o1 = _f.Get(1).(int)
+		_o2 = _f.Get(2).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, _v0)
-			_f.Set(1, _v1)
-			_f.Set(2, _v2)
+			_f.Set(0, _o0)
+			_f.Set(1, _o1)
+			_f.Set(2, _o2)
 		} else {
 			_c.Pop()
 		}
 	}()
 	switch {
 	case _f.IP < 2:
-		_v0 = [...]int{10, 20, 30}
+		_o0 = [...]int{10, 20, 30}
 		_f.IP = 2
 		fallthrough
 	case _f.IP < 6:
 		switch {
 		case _f.IP < 3:
-			_v1 = 0
+			_o1 = 0
 			_f.IP = 3
 			fallthrough
 		case _f.IP < 6:
-			for ; _v1 < len(_v0); _v1++ {
+			for ; _o1 < len(_o0); _o1++ {
 				switch {
 				case _f.IP < 4:
-					_v2 = _v0[_v1]
+					_o2 = _o0[_o1]
 					_f.IP = 4
 					fallthrough
 				case _f.IP < 5:
-					coroutine.Yield[int, any](_v1)
+					coroutine.Yield[int, any](_o1)
 					_f.IP = 5
 					fallthrough
 				case _f.IP < 6:
-					coroutine.Yield[int, any](_v2)
+					coroutine.Yield[int, any](_o2)
 				}
 				_f.IP = 3
 			}
