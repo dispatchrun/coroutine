@@ -46,6 +46,8 @@ func TestReflect(t *testing.T) {
 			[]interface{}{nil, 42, nil},
 			struct{ a *int }{intp},
 			[1][2]int{{1, 2}},
+
+			[]interface{}{(*int)(nil)},
 		}
 
 		for _, x := range cases {
