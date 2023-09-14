@@ -37,6 +37,8 @@ func trackDispatchSpans0(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan,
 		nextID = trackDispatchSpans0(s.Body, dispatchSpans, nextID)
 	case *ast.SwitchStmt:
 		nextID = trackDispatchSpans0(s.Body, dispatchSpans, nextID)
+	case *ast.TypeSwitchStmt:
+		nextID = trackDispatchSpans0(s.Body, dispatchSpans, nextID)
 	case *ast.CaseClause:
 		for _, child := range s.Body {
 			nextID = trackDispatchSpans0(child, dispatchSpans, nextID)
@@ -76,6 +78,10 @@ func compileDispatch(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan) ast
 			Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(forSpan.start)}},
 		})
 	case *ast.SwitchStmt:
+		for i, child := range s.Body.List {
+			s.Body.List[i] = compileDispatch(child, dispatchSpans)
+		}
+	case *ast.TypeSwitchStmt:
 		for i, child := range s.Body.List {
 			s.Body.List[i] = compileDispatch(child, dispatchSpans)
 		}

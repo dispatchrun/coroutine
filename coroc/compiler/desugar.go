@@ -96,7 +96,13 @@ func desugar0(stmts []ast.Stmt, info *types.Info) (desugared []ast.Stmt) {
 				},
 			}
 		case *ast.SwitchStmt:
-			// Rewrite `switch init; cond {}` to `init; switch cond {}`
+			// Rewrite `switch init; tag {}` to `init; switch tag {}`
+			if init := s.Init; init != nil {
+				s.Init = nil
+				stmt = &ast.BlockStmt{List: []ast.Stmt{init, s}}
+			}
+		case *ast.TypeSwitchStmt:
+			// Rewrite `switch init; assign {}` to `init; switch assign {}`
 			if init := s.Init; init != nil {
 				s.Init = nil
 				stmt = &ast.BlockStmt{List: []ast.Stmt{init, s}}

@@ -59,12 +59,25 @@ func extractDecls(fn *ast.FuncDecl, info *types.Info) (decls []*ast.GenDecl) {
 				if name.Name == "_" {
 					continue
 				}
+				t := info.TypeOf(lhs)
+				if t == nil {
+					// Do not hoist the decl in this case. This happens when
+					// type switching, e.g.
+					//
+					//          v-----------v
+					//   switch x := y.(type) { ... }
+					//
+					// The type of x varies depending on the switch case, and
+					// has a nil (undefined) type when inspecting the
+					// AssignStmt that declares it.
+					continue
+				}
 				decls = append(decls, &ast.GenDecl{
 					Tok: token.VAR,
 					Specs: []ast.Spec{
 						&ast.ValueSpec{
 							Names: []*ast.Ident{name},
-							Type:  typeExpr(info.TypeOf(lhs)),
+							Type:  typeExpr(t),
 						},
 					},
 				})
@@ -124,7 +137,10 @@ func removeDecls(tree ast.Node) {
 		switch n := cursor.Node().(type) {
 		case *ast.AssignStmt:
 			if n.Tok == token.DEFINE {
-				n.Tok = token.ASSIGN // convert := to =
+				if _, ok := cursor.Parent().(*ast.TypeSwitchStmt); ok {
+					return true // preserve type switch decls.
+				}
+				n.Tok = token.ASSIGN // otherwise, convert := to =
 			}
 		case *ast.DeclStmt:
 			g, ok := n.Decl.(*ast.GenDecl)

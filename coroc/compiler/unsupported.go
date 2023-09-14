@@ -25,8 +25,6 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 				err = fmt.Errorf("not implemented: go")
 			case *ast.LabeledStmt:
 				err = fmt.Errorf("not implemented: labels")
-			case *ast.TypeSwitchStmt:
-				err = fmt.Errorf("not implemented: type switch")
 			case *ast.SelectStmt:
 				err = fmt.Errorf("not implemented: select")
 			case *ast.CommClause:
@@ -77,6 +75,7 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 			case *ast.ReturnStmt:
 			case *ast.SendStmt:
 			case *ast.SwitchStmt:
+			case *ast.TypeSwitchStmt:
 
 			// Catch all in case new statements are added:
 			default:

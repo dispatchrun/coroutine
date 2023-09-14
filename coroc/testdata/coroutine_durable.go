@@ -614,6 +614,75 @@ func RangeArrayIndexValueGenerator(_ int) {
 		}
 	}
 }
+
+func TypeSwitchingGenerator(_ int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f := _c.Push()
+	var _o0 []any
+	var _o1 int
+	var _o2 any
+	if _f.IP > 0 {
+		_o0 = _f.Get(0).([]any)
+		_o1 = _f.Get(1).(int)
+		_o2 = _f.Get(2).(any)
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, _o0)
+			_f.Set(1, _o1)
+			_f.Set(2, _o2)
+		} else {
+			_c.Pop()
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		_o0 = []any{int8(10), int16(20), int32(30), int64(40)}
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 12:
+		switch {
+		case _f.IP < 3:
+			_o1 = 0
+			_f.IP = 3
+			fallthrough
+		case _f.IP < 12:
+			for ; _o1 < len(_o0); _o1++ {
+				switch {
+				case _f.IP < 4:
+					_o2 = _o0[_o1]
+					_f.IP = 4
+					fallthrough
+				case _f.IP < 8:
+					switch _o2.(type) {
+					case int8:
+						coroutine.Yield[int, any](1)
+					case int16:
+						coroutine.Yield[int, any](2)
+					case int32:
+						coroutine.Yield[int, any](4)
+					case int64:
+						coroutine.Yield[int, any](8)
+					}
+					_f.IP = 8
+					fallthrough
+				case _f.IP < 12:
+					switch v := _o2.(type) {
+					case int8:
+						coroutine.Yield[int, any](int(v))
+					case int16:
+						coroutine.Yield[int, any](int(v))
+					case int32:
+						coroutine.Yield[int, any](int(v))
+					case int64:
+						coroutine.Yield[int, any](int(v))
+					}
+				}
+				_f.IP = 3
+			}
+		}
+	}
+}
 func init() {
 	coroutine.RegisterType[**byte]()
 	coroutine.RegisterType[*[100000]uintptr]()
