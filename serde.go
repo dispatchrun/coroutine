@@ -779,12 +779,13 @@ func serializeComplex64(s *serializer, x complex64, b []byte) []byte {
 }
 
 func deserializeComplex64(d *deserializer, x *complex64, b []byte) []byte {
-	// TODO: remove allocs
-	var r float32
-	b = deserializeFloat32(d, &r, b)
-	var i float32
-	b = deserializeFloat32(d, &i, b)
-	*x = complex(r, i)
+	type complex64 struct {
+		real float32
+		img  float32
+	}
+	p := (*complex64)(unsafe.Pointer(x))
+	b = deserializeFloat32(d, &p.real, b)
+	b = deserializeFloat32(d, &p.img, b)
 	return b
 }
 
@@ -795,12 +796,13 @@ func serializeComplex128(s *serializer, x complex128, b []byte) []byte {
 }
 
 func deserializeComplex128(d *deserializer, x *complex128, b []byte) []byte {
-	// TODO: remove allocs
-	var r float64
-	b = deserializeFloat64(d, &r, b)
-	var i float64
-	b = deserializeFloat64(d, &i, b)
-	*x = complex(r, i)
+	type complex128 struct {
+		real float64
+		img  float64
+	}
+	p := (*complex128)(unsafe.Pointer(x))
+	b = deserializeFloat64(d, &p.real, b)
+	b = deserializeFloat64(d, &p.img, b)
 	return b
 }
 
