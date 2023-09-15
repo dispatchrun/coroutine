@@ -68,11 +68,42 @@ type Serializable interface {
 }
 
 // RegisterType into the global register to make it known to the serialization
-// system. coroc usually generates calls to this function.
+// system.
+//
+// coroc usually generates calls to this function. It should be called in an
+// init function so that types are always registered in the same order.
 //
 // Types are recursively added, as well as *T.
 func RegisterType[T any]() {
 	tm.add(reflect.TypeOf((*T)(nil)).Elem())
+}
+
+// RegisterTypeWithSerde is the same as [RegisterType] but assigns serialization
+// and deserialization for this type.
+func RegisterTypeWithSerde[T any](
+	serializer func(*T, []byte) ([]byte, error),
+	deserializer func(*T, []byte) ([]byte, error)) {
+
+	RegisterType[T]()
+	t := reflect.TypeOf((*T)(nil)).Elem()
+
+	s := func(p unsafe.Pointer, b []byte) []byte {
+		b, err := serializer((*T)(p), b)
+		if err != nil {
+			panic(fmt.Errorf("serializing %s: %w", t, err))
+		}
+		return b
+	}
+
+	d := func(p unsafe.Pointer, b []byte) []byte {
+		b, err := deserializer((*T)(p), b)
+		if err != nil {
+			panic(fmt.Errorf("deserializing %s: %w", t, err))
+		}
+		return b
+	}
+
+	tm.attach(t, s, d)
 }
 
 type deserializer struct {
@@ -215,6 +246,11 @@ var (
 )
 
 func serializeAny(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	if serde, ok := tm.serdeOf(t); ok {
+		fmt.Println("using serde on", t)
+		return serde.ser(p, b)
+	}
+
 	if t.Implements(serializableT) {
 		b, err := reflect.NewAt(t, p).Elem().Interface().(Serializable).MarshalAppend(b)
 		if err != nil {
@@ -287,6 +323,10 @@ func serializeAny(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []b
 }
 
 func deserializeAny(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
+	if serde, ok := tm.serdeOf(t); ok {
+		return serde.des(p, b)
+	}
+
 	if t.Implements(serializableT) {
 		i, err := reflect.NewAt(t, p).Elem().Interface().(Serializable).Unmarshal(b)
 		if err != nil {
@@ -823,15 +863,25 @@ func inlined(t reflect.Type) bool {
 // sID is the unique sID of a pointer or type in the serialized format.
 type sID int64
 
+type serializerFn func(p unsafe.Pointer, b []byte) []byte
+type deserializerFn func(p unsafe.Pointer, b []byte) []byte
+
+type serde struct {
+	ser serializerFn
+	des deserializerFn
+}
+
 type typeMap struct {
 	byID   map[sID]reflect.Type
 	byType map[reflect.Type]sID
+	serdes map[reflect.Type]serde
 }
 
 func newTypeMap() *typeMap {
 	return &typeMap{
 		byID:   make(map[sID]reflect.Type),
 		byType: make(map[reflect.Type]sID),
+		serdes: make(map[reflect.Type]serde),
 	}
 }
 
@@ -847,6 +897,19 @@ func (m *typeMap) addExact(t reflect.Type) {
 func (m *typeMap) exists(t reflect.Type) bool {
 	_, ok := m.byType[t]
 	return ok
+}
+
+func (m *typeMap) attach(t reflect.Type, ser serializerFn, des deserializerFn) {
+	if ser == nil || des == nil {
+		panic("both serializer and deserializer need to be provided")
+	}
+
+	_, ok := m.byType[t]
+	if !ok {
+		panic(fmt.Errorf("register type %s before attaching serde", t))
+	}
+
+	m.serdes[t] = serde{ser: ser, des: des}
 }
 
 func (m *typeMap) add(t reflect.Type) {
@@ -883,6 +946,11 @@ func (m *typeMap) typeOf(x sID) reflect.Type {
 		panic(fmt.Errorf("type id '%d' not registered", x))
 	}
 	return t
+}
+
+func (m *typeMap) serdeOf(x reflect.Type) (serde, bool) {
+	s, ok := m.serdes[x]
+	return s, ok
 }
 
 // Global type register.

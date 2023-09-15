@@ -1,9 +1,14 @@
 package coroutine
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
+	"net/http"
 	"reflect"
+	"strconv"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -70,6 +75,147 @@ func TestReflect(t *testing.T) {
 				}
 			})
 		}
+	})
+}
+
+func TestReflectCustom(t *testing.T) {
+	ser := func(x *int, b []byte) ([]byte, error) {
+		s := strconv.Itoa(*x)
+		b = binary.BigEndian.AppendUint64(b, uint64(len(s)))
+		return append(b, s...), nil
+	}
+
+	des := func(x *int, b []byte) ([]byte, error) {
+		n := binary.BigEndian.Uint64(b[:8])
+		b = b[8:]
+		s := string(b[:n])
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			return b, nil
+		}
+		*x = i
+		return b[n:], nil
+	}
+
+	// bytes created by ser(42):
+	int42 := []byte{
+		// big endian size
+		0, 0, 0, 0, 0, 0, 0, 2,
+		// the int as a string
+		52, // 4
+		50, // 2
+	}
+
+	testReflect(t, "int wrapper", func(t *testing.T) {
+		RegisterTypeWithSerde[int](ser, des)
+
+		x := 42
+		p := &x
+
+		assertRoundTrip(t, p)
+
+		b := Serialize(p, nil)
+
+		if !bytes.Contains(b, int42) {
+			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
+		}
+	})
+
+	testReflect(t, "custom type in field", func(t *testing.T) {
+		type Y struct {
+			custom int
+		}
+		type X struct {
+			foo string
+			y   Y
+		}
+
+		RegisterType[X]()
+		RegisterTypeWithSerde[int](ser, des)
+
+		x := X{
+			foo: "test",
+			y:   Y{custom: 42},
+		}
+
+		assertRoundTrip(t, x)
+
+		b := Serialize(x, nil)
+		if !bytes.Contains(b, int42) {
+			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
+		}
+	})
+
+	testReflect(t, "custom type in field of pointed at struct", func(t *testing.T) {
+		type Y struct {
+			foo    string
+			custom int
+		}
+		type X struct {
+			int *int
+			y   *Y
+		}
+
+		RegisterType[X]()
+		RegisterTypeWithSerde[int](ser, des)
+
+		x := &X{y: &Y{}}
+		x.y.foo = "test"
+		x.y.custom = 42
+		x.int = &x.y.custom
+
+		assertRoundTrip(t, x)
+		b := Serialize(x, nil)
+		if !bytes.Contains(b, int42) {
+			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
+		}
+	})
+
+	testReflect(t, "custom type in slice", func(t *testing.T) {
+		RegisterTypeWithSerde[int](ser, des)
+		RegisterType[[]int]()
+		x := []int{1, 2, 3, 42, 5, 6}
+		assertRoundTrip(t, x)
+		b := Serialize(x, nil)
+		if !bytes.Contains(b, int42) {
+			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
+		}
+	})
+
+	testReflect(t, "custom type of struct", func(t *testing.T) {
+		ser := func(x *http.Client, b []byte) ([]byte, error) {
+			i := uint64(x.Timeout)
+			return binary.LittleEndian.AppendUint64(b, i), nil
+		}
+
+		des := func(x *http.Client, b []byte) ([]byte, error) {
+			x.Timeout = time.Duration(binary.LittleEndian.Uint64(b[:8]))
+			return b[8:], nil
+		}
+
+		RegisterTypeWithSerde[http.Client](ser, des)
+
+		x := http.Client{
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return nil
+			},
+			Timeout: 42000,
+		}
+
+		// Without custom serializer, it would panic because of the
+		// unserializable function in CheckRedirect.
+
+		var b []byte
+		b = Serialize(x, b)
+
+		out, b := Deserialize(b)
+
+		assertEqual(t, x.Timeout, out.(http.Client).Timeout)
+
+		if len(b) > 0 {
+			t.Fatalf("leftover bytes: %d", len(b))
+		}
+
 	})
 }
 
@@ -293,7 +439,7 @@ func TestReflectSharing(t *testing.T) {
 func assertEqual(t *testing.T, expected, actual any) {
 	t.Helper()
 	if !reflect.DeepEqual(expected, actual) {
-		t.Error("unexpected context")
+		t.Error("unexpected value:")
 		t.Logf("   got: %#v", actual)
 		t.Logf("expect: %#v", expected)
 	}
