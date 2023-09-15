@@ -16,6 +16,10 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 			case *ast.FuncLit:
 				err = fmt.Errorf("not implemented: func literals")
 			}
+			if countFunctionCalls(nn, info) > 1 {
+				err = fmt.Errorf("not implemented: multiple function calls in an expression")
+			}
+
 		case ast.Stmt:
 			switch n := nn.(type) {
 			// Not yet supported:
@@ -81,6 +85,38 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 			}
 		}
 		return err == nil
+	})
+	return
+}
+
+func countFunctionCalls(expr ast.Expr, info *types.Info) (count int) {
+	ast.Inspect(expr, func(node ast.Node) bool {
+		c, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		switch f := c.Fun.(type) {
+		case *ast.Ident:
+			if obj := info.ObjectOf(f); types.Universe.Lookup(f.Name) == obj {
+				return true // skip builtins
+			} else if _, ok := obj.(*types.TypeName); ok {
+				return true // skip type casts
+			}
+		case *ast.SelectorExpr:
+			if x, ok := f.X.(*ast.Ident); ok {
+				if obj := info.ObjectOf(x); obj != nil {
+					if pkg, ok := obj.(*types.PkgName); ok {
+						pkgPath := pkg.Imported().Path()
+						switch {
+						case pkgPath == "unsafe":
+							return true // skip unsafe intrinsics
+						}
+					}
+				}
+			}
+		}
+		count++
+		return true
 	})
 	return
 }
