@@ -56,6 +56,10 @@ type loopBreakAndContinue struct{ arg int }
 
 func (c loopBreakAndContinue) Call() { LoopBreakAndContinue(c.arg) }
 
+type rangeOverMaps struct{ arg int }
+
+func (c rangeOverMaps) Call() { RangeOverMaps(c.arg) }
+
 func TestCoroutineYield(t *testing.T) {
 	for _, test := range []struct {
 		name   string
@@ -132,6 +136,12 @@ func TestCoroutineYield(t *testing.T) {
 			name:   "loop break and continue",
 			coro:   loopBreakAndContinue{},
 			yields: []int{1, 3, 5, 0, 1, 0, 1},
+		},
+
+		{
+			name:   "range over maps",
+			coro:   rangeOverMaps{arg: 5},
+			yields: []int{0, 5, 5, 50, 5, 4, 3, 2, 1, 0},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {

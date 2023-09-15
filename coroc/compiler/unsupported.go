@@ -33,28 +33,24 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 				err = fmt.Errorf("not implemented: select case")
 
 			// Partially supported:
-			case *ast.RangeStmt:
-				switch t := info.TypeOf(n.X).(type) {
-				case *types.Array, *types.Slice:
-				default:
-					err = fmt.Errorf("not implemented: for range for %T", t) // e.g. *types.Map
-				}
 			case *ast.BranchStmt:
+				// continue/break are supported, goto/fallthrough are not.
 				if n.Tok == token.GOTO {
 					err = fmt.Errorf("not implemented: goto")
 				} else if n.Tok == token.FALLTHROUGH {
 					err = fmt.Errorf("not implemented: fallthrough")
 				}
 			case *ast.LabeledStmt:
+				// labeled for/switch/select statements are supported,
+				// arbitrary labels are not.
 				switch n.Stmt.(type) {
 				case *ast.ForStmt, *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt:
 				default:
 					err = fmt.Errorf("not implemented: labels not attached to for/switch/select")
 				}
 			case *ast.ForStmt:
-				// Since we aren't desugaring for loop post iteration
-				// statements yet, check that it's a simple increment
-				// or decrement.
+				// Only very simple for loop post iteration statements
+				// are supported.
 				switch p := n.Post.(type) {
 				case nil:
 				case *ast.IncDecStmt:
@@ -74,6 +70,7 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 			case *ast.ExprStmt:
 			case *ast.IfStmt:
 			case *ast.IncDecStmt:
+			case *ast.RangeStmt:
 			case *ast.ReturnStmt:
 			case *ast.SendStmt:
 			case *ast.SwitchStmt:

@@ -98,37 +98,123 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		}
 
 	case *ast.RangeStmt:
-		// Rewrite for range loops over arrays/slices.
-		// - `for range x {}` => `{ _x := x; for _i := 0; _i < len(_x); _i++ {} }`
-		// - `for _ := range x {}` => `{ _x := x; for _i := 0; _i < len(_x); _i++ {} }`
-		// - `for _, _ := range x {}` => `{ _x := x; for _i := 0; _i < len(_x); _i++ {} }`
-		// - `for i := range x {}` => `{ _x := x; for i := 0; i < len(_x); i++ {} }`
-		// - `for i, _ := range x {}` => `{ _x := x; for i := 0; i < len(_x); i++ {} }`
-		// - `for i, v := range x {}` => `{ _x := x; for i := 0; i < len(_x); i++ { v := _x[i]; ... } }`
-		// - `for _, v := range x {}` => `{ _x := x; for _i := 0; _i < len(_x); _i++ { v := _x[_i]; ... } }`
-		// Then, desugar loops further (see ast.ForStmt case above).
-		var idx *ast.Ident
-		if hasIdx := s.Key != nil && !isUnderscore(s.Key); !hasIdx {
-			idx = d.newVar(types.Typ[types.Int])
-		} else {
-			idx = s.Key.(*ast.Ident)
-		}
 		x := d.newVar(d.info.TypeOf(s.X))
-		if hasVal := s.Value != nil && !isUnderscore(s.Value); hasVal {
-			s.Body.List = append([]ast.Stmt{
-				&ast.AssignStmt{Lhs: []ast.Expr{s.Value}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.IndexExpr{X: x, Index: idx}}},
-			}, s.Body.List...)
-		}
-		stmt = &ast.BlockStmt{
-			List: []ast.Stmt{
-				&ast.AssignStmt{Lhs: []ast.Expr{x}, Tok: token.DEFINE, Rhs: []ast.Expr{s.X}},
-				d.desugar(&ast.ForStmt{
-					Init: &ast.AssignStmt{Lhs: []ast.Expr{idx}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
-					Post: &ast.IncDecStmt{X: idx, Tok: token.INC},
-					Cond: &ast.BinaryExpr{X: idx, Op: token.LSS, Y: &ast.CallExpr{Fun: ast.NewIdent("len"), Args: []ast.Expr{x}}},
-					Body: s.Body,
-				}, breakTo, continueTo, userLabel),
-			},
+		init := &ast.AssignStmt{Lhs: []ast.Expr{x}, Tok: token.DEFINE, Rhs: []ast.Expr{s.X}}
+
+		switch rangeElemType := d.info.TypeOf(s.X).(type) {
+		case *types.Array, *types.Slice:
+			// Rewrite for range loops over arrays/slices:
+			// - `for range x {}` => `{ _x := x; for _i := 0; _i < len(_x); _i++ {} }`
+			// - `for _ := range x {}` => `{ _x := x; for _i := 0; _i < len(_x); _i++ {} }`
+			// - `for _, _ := range x {}` => `{ _x := x; for _i := 0; _i < len(_x); _i++ {} }`
+			// - `for i := range x {}` => `{ _x := x; for i := 0; i < len(_x); i++ {} }`
+			// - `for i, _ := range x {}` => `{ _x := x; for i := 0; i < len(_x); i++ {} }`
+			// - `for i, v := range x {}` => `{ _x := x; for i := 0; i < len(_x); i++ { v := _x[i]; ... } }`
+			// - `for _, v := range x {}` => `{ _x := x; for _i := 0; _i < len(_x); _i++ { v := _x[_i]; ... } }`
+			// Then, desugar loops further (see ast.ForStmt case above).
+			var i *ast.Ident
+			if s.Key == nil || isUnderscore(s.Key) {
+				i = d.newVar(types.Typ[types.Int])
+			} else {
+				i = s.Key.(*ast.Ident)
+			}
+			if s.Value != nil && !isUnderscore(s.Value) {
+				s.Body.List = append([]ast.Stmt{
+					&ast.AssignStmt{Lhs: []ast.Expr{s.Value}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.IndexExpr{X: x, Index: i}}},
+				}, s.Body.List...)
+			}
+			stmt = &ast.BlockStmt{
+				List: []ast.Stmt{
+					init,
+					d.desugar(&ast.ForStmt{
+						Init: &ast.AssignStmt{Lhs: []ast.Expr{i}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
+						Post: &ast.IncDecStmt{X: i, Tok: token.INC},
+						Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: &ast.CallExpr{Fun: ast.NewIdent("len"), Args: []ast.Expr{x}}},
+						Body: s.Body,
+					}, breakTo, continueTo, userLabel),
+				},
+			}
+
+		case *types.Map:
+			// Handle the simple case first:
+			if s.Key == nil && s.Value == nil {
+				// Rewrite `for range m {}` => `{ _x := m; for _i := 0; _i < len(_x); _i++ {} }`
+				i := d.newVar(types.Typ[types.Int])
+				stmt = &ast.BlockStmt{
+					List: []ast.Stmt{
+						init,
+						d.desugar(&ast.ForStmt{
+							Init: &ast.AssignStmt{Lhs: []ast.Expr{i}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
+							Post: &ast.IncDecStmt{X: i, Tok: token.INC},
+							Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: &ast.CallExpr{Fun: ast.NewIdent("len"), Args: []ast.Expr{x}}},
+							Body: s.Body,
+						}, breakTo, continueTo, userLabel),
+					},
+				}
+			} else {
+				// Since map iteration order is not deterministic, we split the
+				// loop into two. The first loop collects keys, and the second
+				// loop iterates over those keys.
+				keyType := rangeElemType.Key()
+				keySliceType := types.NewSlice(keyType)
+				keys := d.newVar(keySliceType)
+
+				k := d.newVar(types.Typ[types.Int])
+				collectKeys := &ast.BlockStmt{
+					List: []ast.Stmt{
+						// _keys := make([]keyType, 0, len(_map))
+						&ast.AssignStmt{Lhs: []ast.Expr{keys}, Tok: token.DEFINE, Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: ast.NewIdent("make"),
+								Args: []ast.Expr{
+									typeExpr(keySliceType),
+									&ast.BasicLit{Kind: token.INT, Value: "0"},
+									&ast.CallExpr{Fun: ast.NewIdent("len"), Args: []ast.Expr{x}},
+								},
+							},
+						}},
+						// for k := range _map
+						// Note that this loop isn't desugared!
+						&ast.RangeStmt{
+							Key: k,
+							Tok: token.DEFINE,
+							X:   x,
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									// _keys = append(_keys, k)
+									&ast.AssignStmt{
+										Lhs: []ast.Expr{keys},
+										Tok: token.ASSIGN,
+										Rhs: []ast.Expr{
+											&ast.CallExpr{Fun: ast.NewIdent("append"), Args: []ast.Expr{keys, k}},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+
+				var mapKey *ast.Ident
+				if s.Key == nil || isUnderscore(s.Key) {
+					mapKey = d.newVar(keyType)
+				} else {
+					mapKey = s.Key.(*ast.Ident)
+				}
+				if s.Value != nil && !isUnderscore(s.Value) {
+					s.Body.List = append([]ast.Stmt{
+						&ast.AssignStmt{Lhs: []ast.Expr{s.Value}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.IndexExpr{X: x, Index: mapKey}}},
+					}, s.Body.List...)
+				}
+				iterKeys := d.desugar(&ast.RangeStmt{
+					Value: mapKey,
+					Tok:   token.DEFINE,
+					X:     keys,
+					Body:  s.Body,
+				}, breakTo, continueTo, userLabel)
+
+				stmt = &ast.BlockStmt{List: []ast.Stmt{init, collectKeys, iterKeys}}
+			}
 		}
 
 	case *ast.SwitchStmt:
