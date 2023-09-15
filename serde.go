@@ -588,9 +588,7 @@ func deserializeStruct(d *deserializer, t reflect.Type, p unsafe.Pointer, b []by
 func serializeInterface(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	i := (*iface)(p)
 
-	// TODO: there's probably a bug here for an interface with a type
-	// pointer but a nil data pointer.
-	if i.typ == nil || i.ptr == nil {
+	if i.typ == nil {
 		return serializeType(nil, b)
 	}
 
