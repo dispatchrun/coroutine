@@ -120,9 +120,8 @@ func TestStruct1(t *testing.T) {
 func roundtripStruct1(t *testing.T, s testdata.Struct1) {
 	t.Helper()
 
-	var b []byte
 	serde.RegisterType[testdata.Struct1]()
-	b = serde.Serialize(s, b)
+	b := serde.Serialize(s)
 	s2, b := serde.Deserialize(b)
 
 	opts := []cmp.Option{

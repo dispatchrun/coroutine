@@ -23,33 +23,29 @@ func RegisterType[T any]() {
 // RegisterTypeWithSerde is the same as [RegisterType] but assigns serialization
 // and deserialization for this type.
 func RegisterTypeWithSerde[T any](
-	serializer func(*T, []byte) ([]byte, error),
-	deserializer func(*T, []byte) ([]byte, error)) {
+	serializer func(*Serializer, *T) error,
+	deserializer func(*Deserializer, *T) error) {
 
 	RegisterType[T]()
 	t := reflect.TypeOf((*T)(nil)).Elem()
 
-	s := func(p unsafe.Pointer, b []byte) []byte {
-		b, err := serializer((*T)(p), b)
-		if err != nil {
+	s := func(s *Serializer, p unsafe.Pointer) {
+		if err := serializer(s, (*T)(p)); err != nil {
 			panic(fmt.Errorf("serializing %s: %w", t, err))
 		}
-		return b
 	}
 
-	d := func(p unsafe.Pointer, b []byte) []byte {
-		b, err := deserializer((*T)(p), b)
-		if err != nil {
+	d := func(d *Deserializer, p unsafe.Pointer) {
+		if err := deserializer(d, (*T)(p)); err != nil {
 			panic(fmt.Errorf("deserializing %s: %w", t, err))
 		}
-		return b
 	}
 
 	Types.Attach(t, s, d)
 }
 
-type SerializerFn func(p unsafe.Pointer, b []byte) []byte
-type DeserializerFn func(p unsafe.Pointer, b []byte) []byte
+type SerializerFn func(*Serializer, unsafe.Pointer)
+type DeserializerFn func(d *Deserializer, p unsafe.Pointer)
 
 type serde struct {
 	ser SerializerFn

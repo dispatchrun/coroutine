@@ -27,7 +27,7 @@ type sID int64
 //
 // The output of Serialize can be reconstructed back to a Go value using
 // [Deserialize].
-func Serialize(x any, b []byte) []byte {
+func Serialize(x any) []byte {
 	s := newSerializer()
 	w := &x // w is *interface{}
 	wr := reflect.ValueOf(w)
@@ -40,39 +40,45 @@ func Serialize(x any, b []byte) []byte {
 
 	//	s.regions.Dump()
 
-	return serializeAny(s, t, p, b)
+	SerializeAny(s, t, p)
+	return s.b
 }
 
 // Deserialize value from b. Return left over bytes.
 func Deserialize(b []byte) (interface{}, []byte) {
-	d := newDeserializer()
+	d := newDeserializer(b)
 	var x interface{}
 	px := &x
 	t := reflect.TypeOf(px).Elem()
 	p := unsafe.Pointer(px)
-	b = deserializeInterface(d, t, p, b)
-	return x, b
+	deserializeInterface(d, t, p)
+	return x, d.b
 }
 
 type Deserializer struct {
 	// TODO: make it a slice since pointer ids is the sequence of integers
 	// starting at 1.
 	ptrs map[sID]unsafe.Pointer
+
+	// input
+	b []byte
 }
 
-func newDeserializer() *Deserializer {
+func newDeserializer(b []byte) *Deserializer {
 	return &Deserializer{
 		ptrs: make(map[sID]unsafe.Pointer),
+		b:    b,
 	}
 }
 
-func (d *Deserializer) readPtr(b []byte) (unsafe.Pointer, sID, []byte) {
-	x, n := binary.Varint(b)
+func (d *Deserializer) readPtr() (unsafe.Pointer, sID) {
+	x, n := binary.Varint(d.b)
+	d.b = d.b[n:]
 	i := sID(x)
 	p := d.ptrs[i]
 
 	slog.Debug("Deserializer ReadPtr", "i", i, "p", p, "n", n)
-	return p, i, b[n:]
+	return p, i
 }
 
 func (d *Deserializer) store(i sID, p unsafe.Pointer) {
@@ -115,6 +121,9 @@ type Serializer struct {
 
 	// TODO: move out. just used temporarily by scan
 	scanptrs map[reflect.Value]struct{}
+
+	// Output
+	b []byte
 }
 
 func newSerializer() *Serializer {
@@ -134,11 +143,12 @@ func (s *Serializer) assignPointerID(p unsafe.Pointer) (sID, bool) {
 	return id, !ok
 }
 
-func serializeVarint(size int, b []byte) []byte {
-	return binary.AppendVarint(b, int64(size))
+func serializeVarint(s *Serializer, size int) {
+	s.b = binary.AppendVarint(s.b, int64(size))
 }
 
-func deserializeVarint(b []byte) (int, []byte) {
-	l, n := binary.Varint(b)
-	return int(l), b[n:]
+func deserializeVarint(d *Deserializer) int {
+	l, n := binary.Varint(d.b)
+	d.b = d.b[n:]
+	return int(l)
 }

@@ -30,9 +30,8 @@ type Context[R, S any] struct {
 
 // MarshalAppend appends a serialized Context to the provided buffer.
 func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
-	b = serde.Serialize(c.Stack, b)
 	// TODO: heap is ignored for now
-	return b, nil
+	return append(b, serde.Serialize(c.Stack)...), nil
 }
 
 // Unmarshal deserializes a Context from the provided buffer, returning
