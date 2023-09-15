@@ -191,4 +191,22 @@ func LoopBreakAndContinue(_ int) {
 		}
 		coroutine.Yield[int, any](i)
 	}
+
+outer:
+	for i := 0; i < 2; i++ {
+		for j := 0; j < 3; j++ {
+			coroutine.Yield[int, any](j)
+			switch j {
+			case 0:
+				continue
+			case 1:
+				switch i {
+				case 0:
+					continue outer
+				case 1:
+					break outer
+				}
+			}
+		}
+	}
 }

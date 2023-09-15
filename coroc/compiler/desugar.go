@@ -37,7 +37,7 @@ import (
 // done automatically by the type checker.
 func desugar(stmt ast.Stmt, info *types.Info) ast.Stmt {
 	d := desugarer{info: info}
-	stmt = d.desugar(stmt, nil, nil)
+	stmt = d.desugar(stmt, nil, nil, nil)
 
 	// Unused labels cause a compile error (label X defined and not used)
 	// so we need a second pass over the tree to delete unused labels.
@@ -52,14 +52,14 @@ func desugar(stmt ast.Stmt, info *types.Info) ast.Stmt {
 }
 
 type desugarer struct {
-	info   *types.Info
-	vars   int
-	labels int
-
+	info         *types.Info
+	vars         int
+	labels       int
 	unusedLabels map[*ast.Ident]struct{}
+	userLabels   map[types.Object]*ast.Ident
 }
 
-func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo *ast.Ident) ast.Stmt {
+func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.Ident) ast.Stmt {
 	switch s := stmt.(type) {
 	case nil:
 
@@ -68,11 +68,11 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo *ast.Ident) ast.S
 
 	case *ast.IfStmt:
 		// Rewrite `if init; cond {}` => `{ init; if cond {} }`
-		init := d.desugar(s.Init, nil, nil)
+		init := d.desugar(s.Init, nil, nil, nil)
 		stmt = &ast.IfStmt{
 			Cond: s.Cond,
-			Body: d.desugar(s.Body, breakTo, continueTo).(*ast.BlockStmt),
-			Else: d.desugar(s.Else, breakTo, continueTo),
+			Body: d.desugar(s.Body, breakTo, continueTo, nil).(*ast.BlockStmt),
+			Else: d.desugar(s.Else, breakTo, continueTo, nil),
 		}
 		if init != nil {
 			stmt = &ast.BlockStmt{List: []ast.Stmt{init, stmt}}
@@ -80,14 +80,17 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo *ast.Ident) ast.S
 
 	case *ast.ForStmt:
 		// Rewrite `for init; cond; post {}` => `{ init; for ; cond; post {} }`
-		init := d.desugar(s.Init, nil, nil)
+		init := d.desugar(s.Init, nil, nil, nil)
 		forLabel := d.newLabel()
+		if userLabel != nil {
+			d.addUserLabel(userLabel, forLabel)
+		}
 		stmt = &ast.LabeledStmt{
 			Label: forLabel,
 			Stmt: &ast.ForStmt{
 				Cond: s.Cond,
-				Body: d.desugar(s.Body, forLabel, forLabel).(*ast.BlockStmt),
-				Post: d.desugar(s.Post, nil, nil),
+				Body: d.desugar(s.Body, forLabel, forLabel, nil).(*ast.BlockStmt),
+				Post: d.desugar(s.Post, nil, nil, nil),
 			},
 		}
 		if init != nil {
@@ -116,27 +119,30 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo *ast.Ident) ast.S
 				&ast.AssignStmt{Lhs: []ast.Expr{s.Value}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.IndexExpr{X: x, Index: idx}}},
 			}, s.Body.List...)
 		}
-		stmt = d.desugar(&ast.BlockStmt{
+		stmt = &ast.BlockStmt{
 			List: []ast.Stmt{
 				&ast.AssignStmt{Lhs: []ast.Expr{x}, Tok: token.DEFINE, Rhs: []ast.Expr{s.X}},
-				&ast.ForStmt{
+				d.desugar(&ast.ForStmt{
 					Init: &ast.AssignStmt{Lhs: []ast.Expr{idx}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
 					Post: &ast.IncDecStmt{X: idx, Tok: token.INC},
 					Cond: &ast.BinaryExpr{X: idx, Op: token.LSS, Y: &ast.CallExpr{Fun: ast.NewIdent("len"), Args: []ast.Expr{x}}},
 					Body: s.Body,
-				},
+				}, breakTo, continueTo, userLabel),
 			},
-		}, breakTo, continueTo)
+		}
 
 	case *ast.SwitchStmt:
 		// Rewrite `switch init; tag {}` to `init; switch tag {}`
-		init := d.desugar(s.Init, nil, nil)
+		init := d.desugar(s.Init, nil, nil, nil)
 		switchLabel := d.newLabel()
+		if userLabel != nil {
+			d.addUserLabel(userLabel, switchLabel)
+		}
 		stmt = &ast.LabeledStmt{
 			Label: switchLabel,
 			Stmt: &ast.SwitchStmt{
 				Tag:  s.Tag,
-				Body: d.desugar(s.Body, switchLabel, continueTo).(*ast.BlockStmt),
+				Body: d.desugar(s.Body, switchLabel, continueTo, nil).(*ast.BlockStmt),
 			},
 		}
 		if init != nil {
@@ -145,13 +151,16 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo *ast.Ident) ast.S
 
 	case *ast.TypeSwitchStmt:
 		// Rewrite `switch init; assign {}` to `init; switch assign {}`
-		init := d.desugar(s.Init, nil, nil)
+		init := d.desugar(s.Init, nil, nil, nil)
 		switchLabel := d.newLabel()
+		if userLabel != nil {
+			d.addUserLabel(userLabel, switchLabel)
+		}
 		stmt = &ast.LabeledStmt{
 			Label: switchLabel,
 			Stmt: &ast.TypeSwitchStmt{
-				Assign: d.desugar(s.Assign, nil, nil),
-				Body:   d.desugar(s.Body, switchLabel, continueTo).(*ast.BlockStmt),
+				Assign: d.desugar(s.Assign, nil, nil, nil),
+				Body:   d.desugar(s.Body, switchLabel, continueTo, nil).(*ast.BlockStmt),
 			},
 		}
 		if init != nil {
@@ -166,21 +175,29 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo *ast.Ident) ast.S
 
 	case *ast.BranchStmt:
 		if s.Label != nil {
-			panic("not implemented")
-		}
-		switch s.Tok {
-		case token.BREAK:
-			d.useLabel(breakTo)
-			stmt = &ast.BranchStmt{Tok: token.BREAK, Label: breakTo}
-		case token.CONTINUE:
-			d.useLabel(continueTo)
-			stmt = &ast.BranchStmt{Tok: token.CONTINUE, Label: continueTo}
-		default: // FALLTHROUGH / GOTO
-			panic("not implemented")
+			label := d.getUserLabel(s.Label)
+			if label == nil {
+				panic(fmt.Sprintf("label not found: %s", s.Label))
+			}
+			d.useLabel(label)
+			stmt = &ast.BranchStmt{Tok: s.Tok, Label: label}
+		} else {
+			switch s.Tok {
+			case token.BREAK:
+				d.useLabel(breakTo)
+				stmt = &ast.BranchStmt{Tok: token.BREAK, Label: breakTo}
+			case token.CONTINUE:
+				d.useLabel(continueTo)
+				stmt = &ast.BranchStmt{Tok: token.CONTINUE, Label: continueTo}
+			default: // FALLTHROUGH / GOTO
+				panic("not implemented")
+			}
 		}
 
 	case *ast.LabeledStmt:
-		panic("not implemented")
+		// Remove the user's label, but notify the next step so that generated
+		// labels can be mapped.
+		stmt = d.desugar(s.Stmt, breakTo, continueTo, s.Label)
 
 	case *ast.SelectStmt, *ast.CommClause:
 		panic("not implemented")
@@ -197,7 +214,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo *ast.Ident) ast.S
 func (d *desugarer) desugarList(stmts []ast.Stmt, breakTo, continueTo *ast.Ident) []ast.Stmt {
 	desugared := make([]ast.Stmt, len(stmts))
 	for i, s := range stmts {
-		desugared[i] = d.desugar(s, breakTo, continueTo)
+		desugared[i] = d.desugar(s, breakTo, continueTo, nil)
 	}
 	return desugared
 }
@@ -220,6 +237,17 @@ func (d *desugarer) newLabel() *ast.Ident {
 	d.unusedLabels[l] = struct{}{}
 
 	return l
+}
+
+func (d *desugarer) addUserLabel(userLabel, replacement *ast.Ident) {
+	if d.userLabels == nil {
+		d.userLabels = map[types.Object]*ast.Ident{}
+	}
+	d.userLabels[d.info.ObjectOf(userLabel)] = replacement
+}
+
+func (d *desugarer) getUserLabel(userLabel *ast.Ident) *ast.Ident {
+	return d.userLabels[d.info.ObjectOf(userLabel)]
 }
 
 func (d *desugarer) useLabel(label *ast.Ident) {

@@ -23,8 +23,6 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 				err = fmt.Errorf("not implemented: defer")
 			case *ast.GoStmt:
 				err = fmt.Errorf("not implemented: go")
-			case *ast.LabeledStmt:
-				err = fmt.Errorf("not implemented: labels")
 			case *ast.SelectStmt:
 				err = fmt.Errorf("not implemented: select")
 			case *ast.CommClause:
@@ -42,8 +40,12 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 					err = fmt.Errorf("not implemented: goto")
 				} else if n.Tok == token.FALLTHROUGH {
 					err = fmt.Errorf("not implemented: fallthrough")
-				} else if n.Label != nil {
-					err = fmt.Errorf("not implemented: labeled break/continue")
+				}
+			case *ast.LabeledStmt:
+				switch n.Stmt.(type) {
+				case *ast.ForStmt, *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt:
+				default:
+					err = fmt.Errorf("not implemented: labels not attached to for/switch/select")
 				}
 			case *ast.ForStmt:
 				// Since we aren't desugaring for loop post iteration

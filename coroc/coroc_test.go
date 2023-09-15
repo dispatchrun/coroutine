@@ -131,7 +131,7 @@ func TestCoroutineYield(t *testing.T) {
 		{
 			name:   "loop break and continue",
 			coro:   loopBreakAndContinue{},
-			yields: []int{1, 3, 5},
+			yields: []int{1, 3, 5, 0, 1, 0, 1},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
