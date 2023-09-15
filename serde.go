@@ -270,37 +270,37 @@ func serializeAny(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []b
 	case reflect.Invalid:
 		panic(fmt.Errorf("can't serialize reflect.Invalid"))
 	case reflect.Bool:
-		return serializeBool(s, *(*bool)(p), b)
+		return s.SerializeBool(*(*bool)(p), b)
 	case reflect.Int:
-		return serializeInt(s, *(*int)(p), b)
+		return s.SerializeInt(*(*int)(p), b)
 	case reflect.Int64:
-		return serializeInt64(s, *(*int64)(p), b)
+		return s.SerializeInt64(*(*int64)(p), b)
 	case reflect.Int32:
-		return serializeInt32(s, *(*int32)(p), b)
+		return s.SerializeInt32(*(*int32)(p), b)
 	case reflect.Int16:
-		return serializeInt16(s, *(*int16)(p), b)
+		return s.SerializeInt16(*(*int16)(p), b)
 	case reflect.Int8:
-		return serializeInt8(s, *(*int8)(p), b)
+		return s.SerializeInt8(*(*int8)(p), b)
 	case reflect.Uint:
-		return serializeUint(s, *(*uint)(p), b)
+		return s.SerializeUint(*(*uint)(p), b)
 	case reflect.Uint64:
-		return serializeUint64(s, *(*uint64)(p), b)
+		return s.SerializeUint64(*(*uint64)(p), b)
 	case reflect.Uint32:
-		return serializeUint32(s, *(*uint32)(p), b)
+		return s.SerializeUint32(*(*uint32)(p), b)
 	case reflect.Uint16:
-		return serializeUint16(s, *(*uint16)(p), b)
+		return s.SerializeUint16(*(*uint16)(p), b)
 	case reflect.Uint8:
-		return serializeUint8(s, *(*uint8)(p), b)
+		return s.SerializeUint8(*(*uint8)(p), b)
 	case reflect.Float64:
-		return serializeFloat64(s, *(*float64)(p), b)
+		return s.SerializeFloat64(*(*float64)(p), b)
 	case reflect.Float32:
-		return serializeFloat32(s, *(*float32)(p), b)
+		return s.SerializeFloat32(*(*float32)(p), b)
 	case reflect.Complex64:
-		return serializeComplex64(s, *(*complex64)(p), b)
+		return s.SerializeComplex64(*(*complex64)(p), b)
 	case reflect.Complex128:
-		return serializeComplex128(s, *(*complex128)(p), b)
+		return s.SerializeComplex128(*(*complex128)(p), b)
 	case reflect.String:
-		return serializeString(s, (*string)(p), b)
+		return s.SerializeString((*string)(p), b)
 	case reflect.Array:
 		return serializeArray(s, t, p, b)
 	case reflect.Interface:
@@ -345,37 +345,37 @@ func deserializeAny(d *deserializer, t reflect.Type, p unsafe.Pointer, b []byte)
 	case reflect.Invalid:
 		panic(fmt.Errorf("can't deserialize reflect.Invalid"))
 	case reflect.Bool:
-		return deserializeBool(d, (*bool)(p), b)
+		return d.DeserializeBool((*bool)(p), b)
 	case reflect.Int:
-		return deserializeInt(d, (*int)(p), b)
+		return d.DeserializeInt((*int)(p), b)
 	case reflect.Int64:
-		return deserializeInt64(d, (*int64)(p), b)
+		return d.DeserializeInt64((*int64)(p), b)
 	case reflect.Int32:
-		return deserializeInt32(d, (*int32)(p), b)
+		return d.DeserializeInt32((*int32)(p), b)
 	case reflect.Int16:
-		return deserializeInt16(d, (*int16)(p), b)
+		return d.DeserializeInt16((*int16)(p), b)
 	case reflect.Int8:
-		return deserializeInt8(d, (*int8)(p), b)
+		return d.DeserializeInt8((*int8)(p), b)
 	case reflect.Uint:
-		return deserializeUint(d, (*uint)(p), b)
+		return d.DeserializeUint((*uint)(p), b)
 	case reflect.Uint64:
-		return deserializeUint64(d, (*uint64)(p), b)
+		return d.DeserializeUint64((*uint64)(p), b)
 	case reflect.Uint32:
-		return deserializeUint32(d, (*uint32)(p), b)
+		return d.DeserializeUint32((*uint32)(p), b)
 	case reflect.Uint16:
-		return deserializeUint16(d, (*uint16)(p), b)
+		return d.DeserializeUint16((*uint16)(p), b)
 	case reflect.Uint8:
-		return deserializeUint8(d, (*uint8)(p), b)
+		return d.DeserializeUint8((*uint8)(p), b)
 	case reflect.Float64:
-		return deserializeFloat64(d, (*float64)(p), b)
+		return d.DeserializeFloat64((*float64)(p), b)
 	case reflect.Float32:
-		return deserializeFloat32(d, (*float32)(p), b)
+		return d.DeserializeFloat32((*float32)(p), b)
 	case reflect.Complex64:
-		return deserializeComplex64(d, (*complex64)(p), b)
+		return d.DeserializeComplex64((*complex64)(p), b)
 	case reflect.Complex128:
-		return deserializeComplex128(d, (*complex128)(p), b)
+		return d.DeserializeComplex128((*complex128)(p), b)
 	case reflect.String:
-		return deserializeString(d, (*string)(p), b)
+		return d.DeserializeString((*string)(p), b)
 	case reflect.Interface:
 		return deserializeInterface(d, t, p, b)
 	case reflect.Pointer:
@@ -662,7 +662,7 @@ func deserializeInterface(d *deserializer, t reflect.Type, p unsafe.Pointer, b [
 	return b
 }
 
-func serializeString(s *serializer, x *string, b []byte) []byte {
+func (s *serializer) SerializeString(x *string, b []byte) []byte {
 	// Serialize string as a size and a pointer to an array of bytes.
 
 	l := len(*x)
@@ -678,7 +678,7 @@ func serializeString(s *serializer, x *string, b []byte) []byte {
 	return serializePointedAt(s, at, ap, b)
 }
 
-func deserializeString(d *deserializer, x *string, b []byte) []byte {
+func (d *deserializer) DeserializeString(x *string, b []byte) []byte {
 	l, b := deserializeVarint(b)
 
 	if l == 0 {
@@ -692,7 +692,7 @@ func deserializeString(d *deserializer, x *string, b []byte) []byte {
 	return b
 }
 
-func serializeBool(s *serializer, x bool, b []byte) []byte {
+func (s *serializer) SerializeBool(x bool, b []byte) []byte {
 	c := byte(0)
 	if x {
 		c = 1
@@ -700,148 +700,148 @@ func serializeBool(s *serializer, x bool, b []byte) []byte {
 	return append(b, c)
 }
 
-func deserializeBool(d *deserializer, x *bool, b []byte) []byte {
+func (d *deserializer) DeserializeBool(x *bool, b []byte) []byte {
 	*x = b[0] == 1
 	return b[1:]
 }
 
-func serializeInt(s *serializer, x int, b []byte) []byte {
-	return serializeInt64(s, int64(x), b)
+func (s *serializer) SerializeInt(x int, b []byte) []byte {
+	return s.SerializeInt64(int64(x), b)
 }
 
-func deserializeInt(d *deserializer, x *int, b []byte) []byte {
+func (d *deserializer) DeserializeInt(x *int, b []byte) []byte {
 	*x = int(binary.LittleEndian.Uint64(b[:8]))
 	return b[8:]
 }
 
-func serializeInt64(s *serializer, x int64, b []byte) []byte {
+func (s *serializer) SerializeInt64(x int64, b []byte) []byte {
 	return binary.LittleEndian.AppendUint64(b, uint64(x))
 }
 
-func deserializeInt64(d *deserializer, x *int64, b []byte) []byte {
+func (d *deserializer) DeserializeInt64(x *int64, b []byte) []byte {
 	*x = int64(binary.LittleEndian.Uint64(b[:8]))
 	return b[8:]
 }
 
-func serializeInt32(s *serializer, x int32, b []byte) []byte {
+func (s *serializer) SerializeInt32(x int32, b []byte) []byte {
 	return binary.LittleEndian.AppendUint32(b, uint32(x))
 }
 
-func deserializeInt32(d *deserializer, x *int32, b []byte) []byte {
+func (d *deserializer) DeserializeInt32(x *int32, b []byte) []byte {
 	*x = int32(binary.LittleEndian.Uint32(b[:4]))
 	return b[4:]
 }
 
-func serializeInt16(s *serializer, x int16, b []byte) []byte {
+func (s *serializer) SerializeInt16(x int16, b []byte) []byte {
 	return binary.LittleEndian.AppendUint16(b, uint16(x))
 }
 
-func deserializeInt16(d *deserializer, x *int16, b []byte) []byte {
+func (d *deserializer) DeserializeInt16(x *int16, b []byte) []byte {
 	*x = int16(binary.LittleEndian.Uint16(b[:2]))
 	return b[2:]
 }
 
-func serializeInt8(s *serializer, x int8, b []byte) []byte {
+func (s *serializer) SerializeInt8(x int8, b []byte) []byte {
 	return append(b, byte(x))
 }
 
-func deserializeInt8(d *deserializer, x *int8, b []byte) []byte {
+func (d *deserializer) DeserializeInt8(x *int8, b []byte) []byte {
 	*x = int8(b[0])
 	return b[1:]
 }
 
-func serializeUint(s *serializer, x uint, b []byte) []byte {
-	return serializeUint64(s, uint64(x), b)
+func (s *serializer) SerializeUint(x uint, b []byte) []byte {
+	return s.SerializeUint64(uint64(x), b)
 }
 
-func deserializeUint(d *deserializer, x *uint, b []byte) []byte {
+func (d *deserializer) DeserializeUint(x *uint, b []byte) []byte {
 	*x = uint(binary.LittleEndian.Uint64(b[:8]))
 	return b[8:]
 }
 
-func serializeUint64(s *serializer, x uint64, b []byte) []byte {
+func (s *serializer) SerializeUint64(x uint64, b []byte) []byte {
 	return binary.LittleEndian.AppendUint64(b, x)
 }
 
-func deserializeUint64(d *deserializer, x *uint64, b []byte) []byte {
+func (s *deserializer) DeserializeUint64(x *uint64, b []byte) []byte {
 	*x = uint64(binary.LittleEndian.Uint64(b[:8]))
 	return b[8:]
 }
 
-func serializeUint32(s *serializer, x uint32, b []byte) []byte {
+func (s *serializer) SerializeUint32(x uint32, b []byte) []byte {
 	return binary.LittleEndian.AppendUint32(b, x)
 }
 
-func deserializeUint32(d *deserializer, x *uint32, b []byte) []byte {
+func (d *deserializer) DeserializeUint32(x *uint32, b []byte) []byte {
 	*x = uint32(binary.LittleEndian.Uint32(b[:4]))
 	return b[4:]
 }
 
-func serializeUint16(s *serializer, x uint16, b []byte) []byte {
+func (s *serializer) SerializeUint16(x uint16, b []byte) []byte {
 	return binary.LittleEndian.AppendUint16(b, x)
 }
 
-func deserializeUint16(d *deserializer, x *uint16, b []byte) []byte {
+func (d *deserializer) DeserializeUint16(x *uint16, b []byte) []byte {
 	*x = uint16(binary.LittleEndian.Uint16(b[:2]))
 	return b[2:]
 }
 
-func serializeUint8(s *serializer, x uint8, b []byte) []byte {
+func (s *serializer) SerializeUint8(x uint8, b []byte) []byte {
 	return append(b, byte(x))
 }
 
-func deserializeUint8(d *deserializer, x *uint8, b []byte) []byte {
+func (d *deserializer) DeserializeUint8(x *uint8, b []byte) []byte {
 	*x = uint8(b[0])
 	return b[1:]
 }
 
-func serializeFloat32(s *serializer, x float32, b []byte) []byte {
-	return serializeUint32(s, math.Float32bits(x), b)
+func (s *serializer) SerializeFloat32(x float32, b []byte) []byte {
+	return s.SerializeUint32(math.Float32bits(x), b)
 }
 
-func deserializeFloat32(d *deserializer, x *float32, b []byte) []byte {
-	return deserializeUint32(d, (*uint32)(unsafe.Pointer(x)), b)
+func (d *deserializer) DeserializeFloat32(x *float32, b []byte) []byte {
+	return d.DeserializeUint32((*uint32)(unsafe.Pointer(x)), b)
 }
 
-func serializeFloat64(s *serializer, x float64, b []byte) []byte {
-	return serializeUint64(s, math.Float64bits(x), b)
+func (s *serializer) SerializeFloat64(x float64, b []byte) []byte {
+	return s.SerializeUint64(math.Float64bits(x), b)
 }
 
-func deserializeFloat64(d *deserializer, x *float64, b []byte) []byte {
-	return deserializeUint64(d, (*uint64)(unsafe.Pointer(x)), b)
+func (d *deserializer) DeserializeFloat64(x *float64, b []byte) []byte {
+	return d.DeserializeUint64((*uint64)(unsafe.Pointer(x)), b)
 }
 
-func serializeComplex64(s *serializer, x complex64, b []byte) []byte {
-	b = serializeFloat32(s, real(x), b)
-	b = serializeFloat32(s, imag(x), b)
+func (s *serializer) SerializeComplex64(x complex64, b []byte) []byte {
+	b = s.SerializeFloat32(real(x), b)
+	b = s.SerializeFloat32(imag(x), b)
 	return b
 }
 
-func deserializeComplex64(d *deserializer, x *complex64, b []byte) []byte {
+func (d *deserializer) DeserializeComplex64(x *complex64, b []byte) []byte {
 	type complex64 struct {
 		real float32
 		img  float32
 	}
 	p := (*complex64)(unsafe.Pointer(x))
-	b = deserializeFloat32(d, &p.real, b)
-	b = deserializeFloat32(d, &p.img, b)
+	b = d.DeserializeFloat32(&p.real, b)
+	b = d.DeserializeFloat32(&p.img, b)
 	return b
 }
 
-func serializeComplex128(s *serializer, x complex128, b []byte) []byte {
-	b = serializeFloat64(s, real(x), b)
-	b = serializeFloat64(s, imag(x), b)
+func (s *serializer) SerializeComplex128(x complex128, b []byte) []byte {
+	b = s.SerializeFloat64(real(x), b)
+	b = s.SerializeFloat64(imag(x), b)
 	return b
 }
 
-func deserializeComplex128(d *deserializer, x *complex128, b []byte) []byte {
+func (d *deserializer) DeserializeComplex128(x *complex128, b []byte) []byte {
 	type complex128 struct {
 		real float64
 		img  float64
 	}
 	p := (*complex128)(unsafe.Pointer(x))
-	b = deserializeFloat64(d, &p.real, b)
-	b = deserializeFloat64(d, &p.img, b)
+	b = d.DeserializeFloat64(&p.real, b)
+	b = d.DeserializeFloat64(&p.img, b)
 	return b
 }
 
