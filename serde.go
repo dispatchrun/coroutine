@@ -247,7 +247,6 @@ var (
 
 func serializeAny(s *serializer, t reflect.Type, p unsafe.Pointer, b []byte) []byte {
 	if serde, ok := tm.serdeOf(t); ok {
-		fmt.Println("using serde on", t)
 		return serde.ser(p, b)
 	}
 
