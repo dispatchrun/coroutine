@@ -201,16 +201,30 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 				} else {
 					mapKey = s.Key.(*ast.Ident)
 				}
-				if s.Value != nil && !isUnderscore(s.Value) {
-					s.Body.List = append([]ast.Stmt{
-						&ast.AssignStmt{Lhs: []ast.Expr{s.Value}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.IndexExpr{X: x, Index: mapKey}}},
-					}, s.Body.List...)
+				var mapValue *ast.Ident
+				if s.Value != nil {
+					mapValue = s.Value.(*ast.Ident)
+				} else {
+					mapValue = ast.NewIdent("_")
 				}
+				ok := d.newVar(types.Typ[types.Bool])
 				iterKeys := d.desugar(&ast.RangeStmt{
 					Value: mapKey,
 					Tok:   token.DEFINE,
 					X:     keys,
-					Body:  s.Body,
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.IfStmt{
+								Init: &ast.AssignStmt{
+									Lhs: []ast.Expr{mapValue, ok},
+									Tok: token.DEFINE,
+									Rhs: []ast.Expr{&ast.IndexExpr{X: x, Index: mapKey}},
+								},
+								Cond: ok,
+								Body: s.Body,
+							},
+						},
+					},
 				}, breakTo, continueTo, userLabel)
 
 				stmt = &ast.BlockStmt{List: []ast.Stmt{init, collectKeys, iterKeys}}
