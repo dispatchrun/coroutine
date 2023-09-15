@@ -210,3 +210,41 @@ outer:
 		}
 	}
 }
+
+func RangeOverMaps(n int) {
+	m := map[int]int{}
+	for range m {
+		panic("unreachable")
+	}
+	for _ = range m {
+		panic("unreachable")
+	}
+	for _, _ = range m {
+		panic("unreachable")
+	}
+	m[n] = n * 10
+	for range m {
+		coroutine.Yield[int, any](0)
+	}
+	for k := range m {
+		coroutine.Yield[int, any](k)
+	}
+	for k, v := range m {
+		coroutine.Yield[int, any](k)
+		coroutine.Yield[int, any](v)
+	}
+
+	// Map iteration order is not deterministic, so to
+	// test iteration with a map with more than one element
+	// we'll build a map and then successively delete keys
+	// while yielding the length of the map.
+	m2 := make(map[int]struct{}, n)
+	for i := 0; i < n; i++ {
+		m2[i] = struct{}{}
+	}
+	coroutine.Yield[int, any](len(m2))
+	for k := range m2 {
+		delete(m2, k)
+		coroutine.Yield[int, any](len(m2))
+	}
+}
