@@ -1,4 +1,4 @@
-package coroutine
+package serde
 
 import (
 	"bytes"
@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 	"unsafe"
+
+	"github.com/stealthrocket/coroutine/internal/serde"
 )
 
 type EasyStruct struct {
@@ -56,7 +58,7 @@ func TestReflect(t *testing.T) {
 		}
 
 		for _, x := range cases {
-			tm.add(reflect.TypeOf(x))
+			serde.Types.Add(reflect.TypeOf(x))
 		}
 
 		for i, x := range cases {
@@ -65,8 +67,8 @@ func TestReflect(t *testing.T) {
 			t.Run(fmt.Sprintf("%d-%s", i, typ), func(t *testing.T) {
 				var b []byte
 
-				b = Serialize(x, b)
-				out, b := Deserialize(b)
+				b = serde.Serialize(x, b)
+				out, b := serde.Deserialize(b)
 
 				assertEqual(t, x, out)
 
@@ -114,7 +116,7 @@ func TestReflectCustom(t *testing.T) {
 
 		assertRoundTrip(t, p)
 
-		b := Serialize(p, nil)
+		b := serde.Serialize(p, nil)
 
 		if !bytes.Contains(b, int42) {
 			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
@@ -140,7 +142,7 @@ func TestReflectCustom(t *testing.T) {
 
 		assertRoundTrip(t, x)
 
-		b := Serialize(x, nil)
+		b := serde.Serialize(x, nil)
 		if !bytes.Contains(b, int42) {
 			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
 		}
@@ -165,7 +167,7 @@ func TestReflectCustom(t *testing.T) {
 		x.int = &x.y.custom
 
 		assertRoundTrip(t, x)
-		b := Serialize(x, nil)
+		b := serde.Serialize(x, nil)
 		if !bytes.Contains(b, int42) {
 			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
 		}
@@ -176,7 +178,7 @@ func TestReflectCustom(t *testing.T) {
 		RegisterType[[]int]()
 		x := []int{1, 2, 3, 42, 5, 6}
 		assertRoundTrip(t, x)
-		b := Serialize(x, nil)
+		b := serde.Serialize(x, nil)
 		if !bytes.Contains(b, int42) {
 			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
 		}
@@ -206,9 +208,9 @@ func TestReflectCustom(t *testing.T) {
 		// unserializable function in CheckRedirect.
 
 		var b []byte
-		b = Serialize(x, b)
+		b = serde.Serialize(x, b)
 
-		out, b := Deserialize(b)
+		out, b := serde.Deserialize(b)
 
 		assertEqual(t, x.Timeout, out.(http.Client).Timeout)
 
@@ -449,8 +451,8 @@ func assertRoundTrip[T any](t *testing.T, orig T) T {
 	t.Helper()
 
 	var b []byte
-	b = Serialize(orig, b)
-	out, b := Deserialize(b)
+	b = serde.Serialize(orig, b)
+	out, b := serde.Deserialize(b)
 
 	assertEqual(t, orig, out)
 
@@ -462,9 +464,9 @@ func assertRoundTrip[T any](t *testing.T, orig T) T {
 }
 
 func withBlankTypeMap(f func()) {
-	oldtm := tm
-	tm = newTypeMap()
-	defer func() { tm = oldtm }()
+	oldtm := serde.Types
+	serde.Types = serde.NewTypeMap()
+	defer func() { serde.Types = oldtm }()
 
 	f()
 }

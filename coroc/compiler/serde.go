@@ -15,6 +15,8 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+const publicSerdePackage = "github.com/stealthrocket/coroutine/serde"
+
 // GenerateTypesInit searches pkg for types that serde can handle and append an
 // init() function to the provided ast to register them on package load.
 func generateTypesInit(fset *token.FileSet, gen *ast.File, pkg *packages.Package) error {
@@ -34,7 +36,7 @@ func generateTypesInit(fset *token.FileSet, gen *ast.File, pkg *packages.Package
 		return nil
 	}
 
-	coropkg := ast.NewIdent(w.addImport(coroutinePackage))
+	coropkg := ast.NewIdent(w.addImport(publicSerdePackage))
 
 	sort.Slice(w.newimports, func(i, j int) bool {
 		return w.newimports[i][0] < w.newimports[j][0]
