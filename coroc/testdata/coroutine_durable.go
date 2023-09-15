@@ -694,12 +694,15 @@ func LoopBreakAndContinue(_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f := _c.Push()
 	var _o0 int
+	var _o1 int
 	if _f.IP > 0 {
 		_o0 = _f.Get(0).(int)
+		_o1 = _f.Get(1).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, _o0)
+			_f.Set(1, _o1)
 		} else {
 			_c.Pop()
 		}
@@ -709,17 +712,34 @@ func LoopBreakAndContinue(_ int) {
 		_o0 = 0
 		_f.IP = 2
 		fallthrough
-	case _f.IP < 3:
+	case _f.IP < 6:
 	_l0:
 		for ; _o0 < 10; _o0++ {
-			if _o0%2 == 0 {
-				continue _l0
-			}
-			if _o0 > 5 {
-				break _l0
-			}
+			switch {
+			case _f.IP < 4:
+				switch {
+				case _f.IP < 3:
+					_o1 = _o0 % 2
+					_f.IP = 3
+					fallthrough
+				case _f.IP < 4:
+					if _o1 == 0 {
+						continue _l0
+					}
+				}
+				_f.IP = 4
+				fallthrough
+			case _f.IP < 5:
+				if _o0 > 5 {
+					break _l0
+				}
+				_f.IP = 5
+				fallthrough
+			case _f.IP < 6:
 
-			coroutine.Yield[int, any](_o0)
+				coroutine.Yield[int, any](_o0)
+			}
+			_f.IP = 2
 		}
 	}
 }

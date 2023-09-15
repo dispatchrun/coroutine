@@ -43,6 +43,8 @@ func trackDispatchSpans0(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan,
 		for _, child := range s.Body {
 			nextID = trackDispatchSpans0(child, dispatchSpans, nextID)
 		}
+	case *ast.LabeledStmt:
+		nextID = trackDispatchSpans0(s.Stmt, dispatchSpans, nextID)
 	default:
 		nextID++ // leaf
 	}
@@ -93,6 +95,8 @@ func compileDispatch(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan) ast
 		case len(s.Body) > 1:
 			s.Body = []ast.Stmt{compileDispatch0(s.Body, dispatchSpans)}
 		}
+	case *ast.LabeledStmt:
+		s.Stmt = compileDispatch(s.Stmt, dispatchSpans)
 	}
 	return stmt
 }

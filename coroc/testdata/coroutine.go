@@ -183,7 +183,7 @@ func TypeSwitchingGenerator(_ int) {
 
 func LoopBreakAndContinue(_ int) {
 	for i := 0; i < 10; i++ {
-		if i%2 == 0 {
+		if mod2 := i % 2; mod2 == 0 {
 			continue
 		}
 		if i > 5 {
