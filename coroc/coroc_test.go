@@ -52,6 +52,10 @@ type typeSwitchingGenerator struct{ arg int }
 
 func (c typeSwitchingGenerator) Call() { TypeSwitchingGenerator(c.arg) }
 
+type loopBreakAndContinue struct{ arg int }
+
+func (c loopBreakAndContinue) Call() { LoopBreakAndContinue(c.arg) }
+
 func TestCoroutineYield(t *testing.T) {
 	for _, test := range []struct {
 		name   string
@@ -117,10 +121,17 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   rangeArrayIndexValueGenerator{arg: 0},
 			yields: []int{0, 10, 1, 20, 2, 30},
 		},
+
 		{
 			name:   "type switching",
 			coro:   typeSwitchingGenerator{},
 			yields: []int{1, 10, 2, 20, 4, 30, 8, 40},
+		},
+
+		{
+			name:   "loop break and continue",
+			coro:   loopBreakAndContinue{},
+			yields: []int{1, 3, 5},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {

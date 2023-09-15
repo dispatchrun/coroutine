@@ -43,6 +43,8 @@ func trackDispatchSpans0(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan,
 		for _, child := range s.Body {
 			nextID = trackDispatchSpans0(child, dispatchSpans, nextID)
 		}
+	case *ast.LabeledStmt:
+		nextID = trackDispatchSpans0(s.Stmt, dispatchSpans, nextID)
 	default:
 		nextID++ // leaf
 	}
@@ -72,11 +74,29 @@ func compileDispatch(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan) ast
 	case *ast.ForStmt:
 		forSpan := dispatchSpans[s]
 		s.Body = compileDispatch(s.Body, dispatchSpans).(*ast.BlockStmt)
-		s.Body.List = append(s.Body.List, &ast.AssignStmt{
-			Lhs: []ast.Expr{&ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")}},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(forSpan.start)}},
-		})
+		// Reset IP after each loop iteration.
+		ipVar := &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")}
+		ipVal := &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(forSpan.start)}
+		switch post := s.Post.(type) {
+		case nil:
+			s.Post = &ast.AssignStmt{Lhs: []ast.Expr{ipVar}, Tok: token.ASSIGN, Rhs: []ast.Expr{ipVal}}
+		case *ast.IncDecStmt:
+			var op token.Token
+			switch post.Tok {
+			case token.INC:
+				op = token.ADD
+			case token.DEC:
+				op = token.SUB
+			}
+			s.Post = &ast.AssignStmt{
+				Lhs: []ast.Expr{post.X, ipVar},
+				Tok: token.ASSIGN,
+				Rhs: []ast.Expr{
+					&ast.BinaryExpr{X: post.X, Op: op, Y: &ast.BasicLit{Kind: token.INT, Value: "1"}},
+					ipVal,
+				},
+			}
+		}
 	case *ast.SwitchStmt:
 		for i, child := range s.Body.List {
 			s.Body.List[i] = compileDispatch(child, dispatchSpans)
@@ -93,6 +113,8 @@ func compileDispatch(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan) ast
 		case len(s.Body) > 1:
 			s.Body = []ast.Stmt{compileDispatch0(s.Body, dispatchSpans)}
 		}
+	case *ast.LabeledStmt:
+		s.Stmt = compileDispatch(s.Stmt, dispatchSpans)
 	}
 	return stmt
 }

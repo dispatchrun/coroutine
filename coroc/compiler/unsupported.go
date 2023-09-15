@@ -42,12 +42,8 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 					err = fmt.Errorf("not implemented: goto")
 				} else if n.Tok == token.FALLTHROUGH {
 					err = fmt.Errorf("not implemented: fallthrough")
-				} else if n.Tok == token.BREAK {
-					err = fmt.Errorf("not implemented: break")
-				} else if n.Tok == token.CONTINUE {
-					err = fmt.Errorf("not implemented: continue")
 				} else if n.Label != nil {
-					err = fmt.Errorf("not implemented: labeled branch")
+					err = fmt.Errorf("not implemented: labeled break/continue")
 				}
 			case *ast.ForStmt:
 				// Since we aren't desugaring for loop post iteration
