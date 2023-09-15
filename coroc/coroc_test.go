@@ -48,6 +48,10 @@ type rangeArrayIndexValueGenerator struct{ arg int }
 
 func (c rangeArrayIndexValueGenerator) Call() { RangeArrayIndexValueGenerator(c.arg) }
 
+type loopBreakAndContinue struct{ arg int }
+
+func (c loopBreakAndContinue) Call() { LoopBreakAndContinue(c.arg) }
+
 func TestCoroutineYield(t *testing.T) {
 	for _, test := range []struct {
 		name   string
@@ -112,6 +116,12 @@ func TestCoroutineYield(t *testing.T) {
 			name:   "range over array indices and values",
 			coro:   rangeArrayIndexValueGenerator{arg: 0},
 			yields: []int{0, 10, 1, 20, 2, 30},
+		},
+
+		{
+			name:   "loop break and continue",
+			coro:   loopBreakAndContinue{},
+			yields: []int{1, 3, 5},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {

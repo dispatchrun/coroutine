@@ -620,6 +620,40 @@ func RangeArrayIndexValueGenerator(_ int) {
 		}
 	}
 }
+
+func LoopBreakAndContinue(_ int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f := _c.Push()
+	var _o0 int
+	if _f.IP > 0 {
+		_o0 = _f.Get(0).(int)
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, _o0)
+		} else {
+			_c.Pop()
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		_o0 = 0
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 3:
+	_l0:
+		for ; _o0 < 10; _o0++ {
+			if _o0%2 == 0 {
+				continue _l0
+			}
+			if _o0 > 5 {
+				break _l0
+			}
+
+			coroutine.Yield[int, any](_o0)
+		}
+	}
+}
 func init() {
 	coroutine.RegisterType[**byte]()
 	coroutine.RegisterType[*[100000]uintptr]()
