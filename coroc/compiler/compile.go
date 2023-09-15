@@ -289,7 +289,7 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 	})
 
 	// Desugar statements in the tree.
-	desugar(fn.Body, p.TypesInfo)
+	fn.Body = desugar(fn.Body, p.TypesInfo).(*ast.BlockStmt)
 
 	// Handle declarations.
 	//
