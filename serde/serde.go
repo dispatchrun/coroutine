@@ -7,12 +7,13 @@ import (
 	"github.com/stealthrocket/coroutine/internal/serde"
 )
 
-// Serialize is a blah.
+// Serializer holds the state during coroutine serialization.
 type Serializer = serde.Serializer
 
-// TODO
+// Deserializer holds the state during coroutine deserialization.
 type Deserializer = serde.Deserializer
 
+// Serialize a value.
 func Serialize[T any](s *Serializer, x T) {
 	var p unsafe.Pointer
 	r := reflect.ValueOf(x)
@@ -27,6 +28,7 @@ func Serialize[T any](s *Serializer, x T) {
 	serde.SerializeAny(s, t, p)
 }
 
+// Deserialize a value to the provided non-nil pointer.
 func DeserializeTo[T any](d *Deserializer, x *T) {
 	r := reflect.ValueOf(x)
 	t := r.Type().Elem()
