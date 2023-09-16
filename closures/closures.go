@@ -1,3 +1,5 @@
+// Package closures contains the infrastructure needed to support serialization
+// of Go function values.
 package closures
 
 import (
