@@ -29,6 +29,9 @@ type Func struct {
 	// the program is expected to initialize it to a non-nil value for closures
 	// that may be serialized. For regular functions, this field can remain nil
 	// since regular functions do not capture any values.
+	//
+	// If non-nil, the first field of the struct type must be a uintptr intended
+	// to hold the address to the function value.
 	Type reflect.Type
 }
 
