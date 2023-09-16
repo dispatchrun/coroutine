@@ -23,7 +23,16 @@ type Func struct {
 	// N starts at 1 and increments for each closure defined in the function.
 	Name string
 
-	// A struct type representing the memory layout of this function value.
+	// A type representing the signature of the function value.
+	//
+	// This field is nil if the type is unknown; by default the field is nil and
+	// the program is expected to initialize it to a non-nil value for functions
+	// that may be serialized.
+	//
+	// If non-nil, the type must be of kind reflect.Func.
+	Type reflect.Type
+
+	// A struct type representing the memory layout of the closure.
 	//
 	// This field is nil if the type is unknown; by default the field is nil and
 	// the program is expected to initialize it to a non-nil value for closures
@@ -32,7 +41,7 @@ type Func struct {
 	//
 	// If non-nil, the first field of the struct type must be a uintptr intended
 	// to hold the address to the function value.
-	Type reflect.Type
+	Closure reflect.Type
 }
 
 // Go function values are pointers to an object starting with the function
