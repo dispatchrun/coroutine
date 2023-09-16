@@ -1,7 +1,10 @@
 package closures
 
 import (
+	"debug/gosym"
+	"io"
 	"reflect"
+	"runtime"
 	"unsafe"
 )
 
@@ -79,7 +82,25 @@ var (
 	functionsByAddr map[uintptr]*Func
 )
 
-func initFunctionTables(functions []Func) {
+func initFunctionTables(pclntab, symtab []byte) {
+	table, err := gosym.NewTable(symtab, gosym.NewLineTable(pclntab, 0))
+	if err != nil {
+		panic("cannot read symtab: " + err.Error())
+	}
+
+	sentinelName, sentinelAddr := sentinel()
+
+	tableFunc := table.LookupFunc(sentinelName)
+	offset := uint64(sentinelAddr) - tableFunc.Entry
+
+	functions := make([]Func, len(table.Funcs))
+	for i, fn := range table.Funcs {
+		functions[i] = Func{
+			Addr: uintptr(fn.Entry + offset),
+			Name: fn.Name,
+		}
+	}
+
 	functionsByName = make(map[string]*Func, len(functions))
 	functionsByAddr = make(map[uintptr]*Func, len(functions))
 
@@ -88,4 +109,22 @@ func initFunctionTables(functions []Func) {
 		functionsByName[f.Name] = f
 		functionsByAddr[f.Addr] = f
 	}
+}
+
+func readAll(r io.ReaderAt, size uint64) ([]byte, error) {
+	b := make([]byte, size)
+	n, err := r.ReadAt(b, 0)
+	if err != nil && n < len(b) {
+		return nil, err
+	}
+	return b, nil
+}
+
+//go:noinline
+func sentinel() (name string, addr uintptr) {
+	pc := [1]uintptr{}
+	runtime.Callers(0, pc[:])
+
+	fn := runtime.FuncForPC(pc[0])
+	return fn.Name(), fn.Entry()
 }
