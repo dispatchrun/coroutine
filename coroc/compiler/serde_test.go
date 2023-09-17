@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/stealthrocket/coroutine"
 	testdata "github.com/stealthrocket/coroutine/coroc/testdata/serde"
+	"github.com/stealthrocket/coroutine/internal/serde"
 )
 
 func enableDebugLogs() {
@@ -120,10 +120,9 @@ func TestStruct1(t *testing.T) {
 func roundtripStruct1(t *testing.T, s testdata.Struct1) {
 	t.Helper()
 
-	var b []byte
-	coroutine.RegisterType[testdata.Struct1]()
-	b = coroutine.Serialize(s, b)
-	s2, b := coroutine.Deserialize(b)
+	serde.RegisterType[testdata.Struct1]()
+	b := serde.Serialize(s)
+	s2, b := serde.Deserialize(b)
 
 	opts := []cmp.Option{
 		cmp.AllowUnexported(testdata.Foo{}),

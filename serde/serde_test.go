@@ -1,10 +1,18 @@
-package coroutine
+package serde_test
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
+	"net/http"
 	"reflect"
+	"strconv"
 	"testing"
+	"time"
 	"unsafe"
+
+	serdeinternal "github.com/stealthrocket/coroutine/internal/serde"
+	"github.com/stealthrocket/coroutine/serde"
 )
 
 type EasyStruct struct {
@@ -51,17 +59,15 @@ func TestReflect(t *testing.T) {
 		}
 
 		for _, x := range cases {
-			tm.add(reflect.TypeOf(x))
+			serdeinternal.Types.Add(reflect.TypeOf(x))
 		}
 
 		for i, x := range cases {
 			x := x
 			typ := reflect.TypeOf(x)
 			t.Run(fmt.Sprintf("%d-%s", i, typ), func(t *testing.T) {
-				var b []byte
-
-				b = Serialize(x, b)
-				out, b := Deserialize(b)
+				b := serdeinternal.Serialize(x)
+				out, b := serdeinternal.Deserialize(b)
 
 				assertEqual(t, x, out)
 
@@ -70,6 +76,153 @@ func TestReflect(t *testing.T) {
 				}
 			})
 		}
+	})
+}
+
+func TestReflectCustom(t *testing.T) {
+	ser := func(s *serde.Serializer, x *int) error {
+		str := strconv.Itoa(*x)
+		b := binary.BigEndian.AppendUint64(nil, uint64(len(str)))
+		b = append(b, str...)
+		serde.Serialize(s, b)
+		return nil
+	}
+
+	des := func(d *serde.Deserializer, x *int) error {
+		var b []byte
+		serde.DeserializeTo(d, &b)
+
+		n := binary.BigEndian.Uint64(b[:8])
+		b = b[8:]
+		s := string(b[:n])
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			return err
+		}
+		*x = i
+		return nil
+	}
+
+	// bytes created by ser(42):
+	int42 := []byte{
+		// big endian size
+		0, 0, 0, 0, 0, 0, 0, 2,
+		// the int as a string
+		52, // 4
+		50, // 2
+	}
+
+	testReflect(t, "int wrapper", func(t *testing.T) {
+		serde.RegisterTypeWithSerde[int](ser, des)
+
+		x := 42
+		p := &x
+
+		assertRoundTrip(t, p)
+
+		b := serdeinternal.Serialize(p)
+
+		if !bytes.Contains(b, int42) {
+			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
+		}
+	})
+
+	testReflect(t, "custom type in field", func(t *testing.T) {
+		type Y struct {
+			custom int
+		}
+		type X struct {
+			foo string
+			y   Y
+		}
+
+		serde.RegisterType[X]()
+		serde.RegisterTypeWithSerde[int](ser, des)
+
+		x := X{
+			foo: "test",
+			y:   Y{custom: 42},
+		}
+
+		assertRoundTrip(t, x)
+
+		b := serdeinternal.Serialize(x)
+		if !bytes.Contains(b, int42) {
+			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
+		}
+	})
+
+	testReflect(t, "custom type in field of pointed at struct", func(t *testing.T) {
+		type Y struct {
+			foo    string
+			custom int
+		}
+		type X struct {
+			int *int
+			y   *Y
+		}
+
+		serde.RegisterType[X]()
+		serde.RegisterTypeWithSerde[int](ser, des)
+
+		x := &X{y: &Y{}}
+		x.y.foo = "test"
+		x.y.custom = 42
+		x.int = &x.y.custom
+
+		assertRoundTrip(t, x)
+		b := serdeinternal.Serialize(x)
+		if !bytes.Contains(b, int42) {
+			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
+		}
+	})
+
+	testReflect(t, "custom type in slice", func(t *testing.T) {
+		serde.RegisterTypeWithSerde[int](ser, des)
+		serde.RegisterType[[]int]()
+		x := []int{1, 2, 3, 42, 5, 6}
+		assertRoundTrip(t, x)
+		b := serdeinternal.Serialize(x)
+		if !bytes.Contains(b, int42) {
+			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
+		}
+	})
+
+	testReflect(t, "custom type of struct", func(t *testing.T) {
+		ser := func(s *serde.Serializer, x *http.Client) error {
+			i := uint64(x.Timeout)
+			serde.Serialize(s, i)
+			return nil
+		}
+
+		des := func(d *serde.Deserializer, x *http.Client) error {
+			var i uint64
+			serde.DeserializeTo(d, &i)
+			x.Timeout = time.Duration(i)
+			return nil
+		}
+
+		serde.RegisterTypeWithSerde[http.Client](ser, des)
+
+		x := http.Client{
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return nil
+			},
+			Timeout: 42000,
+		}
+
+		// Without custom serializer, it would panic because of the
+		// unserializable function in CheckRedirect.
+
+		b := serdeinternal.Serialize(x)
+		out, b := serdeinternal.Deserialize(b)
+
+		assertEqual(t, x.Timeout, out.(http.Client).Timeout)
+
+		if len(b) > 0 {
+			t.Fatalf("leftover bytes: %d", len(b))
+		}
+
 	})
 }
 
@@ -102,7 +255,7 @@ func TestReflectSharing(t *testing.T) {
 		assertEqual(t, 3, cap(orig.s3))
 		assertEqual(t, 3, len(orig.s3))
 
-		RegisterType[X]()
+		serde.RegisterType[X]()
 
 		out := assertRoundTrip(t, orig)
 
@@ -146,7 +299,7 @@ func TestReflectSharing(t *testing.T) {
 		x.A.Y = 42
 		assertEqual(t, 42, *x.B.P)
 
-		RegisterType[X]()
+		serde.RegisterType[X]()
 		out := assertRoundTrip(t, x)
 
 		// verify the resulting pointer is correct
@@ -163,7 +316,7 @@ func TestReflectSharing(t *testing.T) {
 		x.z = x
 		assertEqual(t, x, x.z)
 
-		RegisterType[X]()
+		serde.RegisterType[X]()
 
 		out := assertRoundTrip(t, x)
 
@@ -183,7 +336,7 @@ func TestReflectSharing(t *testing.T) {
 
 		x := X{Y{Z{42}}}
 
-		RegisterType[X]()
+		serde.RegisterType[X]()
 		assertRoundTrip(t, x)
 	})
 
@@ -207,7 +360,7 @@ func TestReflectSharing(t *testing.T) {
 			},
 		}
 
-		RegisterType[X]()
+		serde.RegisterType[X]()
 		assertRoundTrip(t, x)
 	})
 
@@ -229,7 +382,7 @@ func TestReflectSharing(t *testing.T) {
 
 		assertEqual(t, unsafe.Pointer(x), unsafe.Pointer(x.y.z))
 
-		RegisterType[X]()
+		serde.RegisterType[X]()
 		out := assertRoundTrip(t, x)
 
 		out.z.v = "test"
@@ -258,7 +411,7 @@ func TestReflectSharing(t *testing.T) {
 		assertEqual(t, 3, cap(x.s1))
 		assertEqual(t, 2, cap(x.s2))
 
-		RegisterType[X]()
+		serde.RegisterType[X]()
 
 		out := assertRoundTrip(t, x)
 
@@ -279,7 +432,7 @@ func TestReflectSharing(t *testing.T) {
 			"trois": data[0:3],
 		}
 
-		RegisterType[map[string][]int]()
+		serde.RegisterType[map[string][]int]()
 		out := assertRoundTrip(t, x)
 
 		out["un"][0] = 100
@@ -293,7 +446,7 @@ func TestReflectSharing(t *testing.T) {
 func assertEqual(t *testing.T, expected, actual any) {
 	t.Helper()
 	if !reflect.DeepEqual(expected, actual) {
-		t.Error("unexpected context")
+		t.Error("unexpected value:")
 		t.Logf("   got: %#v", actual)
 		t.Logf("expect: %#v", expected)
 	}
@@ -302,9 +455,8 @@ func assertEqual(t *testing.T, expected, actual any) {
 func assertRoundTrip[T any](t *testing.T, orig T) T {
 	t.Helper()
 
-	var b []byte
-	b = Serialize(orig, b)
-	out, b := Deserialize(b)
+	b := serdeinternal.Serialize(orig)
+	out, b := serdeinternal.Deserialize(b)
 
 	assertEqual(t, orig, out)
 
@@ -316,9 +468,9 @@ func assertRoundTrip[T any](t *testing.T, orig T) T {
 }
 
 func withBlankTypeMap(f func()) {
-	oldtm := tm
-	tm = newTypeMap()
-	defer func() { tm = oldtm }()
+	oldtm := serdeinternal.Types
+	serdeinternal.Types = serdeinternal.NewTypeMap()
+	defer func() { serdeinternal.Types = oldtm }()
 
 	f()
 }
