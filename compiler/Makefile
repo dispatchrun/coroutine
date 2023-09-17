@@ -11,7 +11,7 @@ generate: coroc
 	$(GO) fmt $(TARGET) || exit 0
 
 coroc:
-	$(GO) build -o $@ .
+	$(GO) build -o $@ ./cmd/coroc
 
 clean:
 	$(RM) coroc $(TARGET)

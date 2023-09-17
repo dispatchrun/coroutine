@@ -1,4 +1,4 @@
-module github.com/stealthrocket/coroutine/coroc
+module github.com/stealthrocket/coroutine/compiler
 
 go 1.21.0
 

@@ -1,11 +1,11 @@
-package main
+package compiler
 
 import (
 	"slices"
 	"testing"
 
 	"github.com/stealthrocket/coroutine"
-	. "github.com/stealthrocket/coroutine/coroc/testdata"
+	. "github.com/stealthrocket/coroutine/compiler/testdata"
 )
 
 type identity struct{ arg int }

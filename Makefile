@@ -3,9 +3,9 @@ all: test
 test:
 	go test ./...
 	go test --tags=durable ./...
-	$(MAKE) -C coroc $@
+	$(MAKE) -C compiler $@
 
 clean:
-	$(MAKE) -C coroc $@
+	$(MAKE) -C compiler $@
 
 .PHONY: all clean test
