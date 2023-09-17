@@ -1,10 +1,5 @@
 all: test
 
-generate:
-	go generate
-	go generate --tags=durable
-	$(MAKE) -C coroc $@
-
 test:
 	go test ./...
 	go test --tags=durable ./...
@@ -12,3 +7,5 @@ test:
 
 clean:
 	$(MAKE) -C coroc $@
+
+.PHONY: all clean test

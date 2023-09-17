@@ -2,9 +2,9 @@ GO ?= go
 
 TARGET = testdata/coroutine_durable.go
 
-test: generate
-	$(GO) test -count 1 ./...
-	$(GO) test -count 1 -tags durable ./...
+test: clean generate
+	$(GO) test ./...
+	$(GO) test -tags durable ./...
 
 generate: coroc
 	PATH="$$(pwd):$$PATH" $(GO) generate ./testdata
@@ -16,4 +16,4 @@ coroc:
 clean:
 	$(RM) coroc $(TARGET)
 
-.PHONY: clean generate
+.PHONY: clean generate test
