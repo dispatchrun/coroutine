@@ -1,6 +1,6 @@
-// Package closures contains the infrastructure needed to support serialization
-// of Go function values.
-package closures
+// Package types contains the infrastructure needed to support serialization
+// of Go types.
+package types
 
 import (
 	"debug/gosym"
@@ -73,23 +73,23 @@ func Address(fn any) uintptr {
 	return c.addr
 }
 
-// LookupByName returns the function associated with the given name.
+// FuncByName returns the function associated with the given name.
 //
 // Addresses in the returned Func value hold the value of the symbol location in
 // the program memory.
 //
 // If the name passed as argument does not represent any function, the function
 // returns nil.
-func LookupByName(name string) *Func { return functionsByName[name] }
+func FuncByName(name string) *Func { return functionsByName[name] }
 
-// LookupByAddr returns the function associated with the given address.
+// FuncByAddr returns the function associated with the given address.
 //
 // Addresses in the returned Func value hold the value of the symbol location in
 // the program memory.
 //
 // If the address passed as argument is not the address of a function in the
 // program, the function returns nil.
-func LookupByAddr(addr uintptr) *Func { return functionsByAddr[addr] }
+func FuncByAddr(addr uintptr) *Func { return functionsByAddr[addr] }
 
 var (
 	functionsByName map[string]*Func

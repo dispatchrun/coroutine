@@ -1,4 +1,4 @@
-package closures
+package types
 
 import (
 	"debug/elf"
