@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	testdata "github.com/stealthrocket/coroutine/coroc/testdata/serde"
+	testdata "github.com/stealthrocket/coroutine/compiler/testdata/serde"
 	"github.com/stealthrocket/coroutine/internal/serde"
 )
 

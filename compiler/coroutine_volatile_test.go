@@ -1,6 +1,6 @@
 //go:build !durable
 
-package main
+package compiler
 
 import (
 	"testing"

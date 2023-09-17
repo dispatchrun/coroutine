@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/stealthrocket/coroutine/coroc/compiler"
+	"github.com/stealthrocket/coroutine/compiler"
 )
 
 const usage = `
@@ -50,7 +50,7 @@ func run() error {
 		}
 	}
 
-	var options []compiler.CompileOption
+	var options []compiler.Option
 	if *outputFilename != "" {
 		options = append(options, compiler.WithOutputFilename(*outputFilename))
 	}

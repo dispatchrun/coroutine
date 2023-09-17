@@ -25,12 +25,10 @@ type Context[R, S any] struct {
 	Entrypoint Closure
 
 	Stack
-	Heap
 }
 
 // MarshalAppend appends a serialized Context to the provided buffer.
 func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
-	// TODO: heap is ignored for now
 	return append(b, serde.Serialize(c.Stack)...), nil
 }
 
@@ -42,8 +40,6 @@ func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
 	s, b := serde.Deserialize(b)
 	c.Stack = s.(Stack)
 	sn := start - len(b)
-
-	// TODO: heap is ignored for now
 	return sn, nil
 }
 

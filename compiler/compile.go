@@ -27,7 +27,7 @@ const coroutinePackage = "github.com/stealthrocket/coroutine"
 // multiple packages (for example, /path/to/package/...).
 // The path can be absolute or relative (to the current working
 // directory).
-func Compile(path string, options ...CompileOption) error {
+func Compile(path string, options ...Option) error {
 	c := &compiler{
 		outputFilename: "coroc_generated.go",
 		fset:           token.NewFileSet(),
@@ -38,19 +38,19 @@ func Compile(path string, options ...CompileOption) error {
 	return c.compile(path)
 }
 
-// CompileOption configures the compiler.
-type CompileOption func(*compiler)
+// Option configures the compiler.
+type Option func(*compiler)
 
 // WithOutputFilename instructs the compiler to write generated code
 // to a file with the specified name within each package that contains
 // coroutines.
-func WithOutputFilename(outputFilename string) CompileOption {
+func WithOutputFilename(outputFilename string) Option {
 	return func(c *compiler) { c.outputFilename = outputFilename }
 }
 
 // WithBuildTags instructs the compiler to attach the specified build
 // tags to generated files.
-func WithBuildTags(buildTags string) CompileOption {
+func WithBuildTags(buildTags string) Option {
 	return func(c *compiler) { c.buildTags = buildTags }
 }
 
