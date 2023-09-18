@@ -13,6 +13,7 @@ import (
 
 	serdeinternal "github.com/stealthrocket/coroutine/internal/serde"
 	"github.com/stealthrocket/coroutine/serde"
+	"github.com/stealthrocket/coroutine/types"
 )
 
 type EasyStruct struct {
@@ -26,7 +27,7 @@ func TestReflect(t *testing.T) {
 		intp := &intv
 		intpp := &intp
 
-		cases := []interface{}{
+		cases := []any{
 			"foo",
 			true,
 			int(42),
@@ -48,18 +49,29 @@ func TestReflect(t *testing.T) {
 				A: 52,
 				B: "test",
 			},
-			[]interface{}{},
-			*new([]interface{}),
-			[]interface{}{nil, nil, nil},
-			[]interface{}{nil, 42, nil},
+			[]any{},
+			*new([]any),
+			[]any{nil, nil, nil},
+			[]any{nil, 42, nil},
 			struct{ a *int }{intp},
+			struct{ a, b int }{a: 1, b: 2},
 			[1][2]int{{1, 2}},
 
-			[]interface{}{(*int)(nil)},
+			[]any{(*int)(nil)},
+
+			func() {},
+			func(int) int { return 42 },
 		}
 
 		for _, x := range cases {
-			serdeinternal.Types.Add(reflect.TypeOf(x))
+			t := reflect.TypeOf(x)
+			serdeinternal.Types.Add(t)
+
+			if t.Kind() == reflect.Func {
+				a := types.FuncAddr(x)
+				f := types.FuncByAddr(a)
+				f.Type = t
+			}
 		}
 
 		for i, x := range cases {
@@ -445,11 +457,27 @@ func TestReflectSharing(t *testing.T) {
 
 func assertEqual(t *testing.T, expected, actual any) {
 	t.Helper()
-	if !reflect.DeepEqual(expected, actual) {
+
+	if !deepEqual(expected, actual) {
 		t.Error("unexpected value:")
 		t.Logf("   got: %#v", actual)
 		t.Logf("expect: %#v", expected)
 	}
+}
+
+func deepEqual(v1, v2 any) bool {
+	t1 := reflect.TypeOf(v1)
+	t2 := reflect.TypeOf(v2)
+
+	if t1 != t2 {
+		return false
+	}
+
+	if t1.Kind() == reflect.Func {
+		return types.FuncAddr(v1) == types.FuncAddr(v2)
+	}
+
+	return reflect.DeepEqual(v1, v2)
 }
 
 func assertRoundTrip[T any](t *testing.T, orig T) T {

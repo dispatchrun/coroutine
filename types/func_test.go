@@ -12,18 +12,18 @@ func TestAddressOfNonFunctionValue(t *testing.T) {
 			t.Error("taking the address of a non-function value did not panic")
 		}
 	}()
-	Address(0)
+	FuncAddr(0)
 }
 
 func TestAddressOfNilFunctionValue(t *testing.T) {
-	if addr := Address((func())(nil)); addr != 0 {
+	if addr := FuncAddr((func())(nil)); addr != 0 {
 		t.Errorf("wrong address for nil function value: want=0 got=%v", addr)
 	}
 }
 
 func TestFunctionAddress(t *testing.T) {
 	name, addr1 := sentinel()
-	addr2 := Address(sentinel)
+	addr2 := FuncAddr(sentinel)
 
 	if addr1 != addr2 {
 		t.Errorf("%s: function address mismatch: want=%#v got=%#v", name, addr1, addr2)
@@ -33,7 +33,7 @@ func TestFunctionAddress(t *testing.T) {
 func TestFunctionLookup(t *testing.T) {
 	name := "github.com/stealthrocket/coroutine/types.TestFunctionLookup"
 	sym1 := FuncByName(name)
-	sym2 := FuncByAddr(Address(TestFunctionLookup))
+	sym2 := FuncByAddr(FuncAddr(TestFunctionLookup))
 
 	if sym1 != sym2 {
 		t.Errorf("%s: symbols returned by name and address lookups mismatch: %p != %p", name, sym1, sym2)
@@ -47,7 +47,7 @@ func TestClosureAddress(t *testing.T) {
 
 	name := "github.com/stealthrocket/coroutine/types.op.func1"
 	addr1 := c.addr
-	addr2 := Address(f)
+	addr2 := FuncAddr(f)
 
 	if addr1 != addr2 {
 		t.Errorf("%s: closure address mismatch: want=%#v got=%#v", name, addr1, addr2)
@@ -59,7 +59,7 @@ func TestClosureLookup(t *testing.T) {
 
 	name := "github.com/stealthrocket/coroutine/types.op.func1"
 	sym1 := FuncByName(name)
-	sym2 := FuncByAddr(Address(f))
+	sym2 := FuncByAddr(FuncAddr(f))
 
 	if sym1 != sym2 {
 		t.Errorf("%s: symbols returned by name and address lookups mismatch: %p != %p", name, sym1, sym2)

@@ -6,6 +6,8 @@ import (
 	"math"
 	"reflect"
 	"unsafe"
+
+	"github.com/stealthrocket/coroutine/types"
 )
 
 // A type is serialized as follow:
@@ -92,7 +94,6 @@ func SerializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		SerializeComplex128(s, *(*complex128)(p))
 	case reflect.String:
 		SerializeString(s, (*string)(p))
-
 	case reflect.Array:
 		serializeArray(s, t, p)
 	case reflect.Interface:
@@ -105,8 +106,9 @@ func SerializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		serializeSlice(s, t, p)
 	case reflect.Struct:
 		serializeStruct(s, t, p)
+	case reflect.Func:
+		serializeFunc(s, t, p)
 	// Chan
-	// Func
 	// UnsafePointer
 	default:
 		panic(fmt.Errorf("reflection cannot serialize type %s", t))
@@ -166,6 +168,8 @@ func DeserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		deserializeMap(d, t, p)
 	case reflect.Struct:
 		deserializeStruct(d, t, p)
+	case reflect.Func:
+		deserializeFunc(d, t, p)
 	default:
 		panic(fmt.Errorf("reflection cannot deserialize type %s", t))
 	}
@@ -381,6 +385,45 @@ func deserializeStruct(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		ft := t.Field(i)
 		fp := unsafe.Add(p, ft.Offset)
 		DeserializeAny(d, ft.Type, fp)
+	}
+}
+
+func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
+	// p is a pointer to a function value, function values are pointers to a
+	// memory location starting with the address of the function, hence the
+	// double indirection here.
+	p = *(*unsafe.Pointer)(p)
+	if p == nil { // nil function value?
+		panic("cannot serialize nil function values yet")
+	}
+
+	fn := types.FuncByAddr(*(*uintptr)(p))
+	SerializeString(s, &fn.Name)
+
+	if fn.Closure != nil { // TODO
+		panic("cannot serialize closures yet")
+	}
+}
+
+func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
+	var name string
+	DeserializeString(d, &name)
+
+	fn := types.FuncByName(name)
+	if fn == nil {
+		panic(name + ": function symbol not found in the program")
+	}
+	if fn.Type == nil {
+		panic(name + ": function type is missing")
+	}
+	if fn.Type != t {
+		panic(name + ": function type mismatch: " + fn.Type.String() + " != " + t.String())
+	}
+
+	if fn.Closure != nil {
+		panic(name + ": cannot deserialize closures yet")
+	} else {
+		*(**types.Func)(p) = fn
 	}
 }
 

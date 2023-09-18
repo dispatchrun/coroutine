@@ -22,6 +22,8 @@ type slice struct {
 // returns true iff type t would be inlined in an interface.
 func inlined(t reflect.Type) bool {
 	switch t.Kind() {
+	case reflect.Func:
+		return true
 	case reflect.Ptr:
 		return true
 	case reflect.Map:
