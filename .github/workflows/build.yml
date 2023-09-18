@@ -1,0 +1,52 @@
+name: build
+on:
+  push:
+    tags:
+      - v*
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  GOPRIVATE: github.com/stealthrocket/*
+  GH_ACCESS_TOKEN: ${{ secrets.PRIVATE_ACCESS_TOKEN }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
+          check-latest: true
+      - run: git config --global url.https://$GH_ACCESS_TOKEN@github.com.insteadOf https://github.com
+      - run: go mod download
+      - uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.54.2
+          args: --timeout 5m --issues-exit-code 0 # warn only
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+        fetch-depth: 0
+    - uses: actions/setup-go@v4
+      with:
+        go-version-file: go.mod
+        check-latest: true
+
+    - run: git config --global url.https://$GH_ACCESS_TOKEN@github.com.insteadOf https://github.com
+    - run: make test
