@@ -2,11 +2,7 @@
 
 package coroutine
 
-import (
-	"reflect"
-
-	"github.com/stealthrocket/coroutine/internal/serde"
-)
+import "github.com/stealthrocket/coroutine/internal/serde"
 
 type serializedCoroutine struct {
 	entry func()
@@ -14,7 +10,7 @@ type serializedCoroutine struct {
 }
 
 func init() {
-	serde.Types.Add(reflect.TypeOf(serializedCoroutine{}))
+	serde.RegisterType[serializedCoroutine]()
 }
 
 // Context is passed to a coroutine and flows through all
@@ -88,7 +84,3 @@ func (c *Context[R, S]) Unwinding() bool {
 }
 
 type unwind struct{}
-
-func init() {
-	serde.RegisterType[Stack]()
-}
