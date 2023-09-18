@@ -15,13 +15,14 @@ import (
 
 func Identity(n int) {
 	_c := coroutine.LoadContext[int, any]()
-	_f := _c.Push()
+	_f, _fp := _c.Push()
 	if _f.IP > 0 {
 		n = _f.Get(0).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, n)
+			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
@@ -31,7 +32,7 @@ func Identity(n int) {
 
 func SquareGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
-	_f := _c.Push()
+	_f, _fp := _c.Push()
 	var _o0 int
 	if _f.IP > 0 {
 		n = _f.Get(0).(int)
@@ -41,6 +42,7 @@ func SquareGenerator(n int) {
 		if _c.Unwinding() {
 			_f.Set(0, n)
 			_f.Set(1, _o0)
+			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
@@ -59,13 +61,14 @@ func SquareGenerator(n int) {
 
 func SquareGeneratorTwice(n int) {
 	_c := coroutine.LoadContext[int, any]()
-	_f := _c.Push()
+	_f, _fp := _c.Push()
 	if _f.IP > 0 {
 		n = _f.Get(0).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, n)
+			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
@@ -82,7 +85,7 @@ func SquareGeneratorTwice(n int) {
 
 func SquareGeneratorTwiceLoop(n int) {
 	_c := coroutine.LoadContext[int, any]()
-	_f := _c.Push()
+	_f, _fp := _c.Push()
 	var _o0 int
 	if _f.IP > 0 {
 		n = _f.Get(0).(int)
@@ -92,6 +95,7 @@ func SquareGeneratorTwiceLoop(n int) {
 		if _c.Unwinding() {
 			_f.Set(0, n)
 			_f.Set(1, _o0)
+			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
@@ -110,7 +114,7 @@ func SquareGeneratorTwiceLoop(n int) {
 
 func EvenSquareGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
-	_f := _c.Push()
+	_f, _fp := _c.Push()
 	var _o0 int
 	var _o1 int
 	if _f.IP > 0 {
@@ -123,6 +127,7 @@ func EvenSquareGenerator(n int) {
 			_f.Set(0, n)
 			_f.Set(1, _o0)
 			_f.Set(2, _o1)
+			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
@@ -150,7 +155,7 @@ func EvenSquareGenerator(n int) {
 
 func NestedLoops(n int) {
 	_c := coroutine.LoadContext[int, any]()
-	_f := _c.Push()
+	_f, _fp := _c.Push()
 	var _o0 int
 	var _o1 int
 	var _o2 int
@@ -166,6 +171,7 @@ func NestedLoops(n int) {
 			_f.Set(1, _o0)
 			_f.Set(2, _o1)
 			_f.Set(3, _o2)
+			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
@@ -202,7 +208,7 @@ func NestedLoops(n int) {
 
 func FizzBuzzIfGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
-	_f := _c.Push()
+	_f, _fp := _c.Push()
 	var _o0 int
 	var _o1 int
 	if _f.IP > 0 {
@@ -216,6 +222,7 @@ func FizzBuzzIfGenerator(n int) {
 			_f.Set(0, n)
 			_f.Set(1, _o0)
 			_f.Set(2, _o1)
+			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
@@ -246,7 +253,7 @@ func FizzBuzzIfGenerator(n int) {
 
 func FizzBuzzSwitchGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
-	_f := _c.Push()
+	_f, _fp := _c.Push()
 	var _o0 int
 	if _f.IP > 0 {
 		n = _f.Get(0).(int)
@@ -256,6 +263,7 @@ func FizzBuzzSwitchGenerator(n int) {
 		if _c.Unwinding() {
 			_f.Set(0, n)
 			_f.Set(1, _o0)
+			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
@@ -284,7 +292,7 @@ func FizzBuzzSwitchGenerator(n int) {
 
 func Shadowing(_ int) {
 	_c := coroutine.LoadContext[int, any]()
-	_f := _c.Push()
+	_f, _fp := _c.Push()
 	var _o0 int
 	var _o1 int
 	var _o2 int
@@ -344,6 +352,7 @@ func Shadowing(_ int) {
 			_f.Set(7, _o7)
 			_f.Set(8, _o8)
 			_f.Set(9, _o11)
+			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
@@ -541,7 +550,7 @@ func Shadowing(_ int) {
 
 func RangeSliceIndexGenerator(_ int) {
 	_c := coroutine.LoadContext[int, any]()
-	_f := _c.Push()
+	_f, _fp := _c.Push()
 	var _o0 []int
 	var _o1 int
 	if _f.IP > 0 {
@@ -552,6 +561,7 @@ func RangeSliceIndexGenerator(_ int) {
 		if _c.Unwinding() {
 			_f.Set(0, _o0)
 			_f.Set(1, _o1)
+			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
@@ -577,7 +587,7 @@ func RangeSliceIndexGenerator(_ int) {
 
 func RangeArrayIndexValueGenerator(_ int) {
 	_c := coroutine.LoadContext[int, any]()
-	_f := _c.Push()
+	_f, _fp := _c.Push()
 	var _o0 [3]int
 	var _o1 int
 	var _o2 int
@@ -591,6 +601,7 @@ func RangeArrayIndexValueGenerator(_ int) {
 			_f.Set(0, _o0)
 			_f.Set(1, _o1)
 			_f.Set(2, _o2)
+			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
@@ -627,7 +638,7 @@ func RangeArrayIndexValueGenerator(_ int) {
 
 func TypeSwitchingGenerator(_ int) {
 	_c := coroutine.LoadContext[int, any]()
-	_f := _c.Push()
+	_f, _fp := _c.Push()
 	var _o0 []any
 	var _o1 int
 	var _o2 any
@@ -641,6 +652,7 @@ func TypeSwitchingGenerator(_ int) {
 			_f.Set(0, _o0)
 			_f.Set(1, _o1)
 			_f.Set(2, _o2)
+			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
@@ -695,7 +707,7 @@ func TypeSwitchingGenerator(_ int) {
 
 func LoopBreakAndContinue(_ int) {
 	_c := coroutine.LoadContext[int, any]()
-	_f := _c.Push()
+	_f, _fp := _c.Push()
 	var _o0 int
 	var _o1 int
 	var _o2 int
@@ -713,6 +725,7 @@ func LoopBreakAndContinue(_ int) {
 			_f.Set(1, _o1)
 			_f.Set(2, _o2)
 			_f.Set(3, _o3)
+			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
@@ -800,7 +813,7 @@ func LoopBreakAndContinue(_ int) {
 
 func RangeOverMaps(n int) {
 	_c := coroutine.LoadContext[int, any]()
-	_f := _c.Push()
+	_f, _fp := _c.Push()
 	var _o0 map[int]int
 	var _o1 map[int]int
 	var _o2 int
@@ -929,6 +942,7 @@ func RangeOverMaps(n int) {
 			_f.Set(36, _o35)
 			_f.Set(37, _o36)
 			_f.Set(38, _o37)
+			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}

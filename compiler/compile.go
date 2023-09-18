@@ -255,6 +255,7 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 
 	ctx := ast.NewIdent("_c")
 	frame := ast.NewIdent("_f")
+	fp := ast.NewIdent("_fp")
 
 	yieldTypeExpr := make([]ast.Expr, 2)
 	yieldTypeExpr[0] = typeExpr(color.Params().At(0).Type())
@@ -277,9 +278,9 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 		},
 	})
 
-	// _f := _c.Push()
+	// _f, _fp := _c.Push()
 	gen.Body.List = append(gen.Body.List, &ast.AssignStmt{
-		Lhs: []ast.Expr{frame},
+		Lhs: []ast.Expr{frame, fp},
 		Tok: token.DEFINE,
 		Rhs: []ast.Expr{
 			&ast.CallExpr{
@@ -379,7 +380,14 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 							Cond: &ast.CallExpr{
 								Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Unwinding")},
 							},
-							Body: &ast.BlockStmt{List: saveStmts},
+							Body: &ast.BlockStmt{
+								List: append(saveStmts, &ast.ExprStmt{
+									X: &ast.CallExpr{
+										Fun:  &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Store")},
+										Args: []ast.Expr{fp, frame},
+									},
+								}),
+							},
 							Else: &ast.BlockStmt{List: []ast.Stmt{
 								&ast.ExprStmt{X: &ast.CallExpr{Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Pop")}}}},
 							},

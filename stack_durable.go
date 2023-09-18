@@ -12,27 +12,24 @@ type Stack struct {
 	Frames []Frame
 }
 
-// Top returns the top of the call stack.
-func (s *Stack) Top() *Frame {
-	if len(s.Frames) == 0 {
-		panic("no stack frames")
-	}
-	return &s.Frames[len(s.Frames)-1]
-}
-
 // Push prepares the stack for an impending function call.
 //
-// The stack's frame pointer is incremented, and a Frame is pushed to the
-// stack if the caller is on the topmost frame.
+// The stack's frame pointer is incremented, and the stack is resized
+// to make room for a new frame if the caller is on the topmost frame.
 //
 // If the caller is not on the topmost frame it means that a coroutine
 // is being resumed and the next frame is already present on the stack.
-func (s *Stack) Push() *Frame {
+//
+// The Frame is returned by value rather than by reference, since the
+// stack's underlying frame backing array might change. Callers
+// intending to serialize the stack should call Store(fp, frame) for each
+// frame during stack unwinding.
+func (s *Stack) Push() (frame Frame, fp int) {
 	if s.isTop() {
 		s.Frames = append(s.Frames, Frame{})
 	}
 	s.FP++
-	return &s.Frames[s.FP]
+	return s.Frames[s.FP], s.FP
 }
 
 // Pop pops the topmost stack frame after a function call.
@@ -42,6 +39,14 @@ func (s *Stack) Pop() {
 	}
 	s.Frames = s.Frames[:len(s.Frames)-1]
 	s.FP--
+}
+
+// Store stores a frame at the specified index.
+func (s *Stack) Store(i int, f Frame) {
+	if i < 0 || i >= len(s.Frames) {
+		panic("invalid frame index")
+	}
+	s.Frames[i] = f
 }
 
 func (s *Stack) isTop() bool {
@@ -59,8 +64,4 @@ type Frame struct {
 
 	// Storage holds the Serializable objects on the frame.
 	Storage
-
-	// Resume is true if the function associated with the frame
-	// previously yielded.
-	Resume bool
 }

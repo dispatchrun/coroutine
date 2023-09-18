@@ -5,8 +5,9 @@ package coroutine
 import "github.com/stealthrocket/coroutine/internal/serde"
 
 type serializedCoroutine struct {
-	entry func()
-	stack Stack
+	entry  func()
+	stack  Stack
+	resume bool
 }
 
 func init() {
@@ -24,9 +25,10 @@ type Context[R, S any] struct {
 	recv R
 	send S
 
-	// Booleans managing the completion state of the coroutine.
-	done bool
-	stop bool
+	// Booleans managing the state of the coroutine.
+	done   bool
+	stop   bool
+	resume bool
 
 	// Entry point of the coroutine, this is captured so the associated
 	// generator can call into the coroutine to start or resume it at the
@@ -39,8 +41,9 @@ type Context[R, S any] struct {
 // MarshalAppend appends a serialized Context to the provided buffer.
 func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
 	s := serde.Serialize(&serializedCoroutine{
-		entry: c.entry,
-		stack: c.Stack,
+		entry:  c.entry,
+		stack:  c.Stack,
+		resume: c.resume,
 	})
 	return append(b, s...), nil
 }
@@ -54,14 +57,15 @@ func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
 	s := v.(*serializedCoroutine)
 	c.entry = s.entry
 	c.Stack = s.stack
+	c.resume = s.resume
 	sn := start - len(b)
 	return sn, nil
 }
 
 // TODO: do we have use cases for yielding more than one value?
 func (c *Context[R, S]) Yield(value R) S {
-	if frame := c.Top(); frame.Resume {
-		frame.Resume = false
+	if c.resume {
+		c.resume = false
 		if c.stop {
 			panic(unwind{})
 		}
@@ -71,7 +75,7 @@ func (c *Context[R, S]) Yield(value R) S {
 			panic("cannot yield from a coroutine that has been stopped")
 		}
 		var zero S
-		frame.Resume = true
+		c.resume = true
 		c.send = zero
 		c.recv = value
 		panic(unwind{})
@@ -80,7 +84,7 @@ func (c *Context[R, S]) Yield(value R) S {
 
 // Unwinding returns true if the coroutine is currently unwinding its stack.
 func (c *Context[R, S]) Unwinding() bool {
-	return len(c.Frames) > 0 && c.Top().Resume
+	return c.resume
 }
 
 type unwind struct{}
