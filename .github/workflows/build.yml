@@ -1,13 +1,7 @@
 name: build
 on:
   push:
-    tags:
-      - v*
-    branches:
-    - main
   pull_request:
-    branches:
-    - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
