@@ -35,6 +35,12 @@ func TestCoroutineYield(t *testing.T) {
 		},
 
 		{
+			name:   "square generator twice loop",
+			coro:   func() { SquareGeneratorTwiceLoop(4) },
+			yields: []int{1, 4, 9, 16, 1, 4, 9, 16},
+		},
+
+		{
 			name:   "even square generator",
 			coro:   func() { EvenSquareGenerator(6) },
 			yields: []int{4, 16, 36},
