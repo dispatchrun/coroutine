@@ -84,7 +84,3 @@ func (c *Context[R, S]) Unwinding() bool {
 }
 
 type unwind struct{}
-
-func init() {
-	serde.RegisterType[Stack]()
-}
