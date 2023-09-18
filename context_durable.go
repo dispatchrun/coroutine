@@ -60,9 +60,6 @@ func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
 
 // TODO: do we have use cases for yielding more than one value?
 func (c *Context[R, S]) Yield(value R) S {
-	if c.stop {
-		panic("cannot yield from a coroutine that has been stopped")
-	}
 	if frame := c.Top(); frame.Resume {
 		frame.Resume = false
 		if c.stop {
@@ -70,6 +67,9 @@ func (c *Context[R, S]) Yield(value R) S {
 		}
 		return c.send
 	} else {
+		if c.stop {
+			panic("cannot yield from a coroutine that has been stopped")
+		}
 		var zero S
 		frame.Resume = true
 		c.send = zero
