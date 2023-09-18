@@ -2,7 +2,20 @@
 
 package coroutine
 
-import "github.com/stealthrocket/coroutine/internal/serde"
+import (
+	"reflect"
+
+	"github.com/stealthrocket/coroutine/internal/serde"
+)
+
+type serializedCoroutine struct {
+	entry func()
+	stack Stack
+}
+
+func init() {
+	serde.Types.Add(reflect.TypeOf(serializedCoroutine{}))
+}
 
 // Context is passed to a coroutine and flows through all
 // functions that Yield (or could yield).
@@ -22,14 +35,18 @@ type Context[R, S any] struct {
 	// Entry point of the coroutine, this is captured so the associated
 	// generator can call into the coroutine to start or resume it at the
 	// last yield point.
-	Entrypoint Closure
+	entry func()
 
 	Stack
 }
 
 // MarshalAppend appends a serialized Context to the provided buffer.
 func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
-	return append(b, serde.Serialize(c.Stack)...), nil
+	s := serde.Serialize(&serializedCoroutine{
+		entry: c.entry,
+		stack: c.Stack,
+	})
+	return append(b, s...), nil
 }
 
 // Unmarshal deserializes a Context from the provided buffer, returning
@@ -37,8 +54,10 @@ func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
 // context.
 func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
 	start := len(b)
-	s, b := serde.Deserialize(b)
-	c.Stack = s.(Stack)
+	v, b := serde.Deserialize(b)
+	s := v.(*serializedCoroutine)
+	c.entry = s.entry
+	c.Stack = s.stack
 	sn := start - len(b)
 	return sn, nil
 }

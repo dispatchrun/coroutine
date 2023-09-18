@@ -50,8 +50,8 @@ func (c Coroutine[R, S]) Next() bool {
 	return ok
 }
 
-// New creates a new coroutine which executes the closure passed as entry point.
-func New[R, S any](entrypoint Closure) Coroutine[R, S] {
+// New creates a new coroutine which executes f as entry point.
+func New[R, S any](f func()) Coroutine[R, S] {
 	c := &Context[R, S]{
 		next: make(chan struct{}),
 	}
@@ -69,7 +69,7 @@ func New[R, S any](entrypoint Closure) Coroutine[R, S] {
 		<-c.next
 
 		if !c.stop {
-			entrypoint.Call()
+			f()
 		}
 	}()
 

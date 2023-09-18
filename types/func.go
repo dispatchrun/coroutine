@@ -51,7 +51,7 @@ type Func struct {
 // access the address of the function in memory.
 type closure struct{ addr uintptr }
 
-// Address returns the address in memory of the closure passed as argument.
+// FuncAddr returns the address in memory of the closure passed as argument.
 //
 // This function can only resolve addresses of closures in the compilation unit
 // that it is part of; for example, if compiled in a Go plugin, it can only
@@ -61,7 +61,7 @@ type closure struct{ addr uintptr }
 // If the argument is a nil function value, the return address is zero.
 //
 // The function panics if called with a value which is not a function.
-func Address(fn any) uintptr {
+func FuncAddr(fn any) uintptr {
 	if reflect.TypeOf(fn).Kind() != reflect.Func {
 		panic("value must be a function")
 	}

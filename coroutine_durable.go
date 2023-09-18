@@ -35,10 +35,10 @@ func (c Coroutine[R, S]) Next() (hasNext bool) {
 	}()
 
 	c.ctx.Stack.FP = -1
-	c.ctx.Entrypoint.Call()
+	c.ctx.entry()
 	return false
 }
 
-func New[R, S any](entrypoint Closure) Coroutine[R, S] {
-	return Coroutine[R, S]{ctx: &Context[R, S]{Entrypoint: entrypoint}}
+func New[R, S any](f func()) Coroutine[R, S] {
+	return Coroutine[R, S]{ctx: &Context[R, S]{entry: f}}
 }
