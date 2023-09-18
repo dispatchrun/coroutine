@@ -8,7 +8,6 @@ package serde
 import (
 	"encoding/binary"
 	"fmt"
-	"log/slog"
 	"reflect"
 	"unsafe"
 )
@@ -76,8 +75,6 @@ func (d *Deserializer) readPtr() (unsafe.Pointer, sID) {
 	d.b = d.b[n:]
 	i := sID(x)
 	p := d.ptrs[i]
-
-	slog.Debug("Deserializer ReadPtr", "i", i, "p", p, "n", n)
 	return p, i
 }
 
@@ -151,4 +148,13 @@ func deserializeVarint(d *Deserializer) int {
 	l, n := binary.Varint(d.b)
 	d.b = d.b[n:]
 	return int(l)
+}
+
+func serializeBool(s *Serializer, v bool) {
+	SerializeBool(s, v)
+}
+
+func deserializeBool(d *Deserializer) (v bool) {
+	DeserializeBool(d, &v)
+	return
 }
