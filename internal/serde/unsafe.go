@@ -30,6 +30,8 @@ func inlined(t reflect.Type) bool {
 		return true
 	case reflect.Struct:
 		return t.NumField() == 1 && inlined(t.Field(0).Type)
+	case reflect.Array:
+		return t.Len() == 1 && inlined(t.Elem())
 	default:
 		return false
 	}
