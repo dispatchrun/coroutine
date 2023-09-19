@@ -1365,25 +1365,6 @@ func Double(n int) {
 	coroutine.Yield[int, any](2 * n)
 }
 
-func RangeTriple(n int) {
-	_c := coroutine.LoadContext[int, any]()
-	_f, _fp := _c.Push()
-	if _f.IP > 0 {
-		n = _f.Get(0).(int)
-	}
-	defer func() {
-		if _c.Unwinding() {
-			_f.Set(0, n)
-			_c.Store(_fp, _f)
-		} else {
-			_c.Pop()
-		}
-	}()
-	Range(n, func(i int) {
-		coroutine.Yield[int, any](3 * i)
-	})
-}
-
 func RangeTripleFuncValue(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()

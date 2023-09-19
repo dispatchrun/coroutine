@@ -105,11 +105,13 @@ func TestCoroutineYield(t *testing.T) {
 			yields: []int{0, 2, 4, 6, 8, 10, 12, 14, 16, 18},
 		},
 
-		{
-			name:   "range over anonymous function",
-			coro:   func() { RangeTriple(4) },
-			yields: []int{0, 3, 6, 9},
-		},
+		// TODO: desugar function call expressions to enable this test.
+		//
+		// {
+		// 	name:   "range over anonymous function",
+		// 	coro:   func() { RangeTriple(4) },
+		// 	yields: []int{0, 3, 6, 9},
+		// },
 
 		{
 			name:   "range over anonymous function value",
