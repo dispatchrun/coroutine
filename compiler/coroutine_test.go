@@ -99,6 +99,12 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   func() { RangeOverMaps(5) },
 			yields: []int{0, 5, 5, 50, 5, 4, 3, 2, 1, 0},
 		},
+
+		{
+			name:   "select",
+			coro:   func() { Select(8) },
+			yields: []int{-1, 0, 0, 1, 10, 2, 20, 3, 30, 4, 40, 50, 0, 1, 2},
+		},
 	}
 
 	// TODO: remove me

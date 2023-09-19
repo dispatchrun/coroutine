@@ -43,6 +43,12 @@ func trackDispatchSpans0(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan,
 		for _, child := range s.Body {
 			nextID = trackDispatchSpans0(child, dispatchSpans, nextID)
 		}
+	case *ast.SelectStmt:
+		nextID = trackDispatchSpans0(s.Body, dispatchSpans, nextID)
+	case *ast.CommClause:
+		for _, child := range s.Body {
+			nextID = trackDispatchSpans0(child, dispatchSpans, nextID)
+		}
 	case *ast.LabeledStmt:
 		nextID = trackDispatchSpans0(s.Stmt, dispatchSpans, nextID)
 	default:
@@ -105,7 +111,19 @@ func compileDispatch(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan) ast
 		for i, child := range s.Body.List {
 			s.Body.List[i] = compileDispatch(child, dispatchSpans)
 		}
+	case *ast.SelectStmt:
+		for i, child := range s.Body.List {
+			s.Body.List[i] = compileDispatch(child, dispatchSpans)
+		}
 	case *ast.CaseClause:
+		switch {
+		case len(s.Body) == 1:
+			child := compileDispatch(s.Body[0], dispatchSpans)
+			s.Body[0] = unnestBlocks(child)
+		case len(s.Body) > 1:
+			s.Body = []ast.Stmt{compileDispatch0(s.Body, dispatchSpans)}
+		}
+	case *ast.CommClause:
 		switch {
 		case len(s.Body) == 1:
 			child := compileDispatch(s.Body[0], dispatchSpans)

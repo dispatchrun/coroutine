@@ -27,10 +27,6 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 				err = fmt.Errorf("not implemented: defer")
 			case *ast.GoStmt:
 				err = fmt.Errorf("not implemented: go")
-			case *ast.SelectStmt:
-				err = fmt.Errorf("not implemented: select")
-			case *ast.CommClause:
-				err = fmt.Errorf("not implemented: select case")
 
 			// Partially supported:
 			case *ast.BranchStmt:
@@ -41,7 +37,7 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 					err = fmt.Errorf("not implemented: fallthrough")
 				}
 			case *ast.LabeledStmt:
-				// labeled for/switch/select statements are supported,
+				// Labeled for/switch/select statements are supported,
 				// arbitrary labels are not.
 				switch n.Stmt.(type) {
 				case *ast.ForStmt, *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt:
@@ -65,6 +61,7 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 			case *ast.AssignStmt:
 			case *ast.BlockStmt:
 			case *ast.CaseClause:
+			case *ast.CommClause:
 			case *ast.DeclStmt:
 			case *ast.EmptyStmt:
 			case *ast.ExprStmt:
@@ -72,6 +69,7 @@ func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
 			case *ast.IncDecStmt:
 			case *ast.RangeStmt:
 			case *ast.ReturnStmt:
+			case *ast.SelectStmt:
 			case *ast.SendStmt:
 			case *ast.SwitchStmt:
 			case *ast.TypeSwitchStmt:
