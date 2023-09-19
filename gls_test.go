@@ -67,4 +67,15 @@ func BenchmarkGLS(b *testing.B) {
 			}
 		})
 	})
+
+	b.Run("store load clear", func(b *testing.B) {
+		b.RunParallel(func(pb *testing.PB) {
+			g := getg()
+			for pb.Next() {
+				storeContext(g, 42)
+				loadContext(g)
+				clearContext(g)
+			}
+		})
+	})
 }
