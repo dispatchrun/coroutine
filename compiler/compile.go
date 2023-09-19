@@ -202,11 +202,14 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 		},
 	})
 
-	colorsByDecl := map[*ast.FuncDecl]*types.Signature{}
+	colorsByDecl := map[ast.Node]*types.Signature{}
 	for fn, color := range colors {
-		decl, ok := fn.Syntax().(*ast.FuncDecl)
-		if !ok {
-			return fmt.Errorf("unsupported yield function %s (Syntax is %T, not *ast.FuncDecl)", fn, fn.Syntax())
+		decl := fn.Syntax()
+		switch decl.(type) {
+		case *ast.FuncDecl:
+		case *ast.FuncLit:
+		default:
+			return fmt.Errorf("unsupported yield function %s (Syntax is %T, not *ast.FuncDecl or *ast.FuncLit)", fn, decl)
 		}
 		colorsByDecl[decl] = color
 	}
@@ -216,6 +219,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 			if !ok {
 				continue
 			}
+
 			color, ok := colorsByDecl[decl]
 			if !ok {
 				continue
@@ -241,7 +245,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 		return err
 	}
 
-	functypesFile := generateFunctypes(prog.Package(p.Types))
+	functypesFile := generateFunctypes(prog.Package(p.Types), colors)
 	functypesPath := filepath.Join(packageDir, "coroutine_functypes.go")
 	if err := c.writeFile(functypesPath, functypesFile); err != nil {
 		return err
