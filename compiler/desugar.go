@@ -99,13 +99,13 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 
 	case *ast.CaseClause:
 		stmt = &ast.CaseClause{
-			List: s.List,
+			List: s.List, // desugared in SwitchStmt case
 			Body: d.desugarList(s.Body, breakTo, continueTo),
 		}
 
 	case *ast.CommClause:
 		stmt = &ast.CommClause{
-			Comm: d.desugar(s.Comm, nil, nil, nil),
+			Comm: d.desugar(s.Comm, nil, nil, nil), // partially desugared in SelectStmt case
 			Body: d.desugarList(s.Body, breakTo, continueTo),
 		}
 
@@ -121,17 +121,32 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		// TODO: desugar expressions
 
 	case *ast.ForStmt:
-		// Rewrite `for init; cond; post {}` => `{ init; for ; cond; post {} }`
+		// Rewrite for statements:
+		// - `for init; cond; post { ... }` => `{ init; for ; cond; post { ... } }`
+		// - `for ; cond; post { ... }` => `for ; ; post { if !cond { break } ... }
 		init := d.desugar(s.Init, nil, nil, nil)
 		forLabel := d.newLabel()
 		if userLabel != nil {
 			d.addUserLabel(userLabel, forLabel)
 		}
+		body := &ast.BlockStmt{
+			List: append([]ast.Stmt{
+				&ast.IfStmt{
+					Cond: &ast.UnaryExpr{Op: token.NOT, X: s.Cond},
+					Body: &ast.BlockStmt{List: []ast.Stmt{&ast.BranchStmt{Tok: token.BREAK}}},
+				},
+			}, s.Body.List...),
+		}
 		stmt = &ast.LabeledStmt{
 			Label: forLabel,
 			Stmt: &ast.ForStmt{
-				Cond: s.Cond,
-				Body: d.desugar(s.Body, forLabel, forLabel, nil).(*ast.BlockStmt),
+				Body: d.desugar(body, forLabel, forLabel, nil).(*ast.BlockStmt),
+				// The post iteration statement is currently preserved for a
+				// later pass.
+				// TODO: find a way to move the statement into the loop body
+				//  so that it can be desugared further, but do so in a way
+				//  that doesn't break continue and deeply nested cases of
+				//  continue [label]. Using goto doesn't work!
 				Post: d.desugar(s.Post, nil, nil, nil),
 			},
 		}
@@ -143,15 +158,27 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		panic("not implemented")
 
 	case *ast.IfStmt:
-		// Rewrite `if init; cond {}` => `{ init; if cond {} }`
+		// Rewrite `if init; cond { ... }` => `{ init; _cond := cond; if _cond { ... } }`
 		init := d.desugar(s.Init, nil, nil, nil)
-		stmt = &ast.IfStmt{
-			Cond: s.Cond,
-			Body: d.desugar(s.Body, breakTo, continueTo, nil).(*ast.BlockStmt),
-			Else: d.desugar(s.Else, breakTo, continueTo, nil),
+		condvar := d.newVar(types.Typ[types.Bool])
+		cond := &ast.AssignStmt{
+			Lhs: []ast.Expr{condvar},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{s.Cond},
 		}
+		var prologue []ast.Stmt
 		if init != nil {
-			stmt = &ast.BlockStmt{List: []ast.Stmt{init, stmt}}
+			prologue = []ast.Stmt{init, cond}
+		} else {
+			prologue = []ast.Stmt{cond}
+		}
+		prologue = d.desugarList(prologue, nil, nil)
+		stmt = &ast.BlockStmt{
+			List: append(prologue, &ast.IfStmt{
+				Cond: condvar,
+				Body: d.desugar(s.Body, breakTo, continueTo, nil).(*ast.BlockStmt),
+				Else: d.desugar(s.Else, breakTo, continueTo, nil),
+			}),
 		}
 
 	case *ast.IncDecStmt:
@@ -308,6 +335,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		switchBody := &ast.BlockStmt{List: make([]ast.Stmt, len(s.Body.List))}
 		for i, c := range s.Body.List {
 			cc := c.(*ast.CommClause)
+			// TODO: hoist cc.Comm out from select{} so expressions can be desugared
 			id := &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i + 1)}
 			switchBody.List[i] = &ast.CaseClause{
 				List: []ast.Expr{id},
@@ -343,6 +371,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		if userLabel != nil {
 			d.addUserLabel(userLabel, switchLabel)
 		}
+		// TODO: hoist each CaseClause.Cond out from SwitchStmt.Body so expressions can be desugared
 		stmt = &ast.LabeledStmt{
 			Label: switchLabel,
 			Stmt: &ast.SwitchStmt{
