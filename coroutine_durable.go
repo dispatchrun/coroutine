@@ -116,6 +116,8 @@ func (c Coroutine[R, S]) Next() (hasNext bool) {
 		case nil:
 		case unwind{}:
 		default:
+			// TODO: can we figure out a way to know when we are unwinding the
+			// stack and only recover then so we don't alter the panic stack?
 			panic(err)
 		}
 

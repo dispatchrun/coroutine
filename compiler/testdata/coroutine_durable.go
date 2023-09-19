@@ -5,15 +5,14 @@
 package testdata
 
 import (
+	"github.com/stealthrocket/coroutine"
+	serde "github.com/stealthrocket/coroutine/serde"
 	runtime "runtime"
 	sync "sync"
 	atomic "sync/atomic"
 	syscall "syscall"
 	time "time"
 	unsafe "unsafe"
-
-	"github.com/stealthrocket/coroutine"
-	serde "github.com/stealthrocket/coroutine/serde"
 )
 
 func Identity(n int) {
@@ -1436,8 +1435,12 @@ func Range10Closure() {
 		}
 		_f.IP = 4
 		fallthrough
-	case _f.IP < 4:
-		for ; _o2(); _f.IP = 4 {
+	case _f.IP < 5:
+	_l0:
+		for ; ; _f.IP = 4 {
+			if !_o2() {
+				break _l0
+			}
 		}
 	}
 }

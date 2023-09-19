@@ -291,7 +291,10 @@ func Range10Closure() {
 		return false
 	}
 
-	for f() {
+	for {
+		if !f() {
+			break
+		}
 	}
 }
 
