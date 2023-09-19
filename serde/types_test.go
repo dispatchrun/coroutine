@@ -33,7 +33,7 @@ func TestSerdeTime(t *testing.T) {
 
 func testSerdeTime(t *testing.T, x time.Time) {
 	b := serdeinternal.Serialize(x)
-	out, b := serdeinternal.Deserialize(b)
+	out, _ := serdeinternal.Deserialize(b)
 
 	if !x.Equal(out.(time.Time)) {
 		t.Errorf("expected %v, got %v", x, out)
