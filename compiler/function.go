@@ -55,17 +55,51 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 		return // ignore non-instantiated generic functions
 	}
 
-	init.List = append(init.List, &ast.ExprStmt{
-		X: &ast.CallExpr{
-			Fun: &ast.IndexListExpr{
-				X: &ast.SelectorExpr{
-					X:   ast.NewIdent("_types"),
-					Sel: ast.NewIdent("RegisterFunc"),
-				},
-				Indices: []ast.Expr{
-					newFuncType(fn.Signature),
+	var register ast.Expr
+	if len(fn.FreeVars) == 0 {
+		register = &ast.IndexListExpr{
+			X: &ast.SelectorExpr{
+				X:   ast.NewIdent("_types"),
+				Sel: ast.NewIdent("RegisterFunc"),
+			},
+			Indices: []ast.Expr{
+				newFuncType(fn.Signature),
+			},
+		}
+	} else {
+		fields := make([]*ast.Field, 1+len(fn.FreeVars))
+		// first field is the function address (uintptr)
+		fields[0] = &ast.Field{
+			Names: []*ast.Ident{ast.NewIdent("_")},
+			Type:  ast.NewIdent("uintptr"),
+		}
+
+		for i, freeVar := range fn.FreeVars {
+			fields[i+1] = &ast.Field{
+				Names: []*ast.Ident{ast.NewIdent(freeVar.Name())},
+				Type:  typeExpr(freeVar.Type()),
+			}
+		}
+
+		register = &ast.IndexListExpr{
+			X: &ast.SelectorExpr{
+				X:   ast.NewIdent("_types"),
+				Sel: ast.NewIdent("RegisterClosure"),
+			},
+			Indices: []ast.Expr{
+				newFuncType(fn.Signature),
+				&ast.StructType{
+					Fields: &ast.FieldList{
+						List: fields,
+					},
 				},
 			},
+		}
+	}
+
+	init.List = append(init.List, &ast.ExprStmt{
+		X: &ast.CallExpr{
+			Fun: register,
 			Args: []ast.Expr{
 				&ast.BasicLit{
 					Kind:  token.STRING,

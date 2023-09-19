@@ -59,6 +59,16 @@ func RegisterFunc[Type any](name string) {
 	}
 }
 
+// RegisterClosure is like RegisterFunc but the caller can specify the closure
+// type (see types.Func for details).
+func RegisterClosure[Type, Closure any](name string) {
+	if f := FuncByName(name); f != nil {
+		var signature Type
+		var closure Closure
+		f.Type, f.Closure = reflect.TypeOf(signature), reflect.TypeOf(closure)
+	}
+}
+
 // Go function values are pointers to an object starting with the function
 // address, whether they are referencing top-level functions or closures.
 //
