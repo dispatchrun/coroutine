@@ -80,29 +80,66 @@ func compileDispatch(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan) ast
 	case *ast.ForStmt:
 		forSpan := dispatchSpans[s]
 		s.Body = compileDispatch(s.Body, dispatchSpans).(*ast.BlockStmt)
-		// Reset IP after each loop iteration.
-		ipVar := &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")}
-		ipVal := &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(forSpan.start)}
-		switch post := s.Post.(type) {
-		case nil:
-			s.Post = &ast.AssignStmt{Lhs: []ast.Expr{ipVar}, Tok: token.ASSIGN, Rhs: []ast.Expr{ipVal}}
-		case *ast.IncDecStmt:
+
+		// Hijack the loop's post iteration statement to inject an IP reset.
+		if s.Post == nil {
+			s.Post = &ast.AssignStmt{Lhs: []ast.Expr{}, Tok: token.ASSIGN, Rhs: []ast.Expr{}}
+		} else if incDec, ok := s.Post.(*ast.IncDecStmt); ok {
 			var op token.Token
-			switch post.Tok {
+			switch incDec.Tok {
 			case token.INC:
 				op = token.ADD
 			case token.DEC:
 				op = token.SUB
 			}
 			s.Post = &ast.AssignStmt{
-				Lhs: []ast.Expr{post.X, ipVar},
+				Lhs: []ast.Expr{incDec.X},
 				Tok: token.ASSIGN,
-				Rhs: []ast.Expr{
-					&ast.BinaryExpr{X: post.X, Op: op, Y: &ast.BasicLit{Kind: token.INT, Value: "1"}},
-					ipVal,
-				},
+				Rhs: []ast.Expr{&ast.BinaryExpr{X: incDec.X, Op: op, Y: &ast.BasicLit{Kind: token.INT, Value: "1"}}},
 			}
 		}
+		assign, ok := s.Post.(*ast.AssignStmt)
+		if !ok {
+			panic("not implemented")
+		}
+		if assign.Tok != token.ASSIGN {
+			for i := range assign.Lhs {
+				var op token.Token
+				switch assign.Tok {
+				case token.ADD_ASSIGN:
+					op = token.ADD
+				case token.SUB_ASSIGN:
+					op = token.SUB
+				case token.MUL_ASSIGN:
+					op = token.MUL
+				case token.QUO_ASSIGN:
+					op = token.QUO
+				case token.REM_ASSIGN:
+					op = token.REM
+				case token.AND_ASSIGN:
+					op = token.AND
+				case token.OR_ASSIGN:
+					op = token.OR
+				case token.XOR_ASSIGN:
+					op = token.XOR
+				case token.SHL_ASSIGN:
+					op = token.SHL
+				case token.SHR_ASSIGN:
+					op = token.SHR
+				case token.AND_NOT_ASSIGN:
+					op = token.AND_NOT
+				}
+				// From the Go language spec:
+				// > An assignment operation x op= y where op is a binary arithmetic operator is equivalent to x = x op (y) but evaluates x only once.
+				// Thus, this transformation is only valid if the LHS doesn't
+				// contain side effects. This is checked elsewhere.
+				assign.Rhs[i] = &ast.BinaryExpr{X: assign.Lhs[i], Op: op, Y: assign.Rhs[i]}
+			}
+			assign.Tok = token.ASSIGN
+		}
+		assign.Lhs = append(assign.Lhs, &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")})
+		assign.Rhs = append(assign.Rhs, &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(forSpan.start)})
+
 	case *ast.SwitchStmt:
 		for i, child := range s.Body.List {
 			s.Body.List[i] = compileDispatch(child, dispatchSpans)
