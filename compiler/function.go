@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"cmp"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"slices"
@@ -10,7 +11,7 @@ import (
 	"golang.org/x/tools/go/ssa"
 )
 
-func generateFunctypes(pkg *ssa.Package) *ast.File {
+func generateFunctypes(pkg *ssa.Package, colors functionColors) *ast.File {
 	var names = make([]string, 0, len(pkg.Members))
 	for name := range pkg.Members {
 		names = append(names, name)
@@ -18,10 +19,10 @@ func generateFunctypes(pkg *ssa.Package) *ast.File {
 	slices.Sort(names)
 
 	var init ast.BlockStmt
-	var path = pkg.Pkg.Path()
 	for _, name := range names {
 		if fn, ok := pkg.Members[name].(*ssa.Function); ok {
-			generateFunctypesInit(path, &init, fn)
+			name := pkg.Pkg.Path() + "." + fn.Name()
+			generateFunctypesInit(pkg, fn, &init, name, colors)
 		}
 	}
 
@@ -49,7 +50,7 @@ func generateFunctypes(pkg *ssa.Package) *ast.File {
 	}
 }
 
-func generateFunctypesInit(path string, init *ast.BlockStmt, fn *ssa.Function) {
+func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockStmt, name string, colors functionColors) {
 	if fn.TypeParams() != nil {
 		return // ignore non-instantiated generic functions
 	}
@@ -68,7 +69,7 @@ func generateFunctypesInit(path string, init *ast.BlockStmt, fn *ssa.Function) {
 			Args: []ast.Expr{
 				&ast.BasicLit{
 					Kind:  token.STRING,
-					Value: strconv.Quote(path + "." + fn.Name()),
+					Value: strconv.Quote(name),
 				},
 			},
 		},
@@ -79,7 +80,24 @@ func generateFunctypesInit(path string, init *ast.BlockStmt, fn *ssa.Function) {
 		return cmp.Compare(f1.Name(), f2.Name())
 	})
 
-	for _, anonFunc := range anonFuncs {
-		generateFunctypesInit(path, init, anonFunc)
+	for index, anonFunc := range anonFuncs {
+		_, colored := colors[anonFunc]
+		if colored {
+			// Colored functions (those rewritten into coroutines) have a
+			// deferred anonymous function injected at the beginning to perform
+			// stack unwinding, which takes the ".func1" name.
+			index++
+		}
+		name = anonFuncLinkName(name, index)
+		generateFunctypesInit(pkg, anonFunc, init, name, colors)
 	}
+}
+
+// This function computes the name that the linker gives to anonymous functions,
+// using the base name of their parent function and appending ".func<index>".
+//
+// The function works with multiple levels of nesting as each level adds another
+// ".func<index>" suffix, with the index being local to the parent scope.
+func anonFuncLinkName(base string, index int) string {
+	return fmt.Sprintf("%s.func%d", base, index+1)
 }

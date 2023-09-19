@@ -8,18 +8,17 @@ import (
 )
 
 // unsupported checks a function for unsupported language features.
-func unsupported(decl *ast.FuncDecl, info *types.Info) (err error) {
+func unsupported(decl ast.Node, info *types.Info) (err error) {
 	ast.Inspect(decl, func(node ast.Node) bool {
 		switch nn := node.(type) {
 		case ast.Expr:
 			switch nn.(type) {
 			case *ast.FuncLit:
-				err = fmt.Errorf("not implemented: func literals")
+			default:
+				if countFunctionCalls(nn, info) > 1 {
+					err = fmt.Errorf("not implemented: multiple function calls in an expression")
+				}
 			}
-			if countFunctionCalls(nn, info) > 1 {
-				err = fmt.Errorf("not implemented: multiple function calls in an expression")
-			}
-
 		case ast.Stmt:
 			switch n := nn.(type) {
 			// Not yet supported:
