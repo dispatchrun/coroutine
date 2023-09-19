@@ -185,7 +185,7 @@ func (r *regions) extend(i int) {
 
 type region struct {
 	start unsafe.Pointer // inclusive
-	end   unsafe.Pointer // exclusive
+	end   unsafe.Pointer // inclusive
 	typ   reflect.Type
 }
 
