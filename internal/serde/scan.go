@@ -125,8 +125,6 @@ func (c *containers) add(t reflect.Type, p unsafe.Pointer) {
 	if i > 0 {
 		c.fixup(i - 1)
 	}
-
-	c.dump()
 }
 
 func (c *containers) fixup(i int) {
