@@ -37,8 +37,6 @@ func Serialize(x any) []byte {
 	// scan dirties s.scanptrs, so clean it up.
 	clear(s.scanptrs)
 
-	s.containers.dump()
-
 	SerializeAny(s, t, p)
 	return s.b
 }

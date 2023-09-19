@@ -137,8 +137,6 @@ func (c *containers) add(t reflect.Type, p unsafe.Pointer) {
 func (c *containers) fixup(i int) {
 	s := *c
 
-	log.Println("fixup:", i)
-
 	if i == len(s)-1 {
 		return
 	}
@@ -148,12 +146,10 @@ func (c *containers) fixup(i int) {
 
 	if !x.overlaps(next) {
 		// Not at least an overlap, nothing to do.
-		log.Println("=> no overlap")
 		return
 	}
 
 	if x.contains(next) {
-		log.Println("=>contains")
 		if x.isStruct() {
 			// Struct fully contains next element. Remove the next
 			// element and nothing else to do.
@@ -207,7 +203,6 @@ func (c *containers) remove(i int) {
 }
 
 func (c *containers) insert(x container) int {
-	log.Print("inserting ", x)
 	*c = append(*c, container{})
 	s := *c
 	// Find where to insert the new container. By start address first, then
@@ -221,7 +216,6 @@ func (c *containers) insert(x container) int {
 		}
 		return false
 	})
-	fmt.Println("i=", i)
 	copy(s[i+1:], s[i:])
 	s[i] = x
 
