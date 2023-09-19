@@ -1394,6 +1394,53 @@ func RangeTripleFuncValue(n int) {
 	}
 }
 
+func Range10Closure() {
+	_c := coroutine.LoadContext[int, any]()
+	_f, _fp := _c.Push()
+	var _o0 int
+	var _o1 int
+	var _o2 func() bool
+	if _f.IP > 0 {
+		_o0 = _f.Get(0).(int)
+		_o1 = _f.Get(1).(int)
+		_o2 = _f.Get(2).(func() bool)
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, _o0)
+			_f.Set(1, _o1)
+			_f.Set(2, _o2)
+			_c.Store(_fp, _f)
+		} else {
+			_c.Pop()
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		_o0 = 0
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 3:
+		_o1 = 10
+		_f.IP = 3
+		fallthrough
+	case _f.IP < 4:
+		_o2 = func() bool {
+			if _o0 < _o1 {
+				coroutine.Yield[int, any](_o0)
+				_o0++
+				return true
+			}
+			return false
+		}
+		_f.IP = 4
+		fallthrough
+	case _f.IP < 5:
+		for ; _o2(); _f.IP = 4 {
+		}
+	}
+}
+
 func Select(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()

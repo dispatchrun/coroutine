@@ -404,18 +404,24 @@ func deserializePointer(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func serializeStruct(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	n := t.NumField()
+	serializeStructFields(s, p, t.NumField(), t.Field)
+}
+
+func deserializeStruct(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
+	deserializeStructFields(d, p, t.NumField(), t.Field)
+}
+
+func serializeStructFields(s *Serializer, p unsafe.Pointer, n int, field func(int) reflect.StructField) {
 	for i := 0; i < n; i++ {
-		ft := t.Field(i)
+		ft := field(i)
 		fp := unsafe.Add(p, ft.Offset)
 		SerializeAny(s, ft.Type, fp)
 	}
 }
 
-func deserializeStruct(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	n := t.NumField()
+func deserializeStructFields(d *Deserializer, p unsafe.Pointer, n int, field func(int) reflect.StructField) {
 	for i := 0; i < n; i++ {
-		ft := t.Field(i)
+		ft := field(i)
 		fp := unsafe.Add(p, ft.Offset)
 		DeserializeAny(d, ft.Type, fp)
 	}
@@ -433,8 +439,11 @@ func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	fn := types.FuncByAddr(*(*uintptr)(p))
 	SerializeString(s, &fn.Name)
 
-	if fn.Closure != nil { // TODO
-		panic("cannot serialize closures yet")
+	if fn.Closure != nil {
+		t := fn.Closure
+		serializeStructFields(s, p, t.NumField()-1, func(i int) reflect.StructField {
+			return t.Field(i + 1)
+		})
 	}
 }
 
@@ -454,7 +463,17 @@ func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	if fn.Closure != nil {
-		panic(name + ": cannot deserialize closures yet")
+		t := fn.Closure
+		v := reflect.New(t)
+
+		closure := v.UnsafePointer()
+		*(*uintptr)(closure) = fn.Addr
+
+		deserializeStructFields(d, closure, t.NumField()-1, func(i int) reflect.StructField {
+			return t.Field(i + 1)
+		})
+
+		*(*unsafe.Pointer)(p) = closure
 	} else {
 		*(**types.Func)(p) = fn
 	}

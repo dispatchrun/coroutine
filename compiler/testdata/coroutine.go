@@ -279,6 +279,22 @@ func RangeTripleFuncValue(n int) {
 	Range(n, f)
 }
 
+func Range10Closure() {
+	i := 0
+	n := 10
+	f := func() bool {
+		if i < n {
+			coroutine.Yield[int, any](i)
+			i++
+			return true
+		}
+		return false
+	}
+
+	for f() {
+	}
+}
+
 func Select(n int) {
 	select {
 	default:
