@@ -3,7 +3,6 @@
 package testdata
 
 import (
-	"strconv"
 	"time"
 	"unsafe"
 
@@ -315,16 +314,16 @@ func Range10ClosureCapturingPointers() {
 
 func Range10ClosureHeterogenousCapture() {
 	var (
-		a int8          = 0
-		b int16         = 1
-		c int32         = 2
-		d int64         = 3
-		e uint8         = 4
-		f uint16        = 5
-		g uint32        = 6
-		h uint64        = 7
-		i uintptr       = 8
-		j func() string = func() string { return "9" }
+		a int8    = 0
+		b int16   = 1
+		c int32   = 2
+		d int64   = 3
+		e uint8   = 4
+		f uint16  = 5
+		g uint32  = 6
+		h uint64  = 7
+		i uintptr = 8
+		j         = func() int { return int(i) + 1 }
 	)
 
 	n := 0
@@ -350,8 +349,7 @@ func Range10ClosureHeterogenousCapture() {
 		case 8:
 			v = int(i)
 		case 9:
-			s := j()
-			v, _ = strconv.Atoi(s)
+			v = j()
 		}
 		n++
 		coroutine.Yield[int, any](v)

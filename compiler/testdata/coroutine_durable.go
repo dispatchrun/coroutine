@@ -8,7 +8,6 @@ import (
 	"github.com/stealthrocket/coroutine"
 	serde "github.com/stealthrocket/coroutine/serde"
 	runtime "runtime"
-	strconv "strconv"
 	sync "sync"
 	atomic "sync/atomic"
 	syscall "syscall"
@@ -2304,11 +2303,10 @@ func Range10ClosureHeterogenousCapture() {
 	var _o6 uint32
 	var _o7 uint64
 	var _o8 uintptr
-	var _o9 func() string
+	var _o9 func() int
 	var _o10 int
 	var _o11 func() bool
 	var _o12 int
-	var _o13 string
 	if _f.IP > 0 {
 		_o0 = _f.Get(0).(int8)
 		_o1 = _f.Get(1).(int16)
@@ -2319,13 +2317,11 @@ func Range10ClosureHeterogenousCapture() {
 		_o6 = _f.Get(6).(uint32)
 		_o7 = _f.Get(7).(uint64)
 		_o8 = _f.Get(8).(uintptr)
-		_o9 = _f.Get(9).(func() string)
+		_o9 = _f.Get(9).(func() int)
 
 		_o10 = _f.Get(10).(int)
 		_o11 = _f.Get(11).(func() bool)
 		_o12 = _f.Get(12).(int)
-
-		_o13 = _f.Get(13).(string)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -2342,7 +2338,6 @@ func Range10ClosureHeterogenousCapture() {
 			_f.Set(10, _o10)
 			_f.Set(11, _o11)
 			_f.Set(12, _o12)
-			_f.Set(13, _o13)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
@@ -2388,7 +2383,7 @@ func Range10ClosureHeterogenousCapture() {
 			_f.IP = 10
 			fallthrough
 		case _f.IP < 11:
-			_o9 = func() string { return "9" }
+			_o9 = func() int { return int(_o8) + 1 }
 		}
 		_f.IP = 11
 		fallthrough
@@ -2420,8 +2415,7 @@ func Range10ClosureHeterogenousCapture() {
 			case 8:
 				_o12 = int(_o8)
 			case 9:
-				_o13 = _o9()
-				_o12, _ = strconv.Atoi(_o13)
+				_o12 = _o9()
 			}
 			_o10++
 			coroutine.Yield[int, any](_o12)
@@ -2848,9 +2842,7 @@ func init() {
 	serde.RegisterType[*[32]uintptr]()
 	serde.RegisterType[*[4]byte]()
 	serde.RegisterType[*[512]uintptr]()
-	serde.RegisterType[*[5]float64]()
 	serde.RegisterType[*[65536]uintptr]()
-	serde.RegisterType[*[6]float64]()
 	serde.RegisterType[*[70368744177663]uint16]()
 	serde.RegisterType[*[8]byte]()
 	serde.RegisterType[*[8]uint8]()
@@ -2880,20 +2872,16 @@ func init() {
 	serde.RegisterType[[107]string]()
 	serde.RegisterType[[108]byte]()
 	serde.RegisterType[[10]byte]()
-	serde.RegisterType[[10]float64]()
 	serde.RegisterType[[10]string]()
-	serde.RegisterType[[11]float64]()
 	serde.RegisterType[[128]byte]()
 	serde.RegisterType[[128]uint64]()
 	serde.RegisterType[[128]uintptr]()
 	serde.RegisterType[[129]uint8]()
-	serde.RegisterType[[12]float64]()
 	serde.RegisterType[[12]int8]()
 	serde.RegisterType[[131072]uintptr]()
 	serde.RegisterType[[13]int32]()
 	serde.RegisterType[[14]byte]()
 	serde.RegisterType[[14]int8]()
-	serde.RegisterType[[15]float64]()
 	serde.RegisterType[[16384]byte]()
 	serde.RegisterType[[16384]uint8]()
 	serde.RegisterType[[16]byte]()
@@ -2907,7 +2895,6 @@ func init() {
 	serde.RegisterType[[1]uint8]()
 	serde.RegisterType[[1]uintptr]()
 	serde.RegisterType[[20]byte]()
-	serde.RegisterType[[20]uint64]()
 	serde.RegisterType[[20]uint8]()
 	serde.RegisterType[[21]byte]()
 	serde.RegisterType[[249]uint8]()
@@ -2915,7 +2902,6 @@ func init() {
 	serde.RegisterType[[252]uintptr]()
 	serde.RegisterType[[253]uintptr]()
 	serde.RegisterType[[256]uint64]()
-	serde.RegisterType[[256]uint8]()
 	serde.RegisterType[[29]uint64]()
 	serde.RegisterType[[2]byte]()
 	serde.RegisterType[[2]int]()
@@ -2925,14 +2911,12 @@ func init() {
 	serde.RegisterType[[2]uint64]()
 	serde.RegisterType[[2]uintptr]()
 	serde.RegisterType[[32]byte]()
-	serde.RegisterType[[32]float64]()
 	serde.RegisterType[[32]int32]()
 	serde.RegisterType[[32]string]()
 	serde.RegisterType[[32]uint32]()
 	serde.RegisterType[[32]uintptr]()
 	serde.RegisterType[[33]float64]()
 	serde.RegisterType[[3]byte]()
-	serde.RegisterType[[3]float64]()
 	serde.RegisterType[[3]int]()
 	serde.RegisterType[[4096]byte]()
 	serde.RegisterType[[40]int8]()
@@ -2947,7 +2931,6 @@ func init() {
 	serde.RegisterType[[512]uintptr]()
 	serde.RegisterType[[56]int8]()
 	serde.RegisterType[[5]byte]()
-	serde.RegisterType[[5]float64]()
 	serde.RegisterType[[5]uint]()
 	serde.RegisterType[[61]struct {
 		Size    uint32
@@ -2959,7 +2942,6 @@ func init() {
 	serde.RegisterType[[64]uint64]()
 	serde.RegisterType[[64]uintptr]()
 	serde.RegisterType[[65528]byte]()
-	serde.RegisterType[[65]byte]()
 	serde.RegisterType[[68]struct {
 		Size    uint32
 		Mallocs uint64
@@ -2969,16 +2951,11 @@ func init() {
 	serde.RegisterType[[68]uint32]()
 	serde.RegisterType[[68]uint64]()
 	serde.RegisterType[[68]uint8]()
-	serde.RegisterType[[696][2]uint64]()
-	serde.RegisterType[[6]float64]()
 	serde.RegisterType[[6]int]()
 	serde.RegisterType[[6]uintptr]()
-	serde.RegisterType[[7]float64]()
 	serde.RegisterType[[7]uint64]()
-	serde.RegisterType[[800]byte]()
 	serde.RegisterType[[88]byte]()
 	serde.RegisterType[[8]byte]()
-	serde.RegisterType[[8]float64]()
 	serde.RegisterType[[8]int8]()
 	serde.RegisterType[[8]string]()
 	serde.RegisterType[[8]uint32]()
@@ -2989,7 +2966,6 @@ func init() {
 	serde.RegisterType[[]*byte]()
 	serde.RegisterType[[][]int32]()
 	serde.RegisterType[[]byte]()
-	serde.RegisterType[[]float32]()
 	serde.RegisterType[[]float64]()
 	serde.RegisterType[[]int]()
 	serde.RegisterType[[]int16]()
@@ -3037,7 +3013,6 @@ func init() {
 	serde.RegisterType[runtime.Pinner]()
 	serde.RegisterType[runtime.StackRecord]()
 	serde.RegisterType[runtime.TypeAssertionError]()
-	serde.RegisterType[strconv.NumError]()
 	serde.RegisterType[string]()
 	serde.RegisterType[struct {
 		b bool

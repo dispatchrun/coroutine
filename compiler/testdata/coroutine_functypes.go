@@ -28,7 +28,10 @@ func init() {
 		n *int
 	}]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureCapturingValues.func2")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureHeterogenousCapture")
-	_types.RegisterFunc[func() string]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureHeterogenousCapture.func1")
+	_types.RegisterClosure[func() int, struct {
+		_ uintptr
+		i *uintptr
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureHeterogenousCapture.func2")
 	_types.RegisterClosure[func() bool, struct {
 		_ uintptr
 		n *int
@@ -41,8 +44,8 @@ func init() {
 		g *uint32
 		h *uint64
 		i *uintptr
-		j *func() string
-	}]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureHeterogenousCapture.func1.func3")
+		j *func() int
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureHeterogenousCapture.func3")
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeArrayIndexValueGenerator")
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeOverMaps")
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeSliceIndexGenerator")

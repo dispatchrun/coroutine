@@ -109,21 +109,26 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 		},
 	})
 
+	fmt.Printf("%v => %+v\n", fn, fn.AnonFuncs)
+
 	anonFuncs := slices.Clone(fn.AnonFuncs)
 	slices.SortFunc(anonFuncs, func(f1, f2 *ssa.Function) int {
 		return cmp.Compare(f1.Name(), f2.Name())
 	})
 
-	for index, anonFunc := range anonFuncs {
-		_, colored := colors[anonFunc]
-		if colored {
-			// Colored functions (those rewritten into coroutines) have a
-			// deferred anonymous function injected at the beginning to perform
-			// stack unwinding, which takes the ".func1" name.
-			index++
-		}
-		name = anonFuncLinkName(name, index)
-		generateFunctypesInit(pkg, anonFunc, init, name, colors)
+	index := 0
+	// Colored functions (those rewritten into coroutines) have a
+	// deferred anonymous function injected at the beginning to perform
+	// stack unwinding, which takes the ".func1" name.
+	_, colored := colors[fn]
+	if colored {
+		index++
+	}
+
+	for _, anonFunc := range anonFuncs {
+		index++
+		anonFuncName := anonFuncLinkName(name, index)
+		generateFunctypesInit(pkg, anonFunc, init, anonFuncName, colors)
 	}
 }
 
@@ -133,5 +138,5 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 // The function works with multiple levels of nesting as each level adds another
 // ".func<index>" suffix, with the index being local to the parent scope.
 func anonFuncLinkName(base string, index int) string {
-	return fmt.Sprintf("%s.func%d", base, index+1)
+	return fmt.Sprintf("%s.func%d", base, index)
 }

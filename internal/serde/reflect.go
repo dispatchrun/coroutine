@@ -117,6 +117,8 @@ func SerializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		SerializeUint16(s, *(*uint16)(p))
 	case reflect.Uint8:
 		SerializeUint8(s, *(*uint8)(p))
+	case reflect.Uintptr:
+		SerializeUintptr(s, *(*uintptr)(p))
 	case reflect.Float64:
 		SerializeFloat64(s, *(*float64)(p))
 	case reflect.Float32:
@@ -179,6 +181,8 @@ func DeserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		DeserializeUint16(d, (*uint16)(p))
 	case reflect.Uint8:
 		DeserializeUint8(d, (*uint8)(p))
+	case reflect.Uintptr:
+		DeserializeUintptr(d, (*uintptr)(p))
 	case reflect.Float64:
 		DeserializeFloat64(d, (*float64)(p))
 	case reflect.Float32:
@@ -668,6 +672,16 @@ func SerializeUint8(s *Serializer, x uint8) {
 func DeserializeUint8(d *Deserializer, x *uint8) {
 	*x = uint8(d.b[0])
 	d.b = d.b[1:]
+}
+
+func SerializeUintptr(s *Serializer, x uintptr) {
+	SerializeUint64(s, uint64(x))
+}
+
+func DeserializeUintptr(d *Deserializer, x *uintptr) {
+	u := uint64(0)
+	DeserializeUint64(d, &u)
+	*x = uintptr(u)
 }
 
 func SerializeFloat32(s *Serializer, x float32) {
