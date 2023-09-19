@@ -44,16 +44,25 @@ func unsupported(decl ast.Node, info *types.Info) (err error) {
 					err = fmt.Errorf("not implemented: labels not attached to for/switch/select")
 				}
 			case *ast.ForStmt:
-				// Only very simple for loop post iteration statements
-				// are supported.
+				// Only simple post iteration statements are supported.
+				var exprs []ast.Expr
 				switch p := n.Post.(type) {
 				case nil:
 				case *ast.IncDecStmt:
-					if _, ok := p.X.(*ast.Ident); !ok {
-						err = fmt.Errorf("not implemented: for post inc/dec %T", p.X)
+					exprs = append(exprs, p.X)
+				case *ast.AssignStmt:
+					if len(p.Lhs) != len(p.Rhs) {
+						err = fmt.Errorf("not implemented: for loop post iteration assignment with unbalanced sides")
 					}
+					exprs = append(exprs, p.Lhs...)
+					exprs = append(exprs, p.Rhs...)
 				default:
-					err = fmt.Errorf("not implemented: for post %T", p)
+					err = fmt.Errorf("not implemented: for loop post iteration statement %T", p)
+				}
+				for _, e := range exprs {
+					if countFunctionCalls(e, info) > 0 {
+						err = fmt.Errorf("not implemented: for loop post iteration statement with function call")
+					}
 				}
 
 			// Fully supported:
