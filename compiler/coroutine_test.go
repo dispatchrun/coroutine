@@ -120,6 +120,12 @@ func TestCoroutineYield(t *testing.T) {
 		},
 
 		{
+			name:   "range over closure",
+			coro:   func() { Range10Closure() },
+			yields: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+		},
+
+		{
 			name:   "select",
 			coro:   func() { Select(8) },
 			yields: []int{-1, 0, 0, 1, 10, 2, 20, 3, 30, 4, 40, 50, 0, 1, 2},

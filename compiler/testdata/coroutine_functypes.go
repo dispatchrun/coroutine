@@ -15,6 +15,12 @@ func init() {
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.LoopBreakAndContinue")
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.NestedLoops")
 	_types.RegisterFunc[func(int, func(int))]("github.com/stealthrocket/coroutine/compiler/testdata.Range")
+	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.Range10Closure")
+	_types.RegisterClosure[func() bool, struct {
+		_ uintptr
+		i *int
+		n *int
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.Range10Closure.func2")
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeArrayIndexValueGenerator")
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeOverMaps")
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeSliceIndexGenerator")

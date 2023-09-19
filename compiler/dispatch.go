@@ -28,6 +28,9 @@ func trackDispatchSpans0(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan,
 		for _, child := range s.List {
 			nextID = trackDispatchSpans0(child, dispatchSpans, nextID)
 		}
+		if len(s.List) == 0 {
+			nextID++
+		}
 	case *ast.IfStmt:
 		nextID = trackDispatchSpans0(s.Body, dispatchSpans, nextID)
 		if s.Else != nil {
