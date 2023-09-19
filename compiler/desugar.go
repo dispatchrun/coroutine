@@ -22,6 +22,10 @@ import (
 // labels so that the desugaring pass (and other compilation passes) are able
 // to both decompose and introduce control flow.
 //
+// Nondeterministic control flow and iteration (e.g. select, for..range
+// over maps) is split into two parts so that yield points within can resume
+// from the same place.
+//
 // The desugaring pass works at the statement level (ast.Stmt) and does not
 // consider expressions (ast.Expr). This means that the pass does not
 // recurse into expressions that may contain statements. At this time, only
@@ -273,6 +277,12 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 			Body: d.desugarList(s.Body, breakTo, continueTo),
 		}
 
+	case *ast.CommClause:
+		stmt = &ast.CommClause{
+			Comm: d.desugar(s.Comm, nil, nil, nil),
+			Body: d.desugarList(s.Body, breakTo, continueTo),
+		}
+
 	case *ast.BranchStmt:
 		if s.Label != nil {
 			label := d.getUserLabel(s.Label)
@@ -299,8 +309,40 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		// labels can be mapped.
 		stmt = d.desugar(s.Stmt, breakTo, continueTo, s.Label)
 
-	case *ast.SelectStmt, *ast.CommClause:
-		panic("not implemented")
+	case *ast.SelectStmt:
+		// Rewrite select statements into a select+switch statement. The
+		// select cases exist only to record the selection; the select
+		// case bodies are moved into the switch statement over that
+		// selection. This allows coroutines to jump back to the right
+		// case when resuming.
+		selection := d.newVar(types.Typ[types.Int])
+		switchBody := &ast.BlockStmt{List: make([]ast.Stmt, len(s.Body.List))}
+		for i, c := range s.Body.List {
+			cc := c.(*ast.CommClause)
+			id := &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i + 1)}
+			switchBody.List[i] = &ast.CaseClause{
+				List: []ast.Expr{id},
+				Body: cc.Body,
+			}
+			cc.Body = []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{selection},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{id},
+				},
+			}
+		}
+		stmt = &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{selection},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
+				},
+				s,
+				d.desugar(&ast.SwitchStmt{Tag: selection, Body: switchBody}, breakTo, continueTo, userLabel),
+			},
+		}
 
 	case *ast.AssignStmt, *ast.DeclStmt, *ast.DeferStmt, *ast.EmptyStmt,
 		*ast.ExprStmt, *ast.GoStmt, *ast.IncDecStmt, *ast.ReturnStmt, *ast.SendStmt:

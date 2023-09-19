@@ -10,6 +10,8 @@ import (
 	runtime "runtime"
 	sync "sync"
 	atomic "sync/atomic"
+	syscall "syscall"
+	time "time"
 	unsafe "unsafe"
 )
 
@@ -1314,6 +1316,171 @@ func RangeOverMaps(n int) {
 		}
 	}
 }
+
+func Select(n int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f, _fp := _c.Push()
+	var _o0 int
+	var _o1 int
+	var _o2 int
+	var _o3 int
+	var _o4 int
+	var _o5 int
+	if _f.IP > 0 {
+		n = _f.Get(0).(int)
+		_o0 = _f.Get(1).(int)
+
+		_o1 = _f.Get(2).(int)
+		_o2 = _f.Get(3).(int)
+		_o3 = _f.Get(4).(int)
+		_o4 = _f.Get(5).(int)
+
+		_o5 = _f.Get(6).(int)
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, n)
+			_f.Set(1, _o0)
+			_f.Set(2, _o1)
+			_f.Set(3, _o2)
+			_f.Set(4, _o3)
+			_f.Set(5, _o4)
+			_f.Set(6, _o5)
+			_c.Store(_fp, _f)
+		} else {
+			_c.Pop()
+		}
+	}()
+	switch {
+	case _f.IP < 4:
+		switch {
+		case _f.IP < 2:
+			_o0 = 0
+			_f.IP = 2
+			fallthrough
+		case _f.IP < 3:
+			select {
+			default:
+				_o0 = 1
+
+			}
+			_f.IP = 3
+			fallthrough
+		case _f.IP < 4:
+			switch _o0 {
+			case 1:
+				coroutine.Yield[int, any](-1)
+			}
+		}
+		_f.IP = 4
+		fallthrough
+	case _f.IP < 14:
+		switch {
+		case _f.IP < 5:
+
+			_o1 = 0
+			_f.IP = 5
+			fallthrough
+		case _f.IP < 14:
+			for ; _o1 < n; _o1, _f.IP = _o1+1, 5 {
+				switch {
+				case _f.IP < 11:
+					switch {
+					case _f.IP < 6:
+						_o2 = 0
+						_f.IP = 6
+						fallthrough
+					case _f.IP < 8:
+						select {
+						case <-time.After(0):
+							_o2 = 1
+
+						case <-time.After(1 * time.Second):
+							_o2 = 2
+
+						}
+						_f.IP = 8
+						fallthrough
+					case _f.IP < 11:
+					_l2:
+						switch _o2 {
+						case 1:
+							switch {
+							case _f.IP < 9:
+								if _o1 >= 5 {
+									break _l2
+								}
+								_f.IP = 9
+								fallthrough
+							case _f.IP < 10:
+
+								coroutine.Yield[int, any](_o1)
+							}
+						case 2:
+
+							panic("unreachable")
+						}
+					}
+					_f.IP = 11
+					fallthrough
+				case _f.IP < 14:
+					switch {
+					case _f.IP < 12:
+						_o3 = 0
+						_f.IP = 12
+						fallthrough
+					case _f.IP < 13:
+
+						select {
+						case <-time.After(0):
+							_o3 = 1
+
+						}
+						_f.IP = 13
+						fallthrough
+					case _f.IP < 14:
+						switch _o3 {
+						case 1:
+							coroutine.Yield[int, any](_o1 * 10)
+						}
+					}
+				}
+			}
+		}
+		_f.IP = 14
+		fallthrough
+	case _f.IP < 18:
+		switch {
+		case _f.IP < 15:
+			_o4 = 0
+			_f.IP = 15
+			fallthrough
+		case _f.IP < 16:
+
+			select {
+			case <-time.After(0):
+				_o4 = 1
+
+			}
+			_f.IP = 16
+			fallthrough
+		case _f.IP < 18:
+			switch _o4 {
+			case 1:
+				switch {
+				case _f.IP < 17:
+					_o5 = 0
+					_f.IP = 17
+					fallthrough
+				case _f.IP < 18:
+					for ; _o5 < 3; _o5, _f.IP = _o5+1, 17 {
+						coroutine.Yield[int, any](_o5)
+					}
+				}
+			}
+		}
+	}
+}
 func init() {
 	serde.RegisterType[**byte]()
 	serde.RegisterType[*[100000]uintptr]()
@@ -1325,8 +1492,10 @@ func init() {
 	serde.RegisterType[*[1]uintptr]()
 	serde.RegisterType[*[268435456]uintptr]()
 	serde.RegisterType[*[281474976710655]uint32]()
+	serde.RegisterType[*[2]byte]()
 	serde.RegisterType[*[2]float32]()
 	serde.RegisterType[*[2]float64]()
+	serde.RegisterType[*[2]int32]()
 	serde.RegisterType[*[2]uint32]()
 	serde.RegisterType[*[2]uintptr]()
 	serde.RegisterType[*[32]rune]()
@@ -1337,6 +1506,7 @@ func init() {
 	serde.RegisterType[*[70368744177663]uint16]()
 	serde.RegisterType[*[8]byte]()
 	serde.RegisterType[*[8]uint8]()
+	serde.RegisterType[*[]byte]()
 	serde.RegisterType[*[]uint64]()
 	serde.RegisterType[*bool]()
 	serde.RegisterType[*byte]()
@@ -1349,6 +1519,8 @@ func init() {
 	serde.RegisterType[*uint64]()
 	serde.RegisterType[*uint8]()
 	serde.RegisterType[*uintptr]()
+	serde.RegisterType[[0]byte]()
+	serde.RegisterType[[0]uint8]()
 	serde.RegisterType[[0]uintptr]()
 	serde.RegisterType[[1000]uintptr]()
 	serde.RegisterType[[100]byte]()
@@ -1358,6 +1530,7 @@ func init() {
 	serde.RegisterType[[1048576]uint8]()
 	serde.RegisterType[[104]byte]()
 	serde.RegisterType[[108]byte]()
+	serde.RegisterType[[108]int8]()
 	serde.RegisterType[[10]byte]()
 	serde.RegisterType[[10]string]()
 	serde.RegisterType[[128]byte]()
@@ -1365,11 +1538,15 @@ func init() {
 	serde.RegisterType[[128]uintptr]()
 	serde.RegisterType[[129]uint8]()
 	serde.RegisterType[[131072]uintptr]()
+	serde.RegisterType[[133]string]()
+	serde.RegisterType[[13]int32]()
 	serde.RegisterType[[14]byte]()
+	serde.RegisterType[[14]int8]()
 	serde.RegisterType[[15]uint64]()
 	serde.RegisterType[[16384]byte]()
 	serde.RegisterType[[16384]uint8]()
 	serde.RegisterType[[16]byte]()
+	serde.RegisterType[[16]int64]()
 	serde.RegisterType[[16]uint64]()
 	serde.RegisterType[[17]string]()
 	serde.RegisterType[[1]byte]()
@@ -1384,22 +1561,30 @@ func init() {
 	serde.RegisterType[[24]uint32]()
 	serde.RegisterType[[252]uintptr]()
 	serde.RegisterType[[253]uintptr]()
+	serde.RegisterType[[256]int8]()
 	serde.RegisterType[[256]uint64]()
+	serde.RegisterType[[2]byte]()
+	serde.RegisterType[[2]int]()
+	serde.RegisterType[[2]int32]()
 	serde.RegisterType[[2]uint64]()
 	serde.RegisterType[[2]uintptr]()
 	serde.RegisterType[[32]byte]()
 	serde.RegisterType[[32]string]()
+	serde.RegisterType[[32]uint8]()
 	serde.RegisterType[[32]uintptr]()
 	serde.RegisterType[[33]float64]()
 	serde.RegisterType[[3]byte]()
 	serde.RegisterType[[3]int]()
+	serde.RegisterType[[3]int64]()
 	serde.RegisterType[[3]uint16]()
 	serde.RegisterType[[3]uint32]()
+	serde.RegisterType[[3]uint64]()
 	serde.RegisterType[[4096]byte]()
 	serde.RegisterType[[40]byte]()
 	serde.RegisterType[[44]byte]()
 	serde.RegisterType[[4]byte]()
 	serde.RegisterType[[4]float64]()
+	serde.RegisterType[[4]int64]()
 	serde.RegisterType[[4]string]()
 	serde.RegisterType[[4]uint16]()
 	serde.RegisterType[[4]uint32]()
@@ -1419,6 +1604,7 @@ func init() {
 	serde.RegisterType[[64]byte]()
 	serde.RegisterType[[64]uintptr]()
 	serde.RegisterType[[65528]byte]()
+	serde.RegisterType[[65]int8]()
 	serde.RegisterType[[65]uint32]()
 	serde.RegisterType[[65]uintptr]()
 	serde.RegisterType[[68]struct {
@@ -1430,20 +1616,29 @@ func init() {
 	serde.RegisterType[[68]uint32]()
 	serde.RegisterType[[68]uint64]()
 	serde.RegisterType[[68]uint8]()
+	serde.RegisterType[[6]byte]()
+	serde.RegisterType[[6]int]()
+	serde.RegisterType[[6]int8]()
 	serde.RegisterType[[6]uintptr]()
 	serde.RegisterType[[8192]byte]()
 	serde.RegisterType[[8]byte]()
 	serde.RegisterType[[8]string]()
+	serde.RegisterType[[8]uint32]()
 	serde.RegisterType[[8]uint64]()
 	serde.RegisterType[[8]uint8]()
 	serde.RegisterType[[96]byte]()
+	serde.RegisterType[[96]int8]()
 	serde.RegisterType[[9]string]()
 	serde.RegisterType[[9]uintptr]()
+	serde.RegisterType[[]*byte]()
 	serde.RegisterType[[][]int32]()
 	serde.RegisterType[[]byte]()
 	serde.RegisterType[[]float64]()
 	serde.RegisterType[[]int]()
+	serde.RegisterType[[]int16]()
 	serde.RegisterType[[]int32]()
+	serde.RegisterType[[]int64]()
+	serde.RegisterType[[]int8]()
 	serde.RegisterType[[]rune]()
 	serde.RegisterType[[]string]()
 	serde.RegisterType[[]uint16]()
@@ -1468,9 +1663,11 @@ func init() {
 	serde.RegisterType[int32]()
 	serde.RegisterType[int64]()
 	serde.RegisterType[int8]()
+	serde.RegisterType[map[*byte][]byte]()
 	serde.RegisterType[map[int]int]()
 	serde.RegisterType[map[int]struct{}]()
 	serde.RegisterType[map[string]bool]()
+	serde.RegisterType[map[string]int]()
 	serde.RegisterType[map[string]uint64]()
 	serde.RegisterType[rune]()
 	serde.RegisterType[runtime.BlockProfileRecord]()
@@ -1484,6 +1681,10 @@ func init() {
 	serde.RegisterType[runtime.StackRecord]()
 	serde.RegisterType[runtime.TypeAssertionError]()
 	serde.RegisterType[string]()
+	serde.RegisterType[struct {
+		b bool
+		x any
+	}]()
 	serde.RegisterType[struct {
 		base uintptr
 		end  uintptr
@@ -1510,6 +1711,82 @@ func init() {
 	serde.RegisterType[sync.Pool]()
 	serde.RegisterType[sync.RWMutex]()
 	serde.RegisterType[sync.WaitGroup]()
+	serde.RegisterType[syscall.Cmsghdr]()
+	serde.RegisterType[syscall.Credential]()
+	serde.RegisterType[syscall.Dirent]()
+	serde.RegisterType[syscall.EpollEvent]()
+	serde.RegisterType[syscall.Errno]()
+	serde.RegisterType[syscall.FdSet]()
+	serde.RegisterType[syscall.Flock_t]()
+	serde.RegisterType[syscall.Fsid]()
+	serde.RegisterType[syscall.ICMPv6Filter]()
+	serde.RegisterType[syscall.IPMreq]()
+	serde.RegisterType[syscall.IPMreqn]()
+	serde.RegisterType[syscall.IPv6MTUInfo]()
+	serde.RegisterType[syscall.IPv6Mreq]()
+	serde.RegisterType[syscall.IfAddrmsg]()
+	serde.RegisterType[syscall.IfInfomsg]()
+	serde.RegisterType[syscall.Inet4Pktinfo]()
+	serde.RegisterType[syscall.Inet6Pktinfo]()
+	serde.RegisterType[syscall.InotifyEvent]()
+	serde.RegisterType[syscall.Iovec]()
+	serde.RegisterType[syscall.Linger]()
+	serde.RegisterType[syscall.Msghdr]()
+	serde.RegisterType[syscall.NetlinkMessage]()
+	serde.RegisterType[syscall.NetlinkRouteAttr]()
+	serde.RegisterType[syscall.NetlinkRouteRequest]()
+	serde.RegisterType[syscall.NlAttr]()
+	serde.RegisterType[syscall.NlMsgerr]()
+	serde.RegisterType[syscall.NlMsghdr]()
+	serde.RegisterType[syscall.ProcAttr]()
+	serde.RegisterType[syscall.PtraceRegs]()
+	serde.RegisterType[syscall.RawSockaddr]()
+	serde.RegisterType[syscall.RawSockaddrAny]()
+	serde.RegisterType[syscall.RawSockaddrInet4]()
+	serde.RegisterType[syscall.RawSockaddrInet6]()
+	serde.RegisterType[syscall.RawSockaddrLinklayer]()
+	serde.RegisterType[syscall.RawSockaddrNetlink]()
+	serde.RegisterType[syscall.RawSockaddrUnix]()
+	serde.RegisterType[syscall.Rlimit]()
+	serde.RegisterType[syscall.RtAttr]()
+	serde.RegisterType[syscall.RtGenmsg]()
+	serde.RegisterType[syscall.RtMsg]()
+	serde.RegisterType[syscall.RtNexthop]()
+	serde.RegisterType[syscall.Rusage]()
+	serde.RegisterType[syscall.Signal]()
+	serde.RegisterType[syscall.SockFilter]()
+	serde.RegisterType[syscall.SockFprog]()
+	serde.RegisterType[syscall.SockaddrInet4]()
+	serde.RegisterType[syscall.SockaddrInet6]()
+	serde.RegisterType[syscall.SockaddrLinklayer]()
+	serde.RegisterType[syscall.SockaddrNetlink]()
+	serde.RegisterType[syscall.SockaddrUnix]()
+	serde.RegisterType[syscall.SocketControlMessage]()
+	serde.RegisterType[syscall.Stat_t]()
+	serde.RegisterType[syscall.Statfs_t]()
+	serde.RegisterType[syscall.SysProcAttr]()
+	serde.RegisterType[syscall.SysProcIDMap]()
+	serde.RegisterType[syscall.Sysinfo_t]()
+	serde.RegisterType[syscall.TCPInfo]()
+	serde.RegisterType[syscall.Termios]()
+	serde.RegisterType[syscall.Time_t]()
+	serde.RegisterType[syscall.Timespec]()
+	serde.RegisterType[syscall.Timeval]()
+	serde.RegisterType[syscall.Timex]()
+	serde.RegisterType[syscall.Tms]()
+	serde.RegisterType[syscall.Ucred]()
+	serde.RegisterType[syscall.Ustat_t]()
+	serde.RegisterType[syscall.Utimbuf]()
+	serde.RegisterType[syscall.Utsname]()
+	serde.RegisterType[syscall.WaitStatus]()
+	serde.RegisterType[time.Duration]()
+	serde.RegisterType[time.Location]()
+	serde.RegisterType[time.Month]()
+	serde.RegisterType[time.ParseError]()
+	serde.RegisterType[time.Ticker]()
+	serde.RegisterType[time.Time]()
+	serde.RegisterType[time.Timer]()
+	serde.RegisterType[time.Weekday]()
 	serde.RegisterType[uint]()
 	serde.RegisterType[uint16]()
 	serde.RegisterType[uint32]()
