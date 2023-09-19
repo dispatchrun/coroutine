@@ -228,9 +228,8 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	// Check the region of this pointer.
 	r := s.containers.of(p)
 
-	// If this pointer does not belong to any region or is the container of
-	// the region, write a negative offset to flag it is on its own, and
-	// write its data.
+	// If this pointer does not belong to any region, write a negative
+	// offset to flag it is on its own, and write its data.
 	if !r.valid() {
 		serializeVarint(s, -1)
 		SerializeAny(s, t, p)
@@ -244,8 +243,10 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	// Write the type of the container.
 	serializeType(s, r.typ)
 
-	// Serialize the parent.
-
+	// Serialize the parent. If offset is zero, we reuse the id to store the
+	// parent. We could have a more compact representation here, but right
+	// now we need this since the pointers <> id map in the serializer does
+	// not discriminate between the container and the first element of it.
 	if offset == 0 {
 		serializeVarint(s, int(id))
 		serializeVarint(s, -1)

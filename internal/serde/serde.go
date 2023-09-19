@@ -90,9 +90,8 @@ func (d *Deserializer) store(i sID, p unsafe.Pointer) {
 // This mechanism allows writing shared data only once. The actual value is
 // written the first time a given pointer ID is encountered.
 //
-// The regions value contains ranges of memory held by container types. They are
-// the values that actually own memory: basic types (bool, numbers), structs,
-// and arrays.
+// The containers value has ranges of memory held by container types. They are
+// the values that actually own memory: structs and arrays.
 //
 // Serialization starts with scanning the graph of values to find all the
 // containers and add the range of memory they occupy into the map. Regions
@@ -104,7 +103,7 @@ func (d *Deserializer) store(i sID, p unsafe.Pointer) {
 //	  }
 //	}
 //
-// creates only one region: the struct X. Both struct Y and the int are
+// creates only one container: the struct X. Both struct Y and the int are
 // containers, but they are included in the region of struct X.
 //
 // Those two mechanisms allow the deserialization of pointers that point to
