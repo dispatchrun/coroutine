@@ -37,8 +37,6 @@ func Serialize(x any) []byte {
 	// scan dirties s.scanptrs, so clean it up.
 	clear(s.scanptrs)
 
-	//	s.regions.Dump()
-
 	SerializeAny(s, t, p)
 	return s.b
 }
@@ -80,7 +78,7 @@ func (d *Deserializer) readPtr() (unsafe.Pointer, sID) {
 
 func (d *Deserializer) store(i sID, p unsafe.Pointer) {
 	if d.ptrs[i] != nil {
-		panic(fmt.Errorf("trying to overwirte known ID %d with %p", i, p))
+		panic(fmt.Errorf("trying to overwrite known ID %d with %p", i, p))
 	}
 	d.ptrs[i] = p
 }
@@ -92,9 +90,8 @@ func (d *Deserializer) store(i sID, p unsafe.Pointer) {
 // This mechanism allows writing shared data only once. The actual value is
 // written the first time a given pointer ID is encountered.
 //
-// The regions value contains ranges of memory held by container types. They are
-// the values that actually own memory: basic types (bool, numbers), structs,
-// and arrays.
+// The containers value has ranges of memory held by container types. They are
+// the values that actually own memory: structs and arrays.
 //
 // Serialization starts with scanning the graph of values to find all the
 // containers and add the range of memory they occupy into the map. Regions
@@ -106,15 +103,15 @@ func (d *Deserializer) store(i sID, p unsafe.Pointer) {
 //	  }
 //	}
 //
-// creates only one region: the struct X. Both struct Y and the int are
+// creates only one container: the struct X. Both struct Y and the int are
 // containers, but they are included in the region of struct X.
 //
 // Those two mechanisms allow the deserialization of pointers that point to
 // shared memory. Only outermost containers are serialized. All pointers either
 // point to a container, or an offset into that container.
 type Serializer struct {
-	ptrs    map[unsafe.Pointer]sID
-	regions regions
+	ptrs       map[unsafe.Pointer]sID
+	containers containers
 
 	// TODO: move out. just used temporarily by scan
 	scanptrs map[reflect.Value]struct{}

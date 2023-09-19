@@ -96,6 +96,9 @@ func (m *TypeMap) Add(t reflect.Type) {
 		for i := 0; i < t.NumField(); i++ {
 			m.Add(t.Field(i).Type)
 		}
+	case reflect.String:
+		// strings are presented as [X]byte
+		m.Add(byteT)
 	}
 }
 
