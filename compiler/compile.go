@@ -20,13 +20,14 @@ import (
 
 const coroutinePackage = "github.com/stealthrocket/coroutine"
 
-// Compile compiles coroutines in one or more packages.
+// Compile compiles coroutines in a module.
 //
-// The path argument can either be a path to a package, a
-// path to a file within a package, or a pattern that matches
-// multiple packages (for example, /path/to/package/...).
-// The path can be absolute or relative (to the current working
-// directory).
+// The path argument can either be a path to a package within
+// the module, or a pattern that matches multiple packages in the
+// module (for example, /path/to/module/...). In both cases, the
+// nearest module is located and compiled as a whole.
+//
+// The path can be absolute, or relative to the current working directory.
 func Compile(path string, options ...Option) error {
 	c := &compiler{
 		outputFilename: "coroc_generated.go",
@@ -64,33 +65,48 @@ type compiler struct {
 func (c *compiler) compile(path string) error {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
-	if path != "" && !strings.HasSuffix(path, "...") {
-		s, err := os.Stat(path)
-		if err != nil {
-			return err
-		} else if !s.IsDir() {
-			// Make sure we're loading whole packages.
-			path = filepath.Dir(path)
-		}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return err
 	}
-	path = filepath.Clean(path)
-	if len(path) > 0 && path[0] != filepath.Separator && path[0] != '.' {
-		// Go interprets patterns without a leading dot as part of the
-		// stdlib (i.e. part of $GOROOT/src) rather than relative to
-		// the working dir. Note that filepath.Join(".", path) does not
-		// give the desired result here, hence the manual concat.
-		path = "." + string(filepath.Separator) + path
+	var dotdotdot bool
+	absPath, dotdotdot = strings.CutSuffix(absPath, "...")
+	if s, err := os.Stat(absPath); err != nil {
+		return err
+	} else if !s.IsDir() {
+		// Make sure we're loading whole packages.
+		absPath = filepath.Dir(absPath)
+	}
+	var pattern string
+	if dotdotdot {
+		pattern = "./..."
+	} else {
+		pattern = "."
 	}
 
 	log.Printf("reading, parsing and type-checking")
 	conf := &packages.Config{
-		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedImports | packages.NeedDeps | packages.NeedTypesInfo,
+		Mode: packages.NeedName | packages.NeedModule |
+			packages.NeedImports | packages.NeedDeps |
+			packages.NeedFiles | packages.NeedSyntax |
+			packages.NeedTypes | packages.NeedTypesInfo,
 		Fset: c.fset,
+		Dir:  absPath,
 	}
-
-	pkgs, err := packages.Load(conf, path)
+	pkgs, err := packages.Load(conf, pattern)
 	if err != nil {
 		return fmt.Errorf("packages.Load %q: %w", path, err)
+	}
+	var moduleDir string
+	for _, p := range pkgs {
+		if p.Module == nil {
+			return fmt.Errorf("package %s is not part of a module", p.PkgPath)
+		}
+		if moduleDir == "" {
+			moduleDir = p.Module.Dir
+		} else if moduleDir != p.Module.Dir {
+			return fmt.Errorf("pattern more than one module (%s + %s)", moduleDir, p.Module.Dir)
+		}
 	}
 	flatpkgs := flattenPackages(pkgs)
 	for _, p := range flatpkgs {
@@ -151,6 +167,9 @@ func (c *compiler) compile(path string) error {
 	}
 
 	for p, colors := range colorsByPkg {
+		if p.Module == nil || p.Module.Dir != moduleDir {
+			return fmt.Errorf("not implemented: compilation for packages outside module (need to compile %s)", p.PkgPath)
+		}
 		if err := c.compilePackage(p, colors, prog); err != nil {
 			return err
 		}
