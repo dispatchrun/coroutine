@@ -31,11 +31,6 @@ func (c container) contains(x container) bool {
 	return uintptr(x.addr) >= uintptr(c.addr) && uintptr(x.addr)+x.size() <= uintptr(c.addr)+c.size()
 }
 
-// Returns true iff c starts before x.
-func (c container) before(x container) bool {
-	return uintptr(c.addr) <= uintptr(x.addr)
-}
-
 func (c container) after(x container) bool {
 	return uintptr(c.addr) > uintptr(x.addr)
 }
