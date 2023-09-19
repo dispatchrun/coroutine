@@ -3,6 +3,7 @@
 package testdata
 
 import (
+	"time"
 	"unsafe"
 
 	"github.com/stealthrocket/coroutine"
@@ -252,5 +253,36 @@ func RangeOverMaps(n int) {
 	for k := range m2 {
 		delete(m2, k)
 		coroutine.Yield[int, any](len(m2))
+	}
+}
+
+func Select(n int) {
+	select {
+	default:
+		coroutine.Yield[int, any](-1)
+	}
+
+	for i := 0; i < n; i++ {
+		select {
+		case <-time.After(0):
+			if i >= 5 {
+				break
+			}
+			coroutine.Yield[int, any](i)
+		case <-time.After(1 * time.Second):
+			panic("unreachable")
+		}
+
+		select {
+		case <-time.After(0):
+			coroutine.Yield[int, any](i * 10)
+		}
+	}
+
+	select {
+	case <-time.After(0):
+		for j := 0; j < 3; j++ {
+			coroutine.Yield[int, any](j)
+		}
 	}
 }
