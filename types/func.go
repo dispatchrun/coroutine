@@ -44,6 +44,21 @@ type Func struct {
 	Closure reflect.Type
 }
 
+// RegisterFunc is a helper function used to register function types. The type
+// parameter must be a function type, but no compile nor runtime checks are used
+// to enforce it; passing anything other than a function type will likely result
+// in panics later on when the program attempts to serialize the function value.
+//
+// The name argument is a unique identifier of the Go symbol that represents the
+// function, which has the package path as prefix, and the dot-separated sequence
+// identifying the function in the package.
+func RegisterFunc[Type any](name string) {
+	if f := FuncByName(name); f != nil {
+		var signature Type
+		f.Type = reflect.TypeOf(signature)
+	}
+}
+
 // Go function values are pointers to an object starting with the function
 // address, whether they are referencing top-level functions or closures.
 //

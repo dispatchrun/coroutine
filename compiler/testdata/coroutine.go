@@ -256,6 +256,16 @@ func RangeOverMaps(n int) {
 	}
 }
 
+func Range(n int, do func(int)) {
+	for i := 0; i < n; i++ {
+		do(i)
+	}
+}
+
+func Double(n int) {
+	coroutine.Yield[int, any](2 * n)
+}
+
 func Select(n int) {
 	select {
 	default:

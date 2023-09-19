@@ -1,7 +1,6 @@
 package compiler
 
 import (
-	"reflect"
 	"slices"
 	"testing"
 
@@ -101,20 +100,25 @@ func TestCoroutineYield(t *testing.T) {
 		},
 
 		{
+			name:   "range over function",
+			coro:   func() { Range(10, Double) },
+			yields: []int{0, 2, 4, 6, 8, 10, 12, 14, 16, 18},
+		},
+
+		{
 			name:   "select",
 			coro:   func() { Select(8) },
 			yields: []int{-1, 0, 0, 1, 10, 2, 20, 3, 30, 4, 40, 50, 0, 1, 2},
 		},
 	}
 
-	// TODO: remove me
-	//
 	// This emulates the installation of function type information by the
-	// compiler until we have codegen for it.
+	// compiler because we are not doing codegen for the test files in this
+	// package.
 	for _, test := range tests {
 		a := types.FuncAddr(test.coro)
 		f := types.FuncByAddr(a)
-		f.Type = reflect.TypeOf(func() {})
+		types.RegisterFunc[func()](f.Name)
 	}
 
 	for _, test := range tests {

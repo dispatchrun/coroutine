@@ -1,6 +1,6 @@
 GO ?= go
 
-TARGET = testdata/coroutine_durable.go
+TARGET = testdata/coroutine_durable.go testdata/coroutine_functypes.go
 
 test: clean generate
 	$(GO) test ./...

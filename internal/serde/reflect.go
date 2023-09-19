@@ -24,14 +24,28 @@ func serializeType(s *Serializer, t reflect.Type) {
 		return
 	}
 
-	if t.Kind() != reflect.Array {
-		serializeVarint(s, int(Types.idOf(t)))
-		return
-	}
+	switch t.Kind() {
+	case reflect.Array:
+		serializeVarint(s, -1)
+		serializeVarint(s, t.Len())
+		serializeType(s, t.Elem())
 
-	serializeVarint(s, -1)
-	serializeVarint(s, t.Len())
-	serializeType(s, t.Elem())
+	case reflect.Func: // TODO: generics
+		numIn, numOut, variadic := t.NumIn(), t.NumOut(), t.IsVariadic()
+		serializeVarint(s, -2)
+		serializeVarint(s, numIn)
+		serializeVarint(s, numOut)
+		serializeBool(s, variadic)
+		for i := 0; i < numIn; i++ {
+			serializeType(s, t.In(i))
+		}
+		for i := 0; i < numOut; i++ {
+			serializeType(s, t.Out(i))
+		}
+
+	default:
+		serializeVarint(s, int(Types.idOf(t)))
+	}
 }
 
 func deserializeType(d *Deserializer) reflect.Type {
@@ -44,13 +58,32 @@ func deserializeType(d *Deserializer) reflect.Type {
 		return Types.typeOf(sID(n))
 	}
 
-	if n != -1 {
+	switch n {
+	case -1:
+		l := deserializeVarint(d)
+		et := deserializeType(d)
+		return reflect.ArrayOf(l, et)
+
+	case -2:
+		numIn := deserializeVarint(d)
+		numOut := deserializeVarint(d)
+		variadic := deserializeBool(d)
+		in := deserializeTypes(d, numIn)
+		out := deserializeTypes(d, numOut)
+		return reflect.FuncOf(in, out, variadic)
+
+	default:
 		panic(fmt.Errorf("unknown type first int: %d", n))
 	}
 
-	l := deserializeVarint(d)
-	et := deserializeType(d)
-	return reflect.ArrayOf(l, et)
+}
+
+func deserializeTypes(d *Deserializer, n int) []reflect.Type {
+	types := make([]reflect.Type, n)
+	for i := range types {
+		types[i] = deserializeType(d)
+	}
+	return types
 }
 
 func SerializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {

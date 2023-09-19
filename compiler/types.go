@@ -43,6 +43,31 @@ func typeExpr(typ types.Type) ast.Expr {
 		if t.Empty() {
 			return ast.NewIdent("any")
 		}
+	case *types.Signature:
+		return newFuncType(t)
 	}
 	panic(fmt.Sprintf("not implemented: %T", typ))
+}
+
+func newFuncType(signature *types.Signature) *ast.FuncType {
+	return &ast.FuncType{
+		Params:  newFieldList(signature.Params()),
+		Results: newFieldList(signature.Results()),
+	}
+}
+
+func newFieldList(tuple *types.Tuple) *ast.FieldList {
+	return &ast.FieldList{
+		List: newFields(tuple),
+	}
+}
+
+func newFields(tuple *types.Tuple) []*ast.Field {
+	fields := make([]*ast.Field, tuple.Len())
+	for i := range fields {
+		fields[i] = &ast.Field{
+			Type: typeExpr(tuple.At(i).Type()),
+		}
+	}
+	return fields
 }
