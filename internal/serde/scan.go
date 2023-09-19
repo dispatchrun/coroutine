@@ -194,7 +194,7 @@ func (r region) valid() bool {
 }
 
 func (r region) size() int {
-	return int(uintptr(r.end) - uintptr(r.start))
+	return int(uintptr(r.end)-uintptr(r.start)) + 1
 }
 
 func (r region) offset(p unsafe.Pointer) int {
