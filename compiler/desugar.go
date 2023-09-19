@@ -67,20 +67,58 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 	switch s := stmt.(type) {
 	case nil:
 
+	case *ast.AssignStmt:
+		// TODO: desugar expressions
+
+	case *ast.BadStmt:
+		panic("bad stmt")
+
 	case *ast.BlockStmt:
 		stmt = &ast.BlockStmt{List: d.desugarList(s.List, breakTo, continueTo)}
 
-	case *ast.IfStmt:
-		// Rewrite `if init; cond {}` => `{ init; if cond {} }`
-		init := d.desugar(s.Init, nil, nil, nil)
-		stmt = &ast.IfStmt{
-			Cond: s.Cond,
-			Body: d.desugar(s.Body, breakTo, continueTo, nil).(*ast.BlockStmt),
-			Else: d.desugar(s.Else, breakTo, continueTo, nil),
+	case *ast.BranchStmt:
+		if s.Label != nil {
+			label := d.getUserLabel(s.Label)
+			if label == nil {
+				panic(fmt.Sprintf("label not found: %s", s.Label))
+			}
+			d.useLabel(label)
+			stmt = &ast.BranchStmt{Tok: s.Tok, Label: label}
+		} else {
+			switch s.Tok {
+			case token.BREAK:
+				d.useLabel(breakTo)
+				stmt = &ast.BranchStmt{Tok: token.BREAK, Label: breakTo}
+			case token.CONTINUE:
+				d.useLabel(continueTo)
+				stmt = &ast.BranchStmt{Tok: token.CONTINUE, Label: continueTo}
+			default: // FALLTHROUGH / GOTO
+				panic("not implemented")
+			}
 		}
-		if init != nil {
-			stmt = &ast.BlockStmt{List: []ast.Stmt{init, stmt}}
+
+	case *ast.CaseClause:
+		stmt = &ast.CaseClause{
+			List: s.List,
+			Body: d.desugarList(s.Body, breakTo, continueTo),
 		}
+
+	case *ast.CommClause:
+		stmt = &ast.CommClause{
+			Comm: d.desugar(s.Comm, nil, nil, nil),
+			Body: d.desugarList(s.Body, breakTo, continueTo),
+		}
+
+	case *ast.DeclStmt:
+		// TODO: desugar expressions on RHS of var decls
+
+	case *ast.DeferStmt:
+		panic("not implemented")
+
+	case *ast.EmptyStmt:
+
+	case *ast.ExprStmt:
+		// TODO: desugar expressions
 
 	case *ast.ForStmt:
 		// Rewrite `for init; cond; post {}` => `{ init; for ; cond; post {} }`
@@ -100,6 +138,28 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		if init != nil {
 			stmt = &ast.BlockStmt{List: []ast.Stmt{init, stmt}}
 		}
+
+	case *ast.GoStmt:
+		panic("not implemented")
+
+	case *ast.IfStmt:
+		// Rewrite `if init; cond {}` => `{ init; if cond {} }`
+		init := d.desugar(s.Init, nil, nil, nil)
+		stmt = &ast.IfStmt{
+			Cond: s.Cond,
+			Body: d.desugar(s.Body, breakTo, continueTo, nil).(*ast.BlockStmt),
+			Else: d.desugar(s.Else, breakTo, continueTo, nil),
+		}
+		if init != nil {
+			stmt = &ast.BlockStmt{List: []ast.Stmt{init, stmt}}
+		}
+
+	case *ast.IncDecStmt:
+
+	case *ast.LabeledStmt:
+		// Remove the user's label, but notify the next step so that generated
+		// labels can be mapped.
+		stmt = d.desugar(s.Stmt, breakTo, continueTo, s.Label)
 
 	case *ast.RangeStmt:
 		x := d.newVar(d.info.TypeOf(s.X))
@@ -235,79 +295,8 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 			}
 		}
 
-	case *ast.SwitchStmt:
-		// Rewrite `switch init; tag {}` to `init; switch tag {}`
-		init := d.desugar(s.Init, nil, nil, nil)
-		switchLabel := d.newLabel()
-		if userLabel != nil {
-			d.addUserLabel(userLabel, switchLabel)
-		}
-		stmt = &ast.LabeledStmt{
-			Label: switchLabel,
-			Stmt: &ast.SwitchStmt{
-				Tag:  s.Tag,
-				Body: d.desugar(s.Body, switchLabel, continueTo, nil).(*ast.BlockStmt),
-			},
-		}
-		if init != nil {
-			stmt = &ast.BlockStmt{List: []ast.Stmt{init, stmt}}
-		}
-
-	case *ast.TypeSwitchStmt:
-		// Rewrite `switch init; assign {}` to `init; switch assign {}`
-		init := d.desugar(s.Init, nil, nil, nil)
-		switchLabel := d.newLabel()
-		if userLabel != nil {
-			d.addUserLabel(userLabel, switchLabel)
-		}
-		stmt = &ast.LabeledStmt{
-			Label: switchLabel,
-			Stmt: &ast.TypeSwitchStmt{
-				Assign: d.desugar(s.Assign, nil, nil, nil),
-				Body:   d.desugar(s.Body, switchLabel, continueTo, nil).(*ast.BlockStmt),
-			},
-		}
-		if init != nil {
-			stmt = &ast.BlockStmt{List: []ast.Stmt{init, stmt}}
-		}
-
-	case *ast.CaseClause:
-		stmt = &ast.CaseClause{
-			List: s.List,
-			Body: d.desugarList(s.Body, breakTo, continueTo),
-		}
-
-	case *ast.CommClause:
-		stmt = &ast.CommClause{
-			Comm: d.desugar(s.Comm, nil, nil, nil),
-			Body: d.desugarList(s.Body, breakTo, continueTo),
-		}
-
-	case *ast.BranchStmt:
-		if s.Label != nil {
-			label := d.getUserLabel(s.Label)
-			if label == nil {
-				panic(fmt.Sprintf("label not found: %s", s.Label))
-			}
-			d.useLabel(label)
-			stmt = &ast.BranchStmt{Tok: s.Tok, Label: label}
-		} else {
-			switch s.Tok {
-			case token.BREAK:
-				d.useLabel(breakTo)
-				stmt = &ast.BranchStmt{Tok: token.BREAK, Label: breakTo}
-			case token.CONTINUE:
-				d.useLabel(continueTo)
-				stmt = &ast.BranchStmt{Tok: token.CONTINUE, Label: continueTo}
-			default: // FALLTHROUGH / GOTO
-				panic("not implemented")
-			}
-		}
-
-	case *ast.LabeledStmt:
-		// Remove the user's label, but notify the next step so that generated
-		// labels can be mapped.
-		stmt = d.desugar(s.Stmt, breakTo, continueTo, s.Label)
+	case *ast.ReturnStmt:
+		// TODO: desugar expressions
 
 	case *ast.SelectStmt:
 		// Rewrite select statements into a select+switch statement. The
@@ -344,8 +333,44 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 			},
 		}
 
-	case *ast.AssignStmt, *ast.DeclStmt, *ast.DeferStmt, *ast.EmptyStmt,
-		*ast.ExprStmt, *ast.GoStmt, *ast.IncDecStmt, *ast.ReturnStmt, *ast.SendStmt:
+	case *ast.SendStmt:
+		// TODO: desugar expressions
+
+	case *ast.SwitchStmt:
+		// Rewrite `switch init; tag {}` to `init; switch tag {}`
+		init := d.desugar(s.Init, nil, nil, nil)
+		switchLabel := d.newLabel()
+		if userLabel != nil {
+			d.addUserLabel(userLabel, switchLabel)
+		}
+		stmt = &ast.LabeledStmt{
+			Label: switchLabel,
+			Stmt: &ast.SwitchStmt{
+				Tag:  s.Tag,
+				Body: d.desugar(s.Body, switchLabel, continueTo, nil).(*ast.BlockStmt),
+			},
+		}
+		if init != nil {
+			stmt = &ast.BlockStmt{List: []ast.Stmt{init, stmt}}
+		}
+
+	case *ast.TypeSwitchStmt:
+		// Rewrite `switch init; assign {}` to `init; switch assign {}`
+		init := d.desugar(s.Init, nil, nil, nil)
+		switchLabel := d.newLabel()
+		if userLabel != nil {
+			d.addUserLabel(userLabel, switchLabel)
+		}
+		stmt = &ast.LabeledStmt{
+			Label: switchLabel,
+			Stmt: &ast.TypeSwitchStmt{
+				Assign: d.desugar(s.Assign, nil, nil, nil),
+				Body:   d.desugar(s.Body, switchLabel, continueTo, nil).(*ast.BlockStmt),
+			},
+		}
+		if init != nil {
+			stmt = &ast.BlockStmt{List: []ast.Stmt{init, stmt}}
+		}
 
 	default:
 		panic(fmt.Sprintf("unsupported ast.Stmt: %T", stmt))
