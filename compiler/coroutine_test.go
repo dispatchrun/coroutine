@@ -103,7 +103,7 @@ func TestCoroutineYield(t *testing.T) {
 		{
 			name:   "select",
 			coro:   func() { Select(8) },
-			yields: []int{-1, 0, 0, 1, 10, 2, 20, 3, 30, 4, 40, 50, 60, 70, 0, 1, 2},
+			yields: []int{-1, 0, 0, 1, 10, 2, 20, 3, 30, 4, 40, 50, 0, 1, 2},
 		},
 	}
 

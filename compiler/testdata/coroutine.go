@@ -273,8 +273,12 @@ func Select(n int) {
 			panic("unreachable")
 		}
 
+	foo:
 		select {
 		case <-time.After(0):
+			if i >= 6 {
+				break foo
+			}
 			coroutine.Yield[int, any](i * 10)
 		}
 	}
