@@ -1436,11 +1436,7 @@ func Range10Closure() {
 		_f.IP = 4
 		fallthrough
 	case _f.IP < 5:
-	_l0:
-		for ; ; _f.IP = 4 {
-			if !_o2() {
-				break _l0
-			}
+		for ; _o2(); _f.IP = 4 {
 		}
 	}
 }
