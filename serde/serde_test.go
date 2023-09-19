@@ -286,6 +286,51 @@ func TestReflectSharing(t *testing.T) {
 		assertEqual(t, 11, out.s3[0])
 	})
 
+	testReflect(t, "slice backing array with set capacities", func(t *testing.T) {
+		data := make([]int, 10)
+		for i := range data {
+			data[i] = i
+		}
+
+		type X struct {
+			s1 []int
+			s2 []int
+			s3 []int
+		}
+
+		orig := X{
+			s1: data[0:3:3],
+			s2: data[2:8:8],
+			s3: data[7:10:10],
+		}
+		assertEqual(t, []int{0, 1, 2}, orig.s1)
+		assertEqual(t, []int{2, 3, 4, 5, 6, 7}, orig.s2)
+		assertEqual(t, []int{7, 8, 9}, orig.s3)
+
+		assertEqual(t, 3, cap(orig.s1))
+		assertEqual(t, 3, len(orig.s1))
+		assertEqual(t, 6, cap(orig.s2))
+		assertEqual(t, 6, len(orig.s2))
+		assertEqual(t, 3, cap(orig.s3))
+		assertEqual(t, 3, len(orig.s3))
+
+		serde.RegisterType[X]()
+
+		out := assertRoundTrip(t, orig)
+
+		// verify that the initial arrays were shared
+		orig.s1[2] = 42
+		assertEqual(t, 42, orig.s2[0])
+		orig.s2[5] = 11
+		assertEqual(t, 11, orig.s3[0])
+
+		// verify the result's underlying array is shared
+		out.s1[2] = 42
+		assertEqual(t, 42, out.s2[0])
+		out.s2[5] = 11
+		assertEqual(t, 11, out.s3[0])
+	})
+
 	testReflect(t, "struct fields extra pointers", func(t *testing.T) {
 		type A struct {
 			X, Y int

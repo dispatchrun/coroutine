@@ -37,7 +37,7 @@ func Serialize(x any) []byte {
 	// scan dirties s.scanptrs, so clean it up.
 	clear(s.scanptrs)
 
-	//	s.regions.Dump()
+	s.containers.dump()
 
 	SerializeAny(s, t, p)
 	return s.b
@@ -80,7 +80,7 @@ func (d *Deserializer) readPtr() (unsafe.Pointer, sID) {
 
 func (d *Deserializer) store(i sID, p unsafe.Pointer) {
 	if d.ptrs[i] != nil {
-		panic(fmt.Errorf("trying to overwirte known ID %d with %p", i, p))
+		panic(fmt.Errorf("trying to overwrite known ID %d with %p", i, p))
 	}
 	d.ptrs[i] = p
 }
@@ -113,8 +113,8 @@ func (d *Deserializer) store(i sID, p unsafe.Pointer) {
 // shared memory. Only outermost containers are serialized. All pointers either
 // point to a container, or an offset into that container.
 type Serializer struct {
-	ptrs    map[unsafe.Pointer]sID
-	regions regions
+	ptrs       map[unsafe.Pointer]sID
+	containers containers
 
 	// TODO: move out. just used temporarily by scan
 	scanptrs map[reflect.Value]struct{}
