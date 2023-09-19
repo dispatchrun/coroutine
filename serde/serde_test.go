@@ -61,6 +61,8 @@ func TestReflect(t *testing.T) {
 
 			func() {},
 			func(int) int { return 42 },
+
+			[1]*int{intp},
 		}
 
 		for _, x := range cases {
