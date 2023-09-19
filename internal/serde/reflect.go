@@ -427,16 +427,6 @@ func deserializeStructFields(d *Deserializer, p unsafe.Pointer, n int, field fun
 	}
 }
 
-type closureType struct {
-	_ uintptr
-	a *int
-	b *int
-}
-
-func (c *closureType) String() string {
-	return fmt.Sprintf("{a:%v,b:%v}", *c.a, *c.b)
-}
-
 func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	// p is a pointer to a function value, function values are pointers to a
 	// memory location starting with the address of the function, hence the
