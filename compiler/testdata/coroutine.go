@@ -3,6 +3,7 @@
 package testdata
 
 import (
+	"strconv"
 	"time"
 	"unsafe"
 
@@ -279,7 +280,7 @@ func RangeTripleFuncValue(n int) {
 	Range(n, f)
 }
 
-func Range10Closure() {
+func Range10ClosureCapturingValues() {
 	i := 0
 	n := 10
 	f := func() bool {
@@ -292,6 +293,72 @@ func Range10Closure() {
 	}
 
 	for f() {
+	}
+}
+
+func Range10ClosureCapturingPointers() {
+	i, n := 0, 10
+	p := &i
+	q := &n
+	f := func() bool {
+		if *p < *q {
+			coroutine.Yield[int, any](*p)
+			(*p)++
+			return true
+		}
+		return false
+	}
+
+	for f() {
+	}
+}
+
+func Range10ClosureHeterogenousCapture() {
+	var (
+		a int8          = 0
+		b int16         = 1
+		c int32         = 2
+		d int64         = 3
+		e uint8         = 4
+		f uint16        = 5
+		g uint32        = 6
+		h uint64        = 7
+		i uintptr       = 8
+		j func() string = func() string { return "9" }
+	)
+
+	n := 0
+	x := func() bool {
+		var v int
+		switch n {
+		case 0:
+			v = int(a)
+		case 1:
+			v = int(b)
+		case 2:
+			v = int(c)
+		case 3:
+			v = int(d)
+		case 4:
+			v = int(e)
+		case 5:
+			v = int(f)
+		case 6:
+			v = int(g)
+		case 7:
+			v = int(h)
+		case 8:
+			v = int(i)
+		case 9:
+			s := j()
+			v, _ = strconv.Atoi(s)
+		}
+		n++
+		coroutine.Yield[int, any](v)
+		return n < 10
+	}
+
+	for x() {
 	}
 }
 

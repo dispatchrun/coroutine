@@ -121,8 +121,20 @@ func TestCoroutineYield(t *testing.T) {
 		},
 
 		{
-			name:   "range over closure",
-			coro:   func() { Range10Closure() },
+			name:   "range over closure capturing values",
+			coro:   Range10ClosureCapturingValues,
+			yields: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+		},
+
+		{
+			name:   "range over closure capturing pointers",
+			coro:   Range10ClosureCapturingPointers,
+			yields: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+		},
+
+		{
+			name:   "range over closure capturing heterogenous values",
+			coro:   Range10ClosureCapturingPointers,
 			yields: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
 		},
 
