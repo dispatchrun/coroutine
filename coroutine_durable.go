@@ -25,8 +25,14 @@ func (c Coroutine[R, S]) Next() (hasNext bool) {
 	defer func() {
 		clearContext(g)
 
+		switch err := recover(); err {
+		case nil:
+		case unwind{}:
+		default:
+			panic(err)
+		}
+
 		if c.ctx.Unwinding() {
-			recover()
 			stop := c.ctx.stop
 			c.ctx.done, hasNext = stop, !stop
 		} else {
