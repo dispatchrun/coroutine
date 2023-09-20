@@ -294,13 +294,23 @@ func deserializePointedAt(d *Deserializer, t reflect.Type) reflect.Value {
 }
 
 func serializeMap(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	size := 0
 	r := reflect.NewAt(t, p).Elem()
+
 	if r.IsNil() {
-		size = -1
-	} else {
-		size = r.Len()
+		serializeVarint(s, 0)
+		return
 	}
+
+	mapptr := r.UnsafePointer()
+
+	id, new := s.assignPointerID(mapptr)
+	serializeVarint(s, int(id))
+	if !new {
+		return
+	}
+
+	size := r.Len()
+
 	serializeVarint(s, size)
 
 	// TODO: allocs
@@ -316,13 +326,27 @@ func serializeMap(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func deserializeMap(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
+	r := reflect.NewAt(t, p)
+
+	ptr, id := d.readPtr()
+	if id == 0 {
+		// nil map
+		return
+	}
+	if ptr != nil {
+		// already deserialized at ptr
+		existing := reflect.NewAt(t, ptr).Elem()
+		r.Elem().Set(existing)
+		return
+	}
+
 	n := deserializeVarint(d)
 	if n < 0 { // nil map
 		return
 	}
 	nv := reflect.MakeMapWithSize(t, n)
-	r := reflect.NewAt(t, p)
 	r.Elem().Set(nv)
+	d.store(id, p)
 	for i := 0; i < n; i++ {
 		k := reflect.New(t.Key())
 		DeserializeAny(d, t.Key(), k.UnsafePointer())

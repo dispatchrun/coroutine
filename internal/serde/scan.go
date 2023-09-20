@@ -149,6 +149,7 @@ func (c *containers) fixup(i int) {
 			c.remove(i + 1)
 			return
 		}
+		c.remove(i + 1)
 		// Array fully contains next container. Nothing to do
 		return
 	}
