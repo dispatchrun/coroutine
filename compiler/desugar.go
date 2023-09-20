@@ -67,8 +67,15 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 	switch s := stmt.(type) {
 	case nil:
 
+	// These statements are desugared in flatMap(), since decomposing
+	// expressions within them may require additional temporary variables
+	// and thus additional assignment statements.
 	case *ast.AssignStmt:
-		// TODO: desugar expressions
+	case *ast.DeclStmt:
+	case *ast.ExprStmt:
+	case *ast.SendStmt:
+	case *ast.ReturnStmt:
+	case *ast.IncDecStmt:
 
 	case *ast.BadStmt:
 		panic("bad stmt")
@@ -109,16 +116,10 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 			Body: d.desugarList(s.Body, breakTo, continueTo),
 		}
 
-	case *ast.DeclStmt:
-		// TODO: desugar expressions on RHS of var decls
-
 	case *ast.DeferStmt:
 		panic("not implemented")
 
 	case *ast.EmptyStmt:
-
-	case *ast.ExprStmt:
-		// TODO: desugar expressions
 
 	case *ast.ForStmt:
 		// Rewrite for statements:
@@ -178,9 +179,6 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 				Else: d.desugar(s.Else, breakTo, continueTo, nil),
 			}),
 		}
-
-	case *ast.IncDecStmt:
-		// TODO: desugar expressions
 
 	case *ast.LabeledStmt:
 		// Remove the user's label, but notify the next step so that generated
@@ -318,9 +316,6 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 			panic(fmt.Sprintf("not implemented: for range over %T", s.X))
 		}
 
-	case *ast.ReturnStmt:
-		// TODO: desugar expressions
-
 	case *ast.SelectStmt:
 		if s.Body.List == nil {
 			return &ast.SelectStmt{Body: &ast.BlockStmt{}}
@@ -423,9 +418,6 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 				d.desugar(&ast.SwitchStmt{Tag: selection, Body: switchBody}, breakTo, continueTo, userLabel),
 			),
 		}
-
-	case *ast.SendStmt:
-		// TODO: desugar expressions
 
 	case *ast.SwitchStmt:
 		// Rewrite switch statements:
@@ -566,11 +558,33 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 }
 
 func (d *desugarer) desugarList(stmts []ast.Stmt, breakTo, continueTo *ast.Ident) []ast.Stmt {
-	desugared := make([]ast.Stmt, len(stmts))
-	for i, s := range stmts {
-		desugared[i] = d.desugar(s, breakTo, continueTo, nil)
+	desugared := make([]ast.Stmt, 0, len(stmts))
+	for _, s := range stmts {
+		gen := d.flatMap(s, breakTo, continueTo)
+		for _, gs := range gen {
+			desugared = append(desugared, d.desugar(gs, breakTo, continueTo, nil))
+		}
 	}
 	return desugared
+}
+
+func (d *desugarer) flatMap(stmt ast.Stmt, breakTo, continueTo *ast.Ident) []ast.Stmt {
+	switch s := stmt.(type) {
+	case *ast.AssignStmt:
+		// TODO
+		_ = s
+	case *ast.DeclStmt:
+		// TODO
+	case *ast.ExprStmt:
+		// TODO
+	case *ast.SendStmt:
+		// TODO
+	case *ast.ReturnStmt:
+		// TODO
+	case *ast.IncDecStmt:
+		// TODO
+	}
+	return []ast.Stmt{stmt}
 }
 
 func (d *desugarer) newVar(t types.Type) *ast.Ident {
