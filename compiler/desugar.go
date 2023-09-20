@@ -129,13 +129,12 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		if userLabel != nil {
 			d.addUserLabel(userLabel, forLabel)
 		}
-		body := &ast.BlockStmt{
-			List: append([]ast.Stmt{
-				&ast.IfStmt{
-					Cond: &ast.UnaryExpr{Op: token.NOT, X: s.Cond},
-					Body: &ast.BlockStmt{List: []ast.Stmt{&ast.BranchStmt{Tok: token.BREAK}}},
-				},
-			}, s.Body.List...),
+		body := &ast.BlockStmt{List: s.Body.List}
+		if s.Cond != nil {
+			body.List = append([]ast.Stmt{&ast.IfStmt{
+				Cond: &ast.UnaryExpr{Op: token.NOT, X: s.Cond},
+				Body: &ast.BlockStmt{List: []ast.Stmt{&ast.BranchStmt{Tok: token.BREAK}}},
+			}}, body.List...)
 		}
 		stmt = &ast.LabeledStmt{
 			Label: forLabel,
@@ -182,6 +181,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		}
 
 	case *ast.IncDecStmt:
+		// TODO: desugar expressions
 
 	case *ast.LabeledStmt:
 		// Remove the user's label, but notify the next step so that generated
@@ -365,7 +365,9 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		// TODO: desugar expressions
 
 	case *ast.SwitchStmt:
-		// Rewrite `switch init; tag {}` to `init; switch tag {}`
+		// Rewrite switch statements:
+		// - `switch init; tag { case A: ... case B: ... }` => `{ init; if _tag := tag; _tag == A { ... } else if _tag == B { ... }`
+		// - `switch { case A: ... case B: ... default: ... } => `if A { ... } else if B { ... } else { ... }`
 		init := d.desugar(s.Init, nil, nil, nil)
 		switchLabel := d.newLabel()
 		if userLabel != nil {
@@ -384,7 +386,9 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		}
 
 	case *ast.TypeSwitchStmt:
-		// Rewrite `switch init; assign {}` to `init; switch assign {}`
+		// Rewrite type switch statements:
+		// - `switch init; x.(type) { ... }` to `{ init; _x := x; switch _x.(type) { ... } }`
+		// - `switch init; x := y.(type) { ... }` to `{ init; _t := y; switch x := _y.(type) { ... } }`
 		init := d.desugar(s.Init, nil, nil, nil)
 		switchLabel := d.newLabel()
 		if userLabel != nil {
