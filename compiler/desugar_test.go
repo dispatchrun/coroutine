@@ -166,7 +166,7 @@ _l0:
 `,
 		},
 		{
-			name: "for range over slice (no index/value)",
+			name: "for range over slice",
 			body: "for range []int{0, 1, 2} { foo }",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
@@ -689,7 +689,8 @@ default:
 						} else {
 							_v15 := _v11 == 4
 							if _v15 {
-								f[g()] = _v8
+								_v18 := g()
+								f[_v18] = _v8
 								qux
 							} else {
 								_v16 := _v11 == 5
@@ -1066,6 +1067,30 @@ _l0:
 	}
 `,
 		},
+		{
+			name: "decompose nested function calls",
+			body: "a(b(c(d(e(1 + 2)))))",
+			expect: `
+{
+	_v3 := e(1 + 2)
+	_v2 := d(_v3)
+	_v1 := c(_v2)
+	_v0 := b(_v1)
+	a(_v0)
+}
+`,
+		},
+		{
+			name: "decompose expressions in decls",
+			body: "var a, b int = c(d()), e(f())",
+			expect: `
+{
+	_v1 := f()
+	_v0 := d()
+	var a, b int = c(_v0), e(_v1)
+}
+`,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			expr, err := parser.ParseExpr("func() {\n" + test.body + "\n}()")
@@ -1086,9 +1111,14 @@ _l0:
 				if ident, ok := node.(*ast.Ident); ok {
 					if obj, ok := test.defs[ident.Name]; ok {
 						info.Defs[ident] = obj
-					}
-					if obj, ok := test.uses[ident.Name]; ok {
+					} else if obj, ok := test.uses[ident.Name]; ok {
 						info.Uses[ident] = obj
+					} else {
+						// Unless an override has been specified, link
+						// identifiers to objects defined in types.Universe.
+						if obj := types.Universe.Lookup(ident.Name); obj != nil {
+							info.Uses[ident] = obj
+						}
 					}
 					if t, ok := test.types[ident.Name]; ok {
 						info.Types[ident] = t

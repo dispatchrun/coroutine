@@ -219,7 +219,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 				List: append(prologue, d.desugar(&ast.ForStmt{
 					Init: &ast.AssignStmt{Lhs: []ast.Expr{i}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
 					Post: &ast.IncDecStmt{X: i, Tok: token.INC},
-					Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: &ast.CallExpr{Fun: ast.NewIdent("len"), Args: []ast.Expr{x}}},
+					Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: &ast.CallExpr{Fun: d.builtin("len"), Args: []ast.Expr{x}}},
 					Body: s.Body,
 				}, breakTo, continueTo, userLabel)),
 			}
@@ -233,7 +233,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 					List: append(prologue, d.desugar(&ast.ForStmt{
 						Init: &ast.AssignStmt{Lhs: []ast.Expr{i}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
 						Post: &ast.IncDecStmt{X: i, Tok: token.INC},
-						Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: &ast.CallExpr{Fun: ast.NewIdent("len"), Args: []ast.Expr{x}}},
+						Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: &ast.CallExpr{Fun: d.builtin("len"), Args: []ast.Expr{x}}},
 						Body: s.Body,
 					}, breakTo, continueTo, userLabel)),
 				}
@@ -251,11 +251,11 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 						// _keys := make([]keyType, 0, len(_map))
 						&ast.AssignStmt{Lhs: []ast.Expr{keys}, Tok: token.DEFINE, Rhs: []ast.Expr{
 							&ast.CallExpr{
-								Fun: ast.NewIdent("make"),
+								Fun: d.builtin("make"),
 								Args: []ast.Expr{
 									typeExpr(keySliceType),
 									&ast.BasicLit{Kind: token.INT, Value: "0"},
-									&ast.CallExpr{Fun: ast.NewIdent("len"), Args: []ast.Expr{x}},
+									&ast.CallExpr{Fun: d.builtin("len"), Args: []ast.Expr{x}},
 								},
 							},
 						}},
@@ -272,7 +272,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 										Lhs: []ast.Expr{keys},
 										Tok: token.ASSIGN,
 										Rhs: []ast.Expr{
-											&ast.CallExpr{Fun: ast.NewIdent("append"), Args: []ast.Expr{keys, k}},
+											&ast.CallExpr{Fun: d.builtin("append"), Args: []ast.Expr{keys, k}},
 										},
 									},
 								},
@@ -563,7 +563,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 func (d *desugarer) desugarList(stmts []ast.Stmt, breakTo, continueTo *ast.Ident) []ast.Stmt {
 	desugared := make([]ast.Stmt, 0, len(stmts))
 	for _, s := range stmts {
-		gen := d.flatMap(s, breakTo, continueTo)
+		gen := d.flatMap(s)
 		for _, gs := range gen {
 			desugared = append(desugared, d.desugar(gs, breakTo, continueTo, nil))
 		}
@@ -571,23 +571,168 @@ func (d *desugarer) desugarList(stmts []ast.Stmt, breakTo, continueTo *ast.Ident
 	return desugared
 }
 
-func (d *desugarer) flatMap(stmt ast.Stmt, breakTo, continueTo *ast.Ident) []ast.Stmt {
-	switch s := stmt.(type) {
-	case *ast.AssignStmt:
-		// TODO
-		_ = s
-	case *ast.DeclStmt:
-		// TODO
-	case *ast.ExprStmt:
-		// TODO
-	case *ast.SendStmt:
-		// TODO
-	case *ast.ReturnStmt:
-		// TODO
-	case *ast.IncDecStmt:
-		// TODO
+func (d *desugarer) flatMap(stmt ast.Stmt) []ast.Stmt {
+	queue := []ast.Stmt{stmt}
+	for i := 0; i < len(queue); i++ {
+		switch s := queue[i].(type) {
+		case *ast.AssignStmt:
+			if s.Tok != token.DEFINE {
+				for j, expr := range s.Lhs {
+					s.Lhs[j] = d.decomposeExpression(expr, &queue, true)
+				}
+			}
+			for j, expr := range s.Rhs {
+				s.Rhs[j] = d.decomposeExpression(expr, &queue, false)
+			}
+		case *ast.DeclStmt:
+			g := s.Decl.(*ast.GenDecl)
+			if g.Tok == token.VAR {
+				for _, spec := range g.Specs {
+					v := spec.(*ast.ValueSpec)
+					for j, expr := range v.Values {
+						v.Values[j] = d.decomposeExpression(expr, &queue, false)
+					}
+				}
+			}
+		case *ast.ExprStmt:
+			s.X = d.decomposeExpression(s.X, &queue, false)
+		case *ast.SendStmt:
+			s.Chan = d.decomposeExpression(s.Chan, &queue, true)
+			s.Value = d.decomposeExpression(s.Value, &queue, false)
+		case *ast.ReturnStmt:
+			for j, expr := range s.Results {
+				s.Results[j] = d.decomposeExpression(expr, &queue, false)
+			}
+		case *ast.IncDecStmt:
+			s.X = d.decomposeExpression(s.X, &queue, false)
+		}
 	}
-	return []ast.Stmt{stmt}
+	reverse(queue)
+	return queue
+}
+
+func (d *desugarer) mayYield(n ast.Node) (mayYield bool) {
+	switch n.(type) {
+	case nil:
+		return false
+	case *ast.BasicLit, *ast.FuncLit, *ast.Ident:
+		return false
+	case *ast.ArrayType, *ast.ChanType, *ast.FuncType, *ast.InterfaceType, *ast.MapType, *ast.StructType:
+		return false
+	}
+	// TODO: use information from the callgraph to determine which of those ast.CallExpr may yield
+	ast.Inspect(n, func(node ast.Node) bool {
+		if c, ok := node.(*ast.CallExpr); ok {
+			switch fn := c.Fun.(type) {
+			case *ast.Ident:
+				if obj := d.info.ObjectOf(fn); obj != nil {
+					if obj == types.Universe.Lookup(fn.Name) {
+						return true // skip builtin function calls
+					} else if _, ok := obj.(*types.TypeName); ok {
+						return true // skip type casts
+					}
+				}
+			}
+			mayYield = true
+			return false
+		}
+		return true
+	})
+	return
+}
+
+func (d *desugarer) decomposeExpression(expr ast.Expr, queue *[]ast.Stmt, lhs bool) ast.Expr {
+	if !d.mayYield(expr) {
+		return expr
+	}
+	decompose := func(e ast.Expr) ast.Expr {
+		if !d.mayYield(e) {
+			return e
+		}
+		tmp := d.newVar(d.info.TypeOf(e))
+		*queue = append(*queue, &ast.AssignStmt{
+			Lhs: []ast.Expr{tmp},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{e},
+		})
+		return tmp
+	}
+	switch e := expr.(type) {
+	case *ast.BadExpr:
+		panic("bad expr")
+
+	case *ast.BinaryExpr:
+		e.X = decompose(e.X)
+		e.Y = decompose(e.Y)
+
+	case *ast.CallExpr:
+		e.Fun = decompose(e.Fun)
+		for i, arg := range e.Args {
+			e.Args[i] = decompose(arg)
+		}
+	case *ast.CompositeLit:
+		for i, elt := range e.Elts {
+			e.Elts[i] = decompose(elt)
+		}
+		// skip e.Type (type expression)
+
+	case *ast.Ellipsis:
+		e.Elt = decompose(e.Elt)
+
+	case *ast.IndexExpr:
+		e.X = decompose(e.X)
+		e.Index = decompose(e.Index)
+
+	case *ast.IndexListExpr:
+		e.X = decompose(e.X)
+		// skip e.Indices (type expressions)
+
+	case *ast.KeyValueExpr:
+		e.Key = decompose(e.Key)
+		e.Value = decompose(e.Value)
+
+	case *ast.ParenExpr:
+		e.X = decompose(e.X)
+
+	case *ast.SelectorExpr:
+		e.X = decompose(e.X)
+
+	case *ast.SliceExpr:
+		e.X = decompose(e.X)
+		e.Low = decompose(e.Low)
+		e.Max = decompose(e.Max)
+		e.High = decompose(e.High)
+
+	case *ast.StarExpr:
+		e.X = decompose(e.X)
+
+	case *ast.TypeAssertExpr:
+		e.X = decompose(e.X)
+		// skip e.Type (type expression)
+
+	case *ast.UnaryExpr:
+		e.X = decompose(e.X)
+
+	default:
+		panic(fmt.Sprintf("unsupported ast.Expr: %T", expr))
+	}
+	return expr
+}
+
+func reverse(stmts []ast.Stmt) {
+	i := 0
+	j := len(stmts) - 1
+	for i < j {
+		stmts[i], stmts[j] = stmts[j], stmts[i]
+		i++
+		j--
+	}
+}
+
+func (d *desugarer) builtin(name string) *ast.Ident {
+	ident := ast.NewIdent(name)
+	d.info.Uses[ident] = types.Universe.Lookup(name)
+	return ident
 }
 
 func (d *desugarer) newVar(t types.Type) *ast.Ident {
