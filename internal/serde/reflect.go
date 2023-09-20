@@ -215,6 +215,13 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		return
 	}
 
+	if static(p) {
+		serializeVarint(s, -1)
+		off := staticOffset(p)
+		serializeVarint(s, off)
+		return
+	}
+
 	id, new := s.assignPointerID(p)
 	serializeVarint(s, int(id))
 	if !new {

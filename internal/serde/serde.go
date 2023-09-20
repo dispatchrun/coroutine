@@ -71,6 +71,15 @@ func newDeserializer(b []byte) *Deserializer {
 func (d *Deserializer) readPtr() (unsafe.Pointer, sID) {
 	x, n := binary.Varint(d.b)
 	d.b = d.b[n:]
+
+	// pointer into static uint64 table
+	if x == -1 {
+		x, n = binary.Varint(d.b)
+		d.b = d.b[n:]
+		p := staticPointer(int(x))
+		return p, 0
+	}
+
 	i := sID(x)
 	p := d.ptrs[i]
 	return p, i
