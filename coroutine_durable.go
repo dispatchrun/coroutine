@@ -2,7 +2,9 @@
 
 package coroutine
 
-import "github.com/stealthrocket/coroutine/internal/serde"
+import (
+	"github.com/stealthrocket/coroutine/internal/serde"
+)
 
 type serializedCoroutine struct {
 	entry  func()
