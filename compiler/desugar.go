@@ -228,7 +228,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 
 		case *types.Map:
 			// Handle the simple case first:
-			if s.Key == nil && s.Value == nil {
+			if (s.Key == nil || isUnderscore(s.Key)) && (s.Value == nil || isUnderscore(s.Value)) {
 				// Rewrite `for range m {}` => `{ _x := m; for _i := 0; _i < len(_x); _i++ {} }`
 				i := d.newVar(types.Typ[types.Int])
 				stmt = &ast.BlockStmt{
@@ -320,6 +320,8 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 
 				stmt = &ast.BlockStmt{List: []ast.Stmt{init, collectKeys, iterKeys}}
 			}
+		default:
+			panic(fmt.Sprintf("not implemented: for range over %T", s.X))
 		}
 
 	case *ast.ReturnStmt:
