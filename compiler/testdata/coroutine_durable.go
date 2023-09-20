@@ -2331,8 +2331,7 @@ func Range10ClosureHeterogenousCapture() {
 	var _o8 uintptr
 	var _o9 int
 	var _o10 func() bool
-	var _o11 int
-	var _o12 bool
+	var _o11 bool
 	if _f.IP > 0 {
 		if _v := _f.Get(0); _v != nil {
 			_o0 = _v.(int8)
@@ -2369,11 +2368,7 @@ func Range10ClosureHeterogenousCapture() {
 			_o10 = _v.(func() bool)
 		}
 		if _v := _f.Get(11); _v != nil {
-
-			_o11 = _v.(int)
-		}
-		if _v := _f.Get(12); _v != nil {
-			_o12 = _v.(bool)
+			_o11 = _v.(bool)
 		}
 	}
 	defer func() {
@@ -2390,7 +2385,6 @@ func Range10ClosureHeterogenousCapture() {
 			_f.Set(9, _o9)
 			_f.Set(10, _o10)
 			_f.Set(11, _o11)
-			_f.Set(12, _o12)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
@@ -2456,30 +2450,30 @@ func Range10ClosureHeterogenousCapture() {
 				"\n  i = ", _o8, " @", &_o8,
 				"\n---\n",
 			)
-
+			var v int
 			switch _o9 {
 			case 0:
-				_o11 = int(_o0)
+				v = int(_o0)
 			case 1:
-				_o11 = int(_o1)
+				v = int(_o1)
 			case 2:
-				_o11 = int(_o2)
+				v = int(_o2)
 			case 3:
-				_o11 = int(_o3)
+				v = int(_o3)
 			case 4:
-				_o11 = int(_o4)
+				v = int(_o4)
 			case 5:
-				_o11 = int(_o5)
+				v = int(_o5)
 			case 6:
-				_o11 = int(_o6)
+				v = int(_o6)
 			case 7:
-				_o11 = int(_o7)
+				v = int(_o7)
 			case 8:
-				_o11 = int(_o8)
+				v = int(_o8)
 			case 9:
-				_o11 = int(_o9)
+				v = int(_o9)
 			}
-			coroutine.Yield[int, any](_o11)
+			coroutine.Yield[int, any](v)
 			_o9++
 			return _o9 < 10
 		}
@@ -2490,11 +2484,11 @@ func Range10ClosureHeterogenousCapture() {
 		for ; ; _f.IP = 12 {
 			switch {
 			case _f.IP < 13:
-				_o12 = !_o10()
+				_o11 = !_o10()
 				_f.IP = 13
 				fallthrough
 			case _f.IP < 14:
-				if _o12 {
+				if _o11 {
 					break _l0
 				}
 			}

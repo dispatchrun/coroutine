@@ -337,7 +337,7 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 	// declarations to the function prologue. We downgrade inline var decls and
 	// assignments that use := to assignments that use =. Constant decls are
 	// hoisted and also have their value assigned in the function prologue.
-	decls := extractDecls(fn, p.TypesInfo)
+	decls := extractDecls(fn.Body, p.TypesInfo)
 	renameObjects(fn, p.TypesInfo, decls)
 	for _, decl := range decls {
 		gen.Body.List = append(gen.Body.List, &ast.DeclStmt{Decl: decl})
