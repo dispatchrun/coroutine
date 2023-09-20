@@ -67,43 +67,131 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 	switch s := stmt.(type) {
 	case nil:
 
+	// These statements are desugared in flatMap(), since decomposing
+	// expressions within them may require additional temporary variables
+	// and thus additional assignment statements.
+	case *ast.AssignStmt:
+	case *ast.DeclStmt:
+	case *ast.ExprStmt:
+	case *ast.SendStmt:
+	case *ast.ReturnStmt:
+	case *ast.IncDecStmt:
+
+	case *ast.BadStmt:
+		panic("bad stmt")
+
 	case *ast.BlockStmt:
 		stmt = &ast.BlockStmt{List: d.desugarList(s.List, breakTo, continueTo)}
 
-	case *ast.IfStmt:
-		// Rewrite `if init; cond {}` => `{ init; if cond {} }`
-		init := d.desugar(s.Init, nil, nil, nil)
-		stmt = &ast.IfStmt{
-			Cond: s.Cond,
-			Body: d.desugar(s.Body, breakTo, continueTo, nil).(*ast.BlockStmt),
-			Else: d.desugar(s.Else, breakTo, continueTo, nil),
-		}
-		if init != nil {
-			stmt = &ast.BlockStmt{List: []ast.Stmt{init, stmt}}
+	case *ast.BranchStmt:
+		if s.Label != nil {
+			label := d.getUserLabel(s.Label)
+			if label == nil {
+				panic(fmt.Sprintf("label not found: %s", s.Label))
+			}
+			d.useLabel(label)
+			stmt = &ast.BranchStmt{Tok: s.Tok, Label: label}
+		} else {
+			switch s.Tok {
+			case token.BREAK:
+				d.useLabel(breakTo)
+				stmt = &ast.BranchStmt{Tok: token.BREAK, Label: breakTo}
+			case token.CONTINUE:
+				d.useLabel(continueTo)
+				stmt = &ast.BranchStmt{Tok: token.CONTINUE, Label: continueTo}
+			default: // FALLTHROUGH / GOTO
+				panic("not implemented")
+			}
 		}
 
+	case *ast.CaseClause:
+		stmt = &ast.CaseClause{
+			List: s.List, // desugared as part of the ast.SwitchStmt case
+			Body: d.desugarList(s.Body, breakTo, continueTo),
+		}
+
+	case *ast.CommClause:
+		stmt = &ast.CommClause{
+			Comm: s.Comm, // desugared as part of the ast.SelectStmt case
+			Body: d.desugarList(s.Body, breakTo, continueTo),
+		}
+
+	case *ast.DeferStmt:
+		panic("not implemented")
+
+	case *ast.EmptyStmt:
+
 	case *ast.ForStmt:
-		// Rewrite `for init; cond; post {}` => `{ init; for ; cond; post {} }`
-		init := d.desugar(s.Init, nil, nil, nil)
+		// Rewrite for statements:
+		// - `for init; cond; post { ... }` => `{ init; for ; cond; post { ... } }`
+		// - `for ; cond; post { ... }` => `for ; ; post { if !cond { break } ... }
 		forLabel := d.newLabel()
 		if userLabel != nil {
 			d.addUserLabel(userLabel, forLabel)
 		}
+		body := &ast.BlockStmt{List: s.Body.List}
+		if s.Cond != nil {
+			body.List = append([]ast.Stmt{&ast.IfStmt{
+				Cond: &ast.UnaryExpr{Op: token.NOT, X: s.Cond},
+				Body: &ast.BlockStmt{List: []ast.Stmt{&ast.BranchStmt{Tok: token.BREAK}}},
+			}}, body.List...)
+		}
 		stmt = &ast.LabeledStmt{
 			Label: forLabel,
 			Stmt: &ast.ForStmt{
-				Cond: s.Cond,
-				Body: d.desugar(s.Body, forLabel, forLabel, nil).(*ast.BlockStmt),
+				Body: d.desugar(body, forLabel, forLabel, nil).(*ast.BlockStmt),
+				// The post iteration statement is currently preserved for a
+				// later pass.
+				// TODO: find a way to move the statement into the loop body
+				//  so that it can be desugared further, but do so in a way
+				//  that doesn't break continue and deeply nested cases of
+				//  continue [label]. Using goto doesn't work!
 				Post: d.desugar(s.Post, nil, nil, nil),
 			},
 		}
-		if init != nil {
-			stmt = &ast.BlockStmt{List: []ast.Stmt{init, stmt}}
+		if s.Init != nil {
+			prologue := d.desugarList([]ast.Stmt{s.Init}, nil, nil)
+			stmt = &ast.BlockStmt{List: append(prologue, stmt)}
 		}
+
+	case *ast.GoStmt:
+		panic("not implemented")
+
+	case *ast.IfStmt:
+		// Rewrite `if init; cond { ... }` => `{ init; _cond := cond; if _cond { ... } }`
+		var prologue []ast.Stmt
+		if s.Init != nil {
+			prologue = []ast.Stmt{s.Init}
+		}
+		var cond ast.Expr
+		if i, ok := s.Cond.(*ast.Ident); ok {
+			cond = i
+		} else {
+			cond = d.newVar(types.Typ[types.Bool])
+			prologue = append(prologue, &ast.AssignStmt{
+				Lhs: []ast.Expr{cond},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{s.Cond},
+			})
+		}
+		prologue = d.desugarList(prologue, nil, nil)
+		stmt = &ast.BlockStmt{
+			List: append(prologue, &ast.IfStmt{
+				Cond: cond,
+				Body: d.desugar(s.Body, breakTo, continueTo, nil).(*ast.BlockStmt),
+				Else: d.desugar(s.Else, breakTo, continueTo, nil),
+			}),
+		}
+
+	case *ast.LabeledStmt:
+		// Remove the user's label, but notify the next step so that generated
+		// labels can be mapped.
+		stmt = d.desugar(s.Stmt, breakTo, continueTo, s.Label)
 
 	case *ast.RangeStmt:
 		x := d.newVar(d.info.TypeOf(s.X))
 		init := &ast.AssignStmt{Lhs: []ast.Expr{x}, Tok: token.DEFINE, Rhs: []ast.Expr{s.X}}
+		prologue := d.desugarList([]ast.Stmt{init}, nil, nil)
 
 		switch rangeElemType := d.info.TypeOf(s.X).(type) {
 		case *types.Array, *types.Slice:
@@ -128,32 +216,26 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 				}, s.Body.List...)
 			}
 			stmt = &ast.BlockStmt{
-				List: []ast.Stmt{
-					init,
-					d.desugar(&ast.ForStmt{
-						Init: &ast.AssignStmt{Lhs: []ast.Expr{i}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
-						Post: &ast.IncDecStmt{X: i, Tok: token.INC},
-						Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: &ast.CallExpr{Fun: ast.NewIdent("len"), Args: []ast.Expr{x}}},
-						Body: s.Body,
-					}, breakTo, continueTo, userLabel),
-				},
+				List: append(prologue, d.desugar(&ast.ForStmt{
+					Init: &ast.AssignStmt{Lhs: []ast.Expr{i}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
+					Post: &ast.IncDecStmt{X: i, Tok: token.INC},
+					Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: &ast.CallExpr{Fun: ast.NewIdent("len"), Args: []ast.Expr{x}}},
+					Body: s.Body,
+				}, breakTo, continueTo, userLabel)),
 			}
 
 		case *types.Map:
 			// Handle the simple case first:
-			if s.Key == nil && s.Value == nil {
+			if (s.Key == nil || isUnderscore(s.Key)) && (s.Value == nil || isUnderscore(s.Value)) {
 				// Rewrite `for range m {}` => `{ _x := m; for _i := 0; _i < len(_x); _i++ {} }`
 				i := d.newVar(types.Typ[types.Int])
 				stmt = &ast.BlockStmt{
-					List: []ast.Stmt{
-						init,
-						d.desugar(&ast.ForStmt{
-							Init: &ast.AssignStmt{Lhs: []ast.Expr{i}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
-							Post: &ast.IncDecStmt{X: i, Tok: token.INC},
-							Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: &ast.CallExpr{Fun: ast.NewIdent("len"), Args: []ast.Expr{x}}},
-							Body: s.Body,
-						}, breakTo, continueTo, userLabel),
-					},
+					List: append(prologue, d.desugar(&ast.ForStmt{
+						Init: &ast.AssignStmt{Lhs: []ast.Expr{i}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
+						Post: &ast.IncDecStmt{X: i, Tok: token.INC},
+						Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: &ast.CallExpr{Fun: ast.NewIdent("len"), Args: []ast.Expr{x}}},
+						Body: s.Body,
+					}, breakTo, continueTo, userLabel)),
 				}
 			} else {
 				// Since map iteration order is not deterministic, we split the
@@ -231,121 +313,246 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 					},
 				}, breakTo, continueTo, userLabel)
 
-				stmt = &ast.BlockStmt{List: []ast.Stmt{init, collectKeys, iterKeys}}
+				stmt = &ast.BlockStmt{List: append(prologue, collectKeys, iterKeys)}
 			}
+		default:
+			panic(fmt.Sprintf("not implemented: for range over %T", s.X))
 		}
-
-	case *ast.SwitchStmt:
-		// Rewrite `switch init; tag {}` to `init; switch tag {}`
-		init := d.desugar(s.Init, nil, nil, nil)
-		switchLabel := d.newLabel()
-		if userLabel != nil {
-			d.addUserLabel(userLabel, switchLabel)
-		}
-		stmt = &ast.LabeledStmt{
-			Label: switchLabel,
-			Stmt: &ast.SwitchStmt{
-				Tag:  s.Tag,
-				Body: d.desugar(s.Body, switchLabel, continueTo, nil).(*ast.BlockStmt),
-			},
-		}
-		if init != nil {
-			stmt = &ast.BlockStmt{List: []ast.Stmt{init, stmt}}
-		}
-
-	case *ast.TypeSwitchStmt:
-		// Rewrite `switch init; assign {}` to `init; switch assign {}`
-		init := d.desugar(s.Init, nil, nil, nil)
-		switchLabel := d.newLabel()
-		if userLabel != nil {
-			d.addUserLabel(userLabel, switchLabel)
-		}
-		stmt = &ast.LabeledStmt{
-			Label: switchLabel,
-			Stmt: &ast.TypeSwitchStmt{
-				Assign: d.desugar(s.Assign, nil, nil, nil),
-				Body:   d.desugar(s.Body, switchLabel, continueTo, nil).(*ast.BlockStmt),
-			},
-		}
-		if init != nil {
-			stmt = &ast.BlockStmt{List: []ast.Stmt{init, stmt}}
-		}
-
-	case *ast.CaseClause:
-		stmt = &ast.CaseClause{
-			List: s.List,
-			Body: d.desugarList(s.Body, breakTo, continueTo),
-		}
-
-	case *ast.CommClause:
-		stmt = &ast.CommClause{
-			Comm: d.desugar(s.Comm, nil, nil, nil),
-			Body: d.desugarList(s.Body, breakTo, continueTo),
-		}
-
-	case *ast.BranchStmt:
-		if s.Label != nil {
-			label := d.getUserLabel(s.Label)
-			if label == nil {
-				panic(fmt.Sprintf("label not found: %s", s.Label))
-			}
-			d.useLabel(label)
-			stmt = &ast.BranchStmt{Tok: s.Tok, Label: label}
-		} else {
-			switch s.Tok {
-			case token.BREAK:
-				d.useLabel(breakTo)
-				stmt = &ast.BranchStmt{Tok: token.BREAK, Label: breakTo}
-			case token.CONTINUE:
-				d.useLabel(continueTo)
-				stmt = &ast.BranchStmt{Tok: token.CONTINUE, Label: continueTo}
-			default: // FALLTHROUGH / GOTO
-				panic("not implemented")
-			}
-		}
-
-	case *ast.LabeledStmt:
-		// Remove the user's label, but notify the next step so that generated
-		// labels can be mapped.
-		stmt = d.desugar(s.Stmt, breakTo, continueTo, s.Label)
 
 	case *ast.SelectStmt:
+		if s.Body.List == nil {
+			return &ast.SelectStmt{Body: &ast.BlockStmt{}}
+		}
+
 		// Rewrite select statements into a select+switch statement. The
 		// select cases exist only to record the selection; the select
 		// case bodies are moved into the switch statement over that
 		// selection. This allows coroutines to jump back to the right
 		// case when resuming.
 		selection := d.newVar(types.Typ[types.Int])
+		prologue := []ast.Stmt{
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{selection},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
+			},
+		}
+		rawSelect := &ast.SelectStmt{Body: &ast.BlockStmt{List: make([]ast.Stmt, len(s.Body.List))}}
 		switchBody := &ast.BlockStmt{List: make([]ast.Stmt, len(s.Body.List))}
+
 		for i, c := range s.Body.List {
 			cc := c.(*ast.CommClause)
+			caseComm := cc.Comm
+			caseBody := cc.Body
+			switch m := caseComm.(type) {
+			case nil:
+			case *ast.SendStmt:
+				tmpChan := d.newVar(d.info.TypeOf(m.Chan))
+				tmpValue := d.newVar(d.info.TypeOf(m.Value))
+				prologue = append(prologue,
+					&ast.AssignStmt{Lhs: []ast.Expr{tmpChan}, Tok: token.DEFINE, Rhs: []ast.Expr{m.Chan}},
+					&ast.AssignStmt{Lhs: []ast.Expr{tmpValue}, Tok: token.DEFINE, Rhs: []ast.Expr{m.Value}})
+				m.Chan = tmpChan
+				m.Value = tmpValue
+			case *ast.ExprStmt:
+				recv := m.X.(*ast.UnaryExpr)
+				if recv.Op != token.ARROW {
+					panic("unexpected select case")
+				}
+				tmpRecv := d.newVar(d.info.TypeOf(recv.X))
+				prologue = append(prologue,
+					&ast.AssignStmt{Lhs: []ast.Expr{tmpRecv}, Tok: token.DEFINE, Rhs: []ast.Expr{recv.X}})
+				recv.X = tmpRecv
+			case *ast.AssignStmt:
+				if len(m.Rhs) != 1 {
+					panic("unexpected select case")
+				}
+				recv := m.Rhs[0].(*ast.UnaryExpr)
+				if recv.Op != token.ARROW {
+					panic("unexpected select case")
+				}
+				tmpRecv := d.newVar(d.info.TypeOf(recv.X))
+				prologue = append(prologue,
+					&ast.AssignStmt{Lhs: []ast.Expr{tmpRecv}, Tok: token.DEFINE, Rhs: []ast.Expr{recv.X}})
+				recv.X = tmpRecv
+				caseBodyAssigns := make([]ast.Stmt, len(m.Lhs))
+				for j, lhs := range m.Lhs {
+					lhsType := d.info.TypeOf(lhs)
+					tmpLhs := d.newVar(lhsType)
+					prologue = append(prologue,
+						&ast.DeclStmt{Decl: &ast.GenDecl{
+							Tok: token.VAR,
+							Specs: []ast.Spec{
+								&ast.ValueSpec{
+									Names: []*ast.Ident{tmpLhs},
+									Type:  typeExpr(lhsType),
+								},
+							},
+						}})
+
+					caseBodyAssigns[j] = &ast.AssignStmt{Lhs: []ast.Expr{lhs}, Tok: m.Tok, Rhs: []ast.Expr{tmpLhs}}
+					m.Lhs[j] = tmpLhs
+				}
+				caseBody = append(caseBodyAssigns, caseBody...)
+				m.Tok = token.ASSIGN
+			default:
+				panic(fmt.Sprintf("unexpected select case %T", m))
+			}
 			id := &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i + 1)}
 			switchBody.List[i] = &ast.CaseClause{
 				List: []ast.Expr{id},
-				Body: cc.Body,
+				Body: caseBody,
 			}
-			cc.Body = []ast.Stmt{
-				&ast.AssignStmt{
-					Lhs: []ast.Expr{selection},
-					Tok: token.ASSIGN,
-					Rhs: []ast.Expr{id},
+			rawSelect.Body.List[i] = &ast.CommClause{
+				Comm: caseComm,
+				Body: []ast.Stmt{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{selection},
+						Tok: token.ASSIGN,
+						Rhs: []ast.Expr{id},
+					},
 				},
 			}
 		}
+		prologue = d.desugarList(prologue, nil, nil)
 		stmt = &ast.BlockStmt{
-			List: []ast.Stmt{
-				&ast.AssignStmt{
-					Lhs: []ast.Expr{selection},
-					Tok: token.DEFINE,
-					Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
-				},
-				s,
+			List: append(prologue,
+				rawSelect,
 				d.desugar(&ast.SwitchStmt{Tag: selection, Body: switchBody}, breakTo, continueTo, userLabel),
-			},
+			),
 		}
 
-	case *ast.AssignStmt, *ast.DeclStmt, *ast.DeferStmt, *ast.EmptyStmt,
-		*ast.ExprStmt, *ast.GoStmt, *ast.IncDecStmt, *ast.ReturnStmt, *ast.SendStmt:
+	case *ast.SwitchStmt:
+		// Rewrite switch statements:
+		// - `switch init; tag { ... }` => `{ init; _tag := tag; switch _tag { ... }`
+		switchLabel := d.newLabel()
+		if userLabel != nil {
+			d.addUserLabel(userLabel, switchLabel)
+		}
+		var prologue []ast.Stmt
+		if s.Init != nil {
+			prologue = []ast.Stmt{s.Init}
+		}
+		var tag ast.Expr
+		if s.Tag != nil {
+			tag = d.newVar(d.info.TypeOf(s.Tag))
+			prologue = append(prologue, &ast.AssignStmt{
+				Lhs: []ast.Expr{tag},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{s.Tag},
+			})
+		}
+		var defaultCaseBody ast.Stmt
+		var head ast.Stmt
+		var tail *ast.IfStmt
+		for _, caseStmt := range s.Body.List {
+			c := caseStmt.(*ast.CaseClause)
+			if len(c.List) == 0 {
+				defaultCaseBody = &ast.BlockStmt{List: c.Body}
+				continue
+			}
+			list := make([]ast.Expr, len(c.List))
+			for i := range list {
+				if tag != nil {
+					list[i] = &ast.BinaryExpr{X: tag, Op: token.EQL, Y: c.List[i]}
+				} else {
+					list[i] = c.List[i]
+				}
+			}
+			tmp := d.newVar(types.Typ[types.Bool])
+			orExpr := list[0]
+			list = list[1:]
+			for len(list) > 0 {
+				// TODO: balance the tree
+				orExpr = &ast.BinaryExpr{X: orExpr, Op: token.OR, Y: list[0]}
+				list = list[1:]
+			}
+			ifStmt := &ast.IfStmt{
+				Init: &ast.AssignStmt{Lhs: []ast.Expr{tmp}, Tok: token.DEFINE, Rhs: []ast.Expr{orExpr}},
+				Cond: tmp,
+				Body: &ast.BlockStmt{List: c.Body},
+			}
+			if head == nil {
+				head = ifStmt
+				tail = ifStmt
+			} else {
+				tail.Else = ifStmt
+				tail = ifStmt
+			}
+		}
+		if defaultCaseBody != nil {
+			if head == nil {
+				head = defaultCaseBody
+			} else {
+				tail.Else = defaultCaseBody
+			}
+		}
+		if head == nil {
+			head = &ast.EmptyStmt{}
+		} else {
+			s.Tag = nil
+		}
+
+		prologue = d.desugarList(prologue, nil, nil)
+
+		stmt = &ast.LabeledStmt{
+			Label: switchLabel,
+			Stmt: &ast.SwitchStmt{
+				Tag: s.Tag,
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.CaseClause{
+							Body: []ast.Stmt{
+								d.desugar(head, switchLabel, continueTo, nil),
+							},
+						},
+					},
+				},
+			},
+		}
+		if len(prologue) > 0 {
+			stmt = &ast.BlockStmt{List: append(prologue, stmt)}
+		}
+
+	case *ast.TypeSwitchStmt:
+		// Rewrite type switch statements:
+		// - `switch init; x.(type) { ... }` to `{ init; _x := x; switch _x.(type) { ... } }`
+		// - `switch init; x := y.(type) { ... }` to `{ init; _t := y; switch x := _y.(type) { ... } }`
+		switchLabel := d.newLabel()
+		if userLabel != nil {
+			d.addUserLabel(userLabel, switchLabel)
+		}
+		var prologue []ast.Stmt
+		if s.Init != nil {
+			prologue = []ast.Stmt{s.Init}
+		}
+
+		// https://go.dev/ref/spec#TypeSwitchStmt
+		var t *ast.TypeAssertExpr
+		switch a := s.Assign.(type) {
+		case *ast.ExprStmt:
+			t = a.X.(*ast.TypeAssertExpr)
+		case *ast.AssignStmt:
+			t = a.Rhs[0].(*ast.TypeAssertExpr)
+		}
+		tmp := d.newVar(d.info.TypeOf(t.X))
+		prologue = append(prologue, &ast.AssignStmt{
+			Lhs: []ast.Expr{tmp},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{t.X},
+		})
+		t.X = tmp
+
+		prologue = d.desugarList(prologue, nil, nil)
+		stmt = &ast.BlockStmt{
+			List: append(prologue, &ast.LabeledStmt{
+				Label: switchLabel,
+				Stmt: &ast.TypeSwitchStmt{
+					Assign: s.Assign,
+					Body:   d.desugar(s.Body, switchLabel, continueTo, nil).(*ast.BlockStmt),
+				},
+			}),
+		}
 
 	default:
 		panic(fmt.Sprintf("unsupported ast.Stmt: %T", stmt))
@@ -354,11 +561,33 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 }
 
 func (d *desugarer) desugarList(stmts []ast.Stmt, breakTo, continueTo *ast.Ident) []ast.Stmt {
-	desugared := make([]ast.Stmt, len(stmts))
-	for i, s := range stmts {
-		desugared[i] = d.desugar(s, breakTo, continueTo, nil)
+	desugared := make([]ast.Stmt, 0, len(stmts))
+	for _, s := range stmts {
+		gen := d.flatMap(s, breakTo, continueTo)
+		for _, gs := range gen {
+			desugared = append(desugared, d.desugar(gs, breakTo, continueTo, nil))
+		}
 	}
 	return desugared
+}
+
+func (d *desugarer) flatMap(stmt ast.Stmt, breakTo, continueTo *ast.Ident) []ast.Stmt {
+	switch s := stmt.(type) {
+	case *ast.AssignStmt:
+		// TODO
+		_ = s
+	case *ast.DeclStmt:
+		// TODO
+	case *ast.ExprStmt:
+		// TODO
+	case *ast.SendStmt:
+		// TODO
+	case *ast.ReturnStmt:
+		// TODO
+	case *ast.IncDecStmt:
+		// TODO
+	}
+	return []ast.Stmt{stmt}
 }
 
 func (d *desugarer) newVar(t types.Type) *ast.Ident {

@@ -532,8 +532,10 @@ func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	ep := deserializePointedAt(d, et)
 
 	// Store the result in the interface
-	r := reflect.NewAt(t, p)
-	r.Elem().Set(ep.Elem())
+	if !ep.IsNil() {
+		r := reflect.NewAt(t, p)
+		r.Elem().Set(ep.Elem())
+	}
 }
 
 func SerializeString(s *Serializer, x *string) {
