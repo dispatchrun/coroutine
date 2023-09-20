@@ -594,8 +594,12 @@ case <-a:
 	foo
 case b := <-c:
 	bar
-default:
+case d, ok := <-e:
 	baz
+case f[g()] = <-h():
+	qux
+default:
+	abc
 }
 `,
 			expect: `
@@ -606,8 +610,12 @@ default:
 		_v0 = 1
 	case b := <-c:
 		_v0 = 2
-	default:
+	case d, ok := <-e:
 		_v0 = 3
+	case f[g()] = <-h():
+		_v0 = 4
+	default:
+		_v0 = 5
 	}
 	{
 		_v1 := _v0
@@ -618,6 +626,10 @@ default:
 			bar
 		case 3:
 			baz
+		case 4:
+			qux
+		case 5:
+			abc
 		}
 	}
 }
