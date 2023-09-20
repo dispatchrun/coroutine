@@ -93,6 +93,16 @@ func TestReflect(t *testing.T) {
 	})
 }
 
+func TestInt257(t *testing.T) {
+	one := 1
+	x := []any{
+		true,
+		one,
+	}
+	serde.RegisterType[[]any]()
+	assertRoundTrip(t, x)
+}
+
 func TestReflectCustom(t *testing.T) {
 	ser := func(s *serde.Serializer, x *int) error {
 		str := strconv.Itoa(*x)
