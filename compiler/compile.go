@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/callgraph/cha"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
@@ -232,24 +233,26 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 		}
 		colorsByDecl[decl] = color
 	}
+
 	for _, f := range p.Syntax {
 		for _, anydecl := range f.Decls {
 			decl, ok := anydecl.(*ast.FuncDecl)
 			if !ok {
 				continue
 			}
-
 			color, ok := colorsByDecl[decl]
 			if !ok {
 				continue
 			}
-
 			// Reject certain language features for now.
 			if err := unsupported(decl, p.TypesInfo); err != nil {
 				return err
 			}
-
-			gen.Decls = append(gen.Decls, c.compileFunction(p, decl, color))
+			scope := &scope{
+				colors:      colorsByDecl,
+				objectIdent: 0,
+			}
+			gen.Decls = append(gen.Decls, scope.compileFuncDecl(p, decl, color))
 		}
 	}
 
@@ -273,18 +276,44 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 	return nil
 }
 
-func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color *types.Signature) *ast.FuncDecl {
-	log.Printf("compiling function %s %s", p.Name, fn.Name)
+type scope struct {
+	colors map[ast.Node]*types.Signature
+	// Index used to generate unique object identifiers within the scope of a
+	// function.
+	//
+	// The field is reset to zero after compiling function declarations because
+	// we don't need globally unique identifiers for local variables.
+	objectIdent int
+}
 
+func (scope *scope) newObjectIdent() *ast.Ident {
+	ident := scope.objectIdent
+	scope.objectIdent++
+	return ast.NewIdent(fmt.Sprintf("_o%d", ident))
+}
+
+func (scope *scope) compileFuncDecl(p *packages.Package, fn *ast.FuncDecl, color *types.Signature) *ast.FuncDecl {
+	log.Printf("compiling function %s %s", p.Name, fn.Name)
 	// Generate the coroutine function. At this stage, use the same name
 	// as the source function (and require that the caller use build tags
 	// to disambiguate function calls).
-	gen := &ast.FuncDecl{
+	return &ast.FuncDecl{
 		Name: fn.Name,
-		Type: fn.Type,
-		Body: &ast.BlockStmt{},
+		Type: funcTypeWithNamedResults(fn.Type),
+		Body: scope.compileFuncBody(p, fn.Type, fn.Body, color),
 	}
+}
 
+func (scope *scope) compileFuncLit(p *packages.Package, fn *ast.FuncLit, color *types.Signature) *ast.FuncLit {
+	log.Printf("compiling function literal %s", p.Name)
+	return &ast.FuncLit{
+		Type: funcTypeWithNamedResults(fn.Type),
+		Body: scope.compileFuncBody(p, fn.Type, fn.Body, color),
+	}
+}
+
+func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, color *types.Signature) *ast.BlockStmt {
+	gen := new(ast.BlockStmt)
 	ctx := ast.NewIdent("_c")
 	frame := ast.NewIdent("_f")
 	fp := ast.NewIdent("_fp")
@@ -294,7 +323,7 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 	yieldTypeExpr[1] = typeExpr(color.Results().At(0).Type())
 
 	// _c := coroutine.LoadContext[R, S]()
-	gen.Body.List = append(gen.Body.List, &ast.AssignStmt{
+	gen.List = append(gen.List, &ast.AssignStmt{
 		Lhs: []ast.Expr{ctx},
 		Tok: token.DEFINE,
 		Rhs: []ast.Expr{
@@ -311,7 +340,7 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 	})
 
 	// _f, _fp := _c.Push()
-	gen.Body.List = append(gen.Body.List, &ast.AssignStmt{
+	gen.List = append(gen.List, &ast.AssignStmt{
 		Lhs: []ast.Expr{frame, fp},
 		Tok: token.DEFINE,
 		Rhs: []ast.Expr{
@@ -321,8 +350,22 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 		},
 	})
 
+	body = astutil.Apply(body,
+		func(cursor *astutil.Cursor) bool {
+			switch n := cursor.Node().(type) {
+			case *ast.FuncLit:
+				color, ok := scope.colors[n]
+				if ok {
+					cursor.Replace(scope.compileFuncLit(p, n, color))
+				}
+			}
+			return true
+		},
+		nil,
+	).(*ast.BlockStmt)
+
 	// Desugar statements in the tree.
-	fn.Body = desugar(fn.Body, p.TypesInfo).(*ast.BlockStmt)
+	body = desugar(body, p.TypesInfo).(*ast.BlockStmt)
 
 	// Handle declarations.
 	//
@@ -337,17 +380,17 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 	// declarations to the function prologue. We downgrade inline var decls and
 	// assignments that use := to assignments that use =. Constant decls are
 	// hoisted and also have their value assigned in the function prologue.
-	decls := extractDecls(fn.Body, p.TypesInfo)
-	renameObjects(fn, p.TypesInfo, decls)
+	decls := extractDecls(body, p.TypesInfo)
+	renameObjects(body, p.TypesInfo, decls, scope)
 	for _, decl := range decls {
-		gen.Body.List = append(gen.Body.List, &ast.DeclStmt{Decl: decl})
+		gen.List = append(gen.List, &ast.DeclStmt{Decl: decl})
 	}
-	removeDecls(fn)
+	removeDecls(body)
 
 	// Collect params/results/variables that need to be saved/restored.
 	var saveAndRestoreNames []*ast.Ident
 	var saveAndRestoreTypes []types.Type
-	scanFuncTypeIdentifiers(fn.Type, func(name *ast.Ident) {
+	scanFuncTypeIdentifiers(typ, func(name *ast.Ident) {
 		saveAndRestoreNames = append(saveAndRestoreNames, name)
 		saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
 	})
@@ -398,7 +441,7 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 			},
 		)
 	}
-	gen.Body.List = append(gen.Body.List, &ast.IfStmt{
+	gen.List = append(gen.List, &ast.IfStmt{
 		Cond: &ast.BinaryExpr{
 			X:  &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")},
 			Op: token.GTR, /* > */
@@ -419,7 +462,7 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 			},
 		})
 	}
-	gen.Body.List = append(gen.Body.List, &ast.DeferStmt{
+	gen.List = append(gen.List, &ast.DeferStmt{
 		Call: &ast.CallExpr{
 			Fun: &ast.FuncLit{
 				Type: &ast.FuncType{},
@@ -447,11 +490,21 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 		},
 	})
 
-	spans := trackDispatchSpans(fn.Body)
+	spans := trackDispatchSpans(body)
+	compiledBody := compileDispatch(body, spans).(*ast.BlockStmt)
+	gen.List = append(gen.List, compiledBody.List...)
 
-	compiledBody := compileDispatch(fn.Body, spans).(*ast.BlockStmt)
-
-	gen.Body.List = append(gen.Body.List, compiledBody.List...)
-
+	// If the function returns one or more values, it must end with a return statement;
+	// we inject it if the function body does not already has one.
+	if typ.Results != nil && len(typ.Results.List) > 0 {
+		needsReturn := len(gen.List) == 0
+		if !needsReturn {
+			_, endsWithReturn := gen.List[len(gen.List)-1].(*ast.ReturnStmt)
+			needsReturn = !endsWithReturn
+		}
+		if needsReturn {
+			gen.List = append(gen.List, &ast.ReturnStmt{})
+		}
+	}
 	return gen
 }
