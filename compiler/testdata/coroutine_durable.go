@@ -2063,8 +2063,8 @@ func Select(n int) {
 	var _o4 int
 	var _o5 bool
 	var _o6 int
-	var _o7 <-chan Time
-	var _o8 <-chan Time
+	var _o7 <-chan time.Time
+	var _o8 <-chan time.Time
 	var _o9 int
 	var _o10 bool
 	var _o11 bool
@@ -2072,13 +2072,13 @@ func Select(n int) {
 	var _o13 bool
 	var _o14 bool
 	var _o15 int
-	var _o16 <-chan Time
+	var _o16 <-chan time.Time
 	var _o17 int
 	var _o18 bool
 	var _o19 bool
 	var _o20 bool
 	var _o21 int
-	var _o22 <-chan Time
+	var _o22 <-chan time.Time
 	var _o23 int
 	var _o24 bool
 	var _o25 bool
@@ -2094,8 +2094,8 @@ func Select(n int) {
 		_o4 = _f.Get(5).(int)
 		_o5 = _f.Get(6).(bool)
 		_o6 = _f.Get(7).(int)
-		_o7 = _f.Get(8).(<-chan Time)
-		_o8 = _f.Get(9).(<-chan Time)
+		_o7 = _f.Get(8).(<-chan time.Time)
+		_o8 = _f.Get(9).(<-chan time.Time)
 		_o9 = _f.Get(10).(int)
 		_o10 = _f.Get(11).(bool)
 		_o11 = _f.Get(12).(bool)
@@ -2103,13 +2103,13 @@ func Select(n int) {
 		_o13 = _f.Get(14).(bool)
 		_o14 = _f.Get(15).(bool)
 		_o15 = _f.Get(16).(int)
-		_o16 = _f.Get(17).(<-chan Time)
+		_o16 = _f.Get(17).(<-chan time.Time)
 		_o17 = _f.Get(18).(int)
 		_o18 = _f.Get(19).(bool)
 		_o19 = _f.Get(20).(bool)
 		_o20 = _f.Get(21).(bool)
 		_o21 = _f.Get(22).(int)
-		_o22 = _f.Get(23).(<-chan Time)
+		_o22 = _f.Get(23).(<-chan time.Time)
 		_o23 = _f.Get(24).(int)
 		_o24 = _f.Get(25).(bool)
 		_o25 = _f.Get(26).(bool)

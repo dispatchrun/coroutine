@@ -49,7 +49,14 @@ func typeExpr(typ types.Type) ast.Expr {
 		if t.TypeParams() != nil || t.TypeArgs() != nil {
 			panic("not implemented: generic types")
 		}
-		return ast.NewIdent(t.Obj().Name())
+		obj := t.Obj()
+		name := ast.NewIdent(obj.Name())
+		pkg := obj.Pkg()
+		if pkg == nil {
+			return name
+		}
+		// TODO: this needs to be incorporated in the pass to find imports
+		return &ast.SelectorExpr{X: ast.NewIdent(pkg.Name()), Sel: name}
 	case *types.Chan:
 		t.Dir()
 		c := &ast.ChanType{
