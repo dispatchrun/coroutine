@@ -5,14 +5,15 @@
 package testdata
 
 import (
-	"github.com/stealthrocket/coroutine"
-	serde "github.com/stealthrocket/coroutine/serde"
 	runtime "runtime"
 	sync "sync"
 	atomic "sync/atomic"
 	syscall "syscall"
 	time "time"
 	unsafe "unsafe"
+
+	"github.com/stealthrocket/coroutine"
+	serde "github.com/stealthrocket/coroutine/serde"
 )
 
 func Identity(n int) {
@@ -2305,6 +2306,7 @@ func Range10ClosureHeterogenousCapture() {
 	var _o8 uintptr
 	var _o9 int
 	var _o10 int
+	println("_f.IP =", _f.IP)
 	if _f.IP > 0 {
 		_o0 = _f.Get(0).(int8)
 		_o1 = _f.Get(1).(int16)
@@ -2385,6 +2387,7 @@ func Range10ClosureHeterogenousCapture() {
 			_f.IP = 11
 			fallthrough
 		case _f.IP < 23:
+			println("loop")
 			for ; _o9 < 10; _o9, _f.IP = _o9+1, 11 {
 				switch {
 				case _f.IP < 12:
@@ -2418,8 +2421,10 @@ func Range10ClosureHeterogenousCapture() {
 				case _f.IP < 23:
 
 					coroutine.Yield[int, any](_o10)
+					println("resume!")
 				}
 			}
+			println("done", _o9)
 		}
 	}
 }
