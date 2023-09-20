@@ -45,6 +45,25 @@ func typeExpr(typ types.Type) ast.Expr {
 		}
 	case *types.Signature:
 		return newFuncType(t)
+	case *types.Named:
+		if t.TypeParams() != nil || t.TypeArgs() != nil {
+			panic("not implemented: generic types")
+		}
+		return ast.NewIdent(t.Obj().Name())
+	case *types.Chan:
+		t.Dir()
+		c := &ast.ChanType{
+			Value: typeExpr(t.Elem()),
+		}
+		switch t.Dir() {
+		case types.SendRecv:
+			c.Dir = ast.SEND | ast.RECV
+		case types.SendOnly:
+			c.Dir = ast.SEND
+		case types.RecvOnly:
+			c.Dir = ast.RECV
+		}
+		return c
 	}
 	panic(fmt.Sprintf("not implemented: %T", typ))
 }

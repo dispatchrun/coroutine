@@ -9,9 +9,13 @@ import (
 	"go/types"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 func TestDesugar(t *testing.T) {
+	intType := types.Typ[types.Int]
+
 	for _, test := range []struct {
 		name   string
 		body   string
@@ -157,7 +161,7 @@ _l0:
 			body: "for range []int{0, 1, 2} { foo }",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
-				info.Types[x] = types.TypeAndValue{Type: types.NewSlice(types.Typ[types.Int])}
+				info.Types[x] = types.TypeAndValue{Type: types.NewSlice(intType)}
 			},
 			expect: `
 {
@@ -183,7 +187,7 @@ _l0:
 			body: "for _ := range []int{0, 1, 2} { foo }",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
-				info.Types[x] = types.TypeAndValue{Type: types.NewSlice(types.Typ[types.Int])}
+				info.Types[x] = types.TypeAndValue{Type: types.NewSlice(intType)}
 			},
 			expect: `
 {
@@ -209,7 +213,7 @@ _l0:
 			body: "for _, _ := range []int{0, 1, 2} { foo }",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
-				info.Types[x] = types.TypeAndValue{Type: types.NewSlice(types.Typ[types.Int])}
+				info.Types[x] = types.TypeAndValue{Type: types.NewSlice(intType)}
 			},
 			expect: `
 {
@@ -235,7 +239,7 @@ _l0:
 			body: "for i := range []int{0, 1, 2} { foo }",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
-				info.Types[x] = types.TypeAndValue{Type: types.NewSlice(types.Typ[types.Int])}
+				info.Types[x] = types.TypeAndValue{Type: types.NewSlice(intType)}
 			},
 			expect: `
 {
@@ -261,7 +265,7 @@ _l0:
 			body: "for i, _ := range []int{0, 1, 2} { foo }",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
-				info.Types[x] = types.TypeAndValue{Type: types.NewSlice(types.Typ[types.Int])}
+				info.Types[x] = types.TypeAndValue{Type: types.NewSlice(intType)}
 			},
 			expect: `
 {
@@ -287,7 +291,7 @@ _l0:
 			body: "for i, v := range []int{0, 1, 2} {}",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
-				info.Types[x] = types.TypeAndValue{Type: types.NewSlice(types.Typ[types.Int])}
+				info.Types[x] = types.TypeAndValue{Type: types.NewSlice(intType)}
 			},
 			expect: `
 {
@@ -313,7 +317,7 @@ _l0:
 			body: "for _, v := range []int{0, 1, 2} {}",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
-				info.Types[x] = types.TypeAndValue{Type: types.NewSlice(types.Typ[types.Int])}
+				info.Types[x] = types.TypeAndValue{Type: types.NewSlice(intType)}
 			},
 			expect: `
 {
@@ -339,7 +343,7 @@ _l0:
 			body: "for i, v := range [3]int{0, 1, 2} {}",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
-				info.Types[x] = types.TypeAndValue{Type: types.NewArray(types.Typ[types.Int], 3)}
+				info.Types[x] = types.TypeAndValue{Type: types.NewArray(intType, 3)}
 			},
 			expect: `
 {
@@ -365,7 +369,6 @@ _l0:
 			body: "for range map[int]int{} { foo }",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
-				intType := types.Typ[types.Int]
 				info.Types[x] = types.TypeAndValue{Type: types.NewMap(intType, intType)}
 			},
 			expect: `
@@ -392,7 +395,6 @@ _l0:
 			body: "for _, _ = range map[int]int{} { foo }",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
-				intType := types.Typ[types.Int]
 				info.Types[x] = types.TypeAndValue{Type: types.NewMap(intType, intType)}
 			},
 			expect: `
@@ -419,7 +421,6 @@ _l0:
 			body: "for i := range map[int]int{} { foo }",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
-				intType := types.Typ[types.Int]
 				info.Types[x] = types.TypeAndValue{Type: types.NewMap(intType, intType)}
 			},
 			expect: `
@@ -462,7 +463,6 @@ _l0:
 			body: "for i, _ := range map[int]int{} { foo }",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
-				intType := types.Typ[types.Int]
 				info.Types[x] = types.TypeAndValue{Type: types.NewMap(intType, intType)}
 			},
 			expect: `
@@ -505,7 +505,6 @@ _l0:
 			body: "for i, v := range map[int]int{} { foo }",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
-				intType := types.Typ[types.Int]
 				info.Types[x] = types.TypeAndValue{Type: types.NewMap(intType, intType)}
 			},
 			expect: `
@@ -548,7 +547,6 @@ _l0:
 			body: "for _, v := range map[int]int{} { foo }",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
-				intType := types.Typ[types.Int]
 				info.Types[x] = types.TypeAndValue{Type: types.NewMap(intType, intType)}
 			},
 			expect: `
@@ -598,41 +596,95 @@ case d, ok := <-e:
 	baz
 case f[g()] = <-h():
 	qux
-default:
+case i() <- j():
 	abc
+default:
+	xyz
 }
 `,
+			types: map[string]types.TypeAndValue{
+				"a":  {Type: types.NewChan(types.RecvOnly, intType)},
+				"b":  {Type: intType},
+				"c":  {Type: types.NewChan(types.RecvOnly, intType)},
+				"d":  {Type: intType},
+				"e":  {Type: types.NewChan(types.RecvOnly, intType)},
+				"ok": {Type: types.Typ[types.Bool]},
+			},
+			info: func(s []ast.Stmt, info *types.Info) {
+				astutil.Apply(s[0], func(cursor *astutil.Cursor) bool {
+					ident, ok := cursor.Node().(*ast.Ident)
+					if !ok {
+						return true
+					}
+					switch p := cursor.Parent().(type) {
+					case *ast.CallExpr:
+						switch ident.Name {
+						case "h":
+							info.Types[p] = types.TypeAndValue{Type: types.NewChan(types.RecvOnly, intType)}
+						case "i":
+							info.Types[p] = types.TypeAndValue{Type: types.NewChan(types.SendRecv, intType)}
+						case "j":
+							info.Types[p] = types.TypeAndValue{Type: intType}
+						}
+					case *ast.IndexExpr:
+						switch ident.Name {
+						case "f":
+							info.Types[p] = types.TypeAndValue{Type: intType}
+						}
+					}
+					return true
+				}, nil)
+			},
 			expect: `
 {
 	_v0 := 0
+	_v1 := a
+	_v2 := c
+	var _v3 int
+	_v4 := e
+	var _v5 int
+	var _v6 bool
+	_v7 := h()
+	var _v8 int
+	_v9 := i()
+	_v10 := j()
 	select {
-	case <-a:
+	case <-_v1:
 		_v0 = 1
-	case b := <-c:
+	case _v3 = <-_v2:
 		_v0 = 2
-	case d, ok := <-e:
+	case _v5, _v6 = <-_v4:
 		_v0 = 3
-	case f[g()] = <-h():
+	case _v8 = <-_v7:
 		_v0 = 4
-	default:
+	case _v9 <- _v10:
 		_v0 = 5
+	default:
+		_v0 = 6
 	}
 	{
-		_v1 := _v0
-		switch _v1 {
+		_v11 := _v0
+		switch _v11 {
 		case 1:
 			foo
 		case 2:
+			b := _v3
 			bar
 		case 3:
+			d := _v5
+			ok := _v6
 			baz
 		case 4:
+			f[g()] = _v8
 			qux
 		case 5:
 			abc
+		case 6:
+			xyz
 		}
 	}
 }
+
 `,
 		},
 		{
@@ -649,16 +701,18 @@ label:
 			expect: `
 {
 	_v0 := 0
+	_v1 := a
+	_v2 := b
 	select {
-	case <-a:
+	case <-_v1:
 		_v0 = 1
-	case <-b:
+	case <-_v2:
 		_v0 = 2
 	}
 	{
-		_v1 := _v0
+		_v3 := _v0
 	_l0:
-		switch _v1 {
+		switch _v3 {
 		case 1:
 			break _l0
 		case 2:
@@ -838,25 +892,26 @@ _l0:
 		continue _l0
 		{
 			_v0 := 0
+			_v1 := a
 			select {
-			case <-a:
+			case <-_v1:
 				_v0 = 1
 			default:
 				_v0 = 2
 			}
 			{
-				_v1 := _v0
+				_v2 := _v0
 			_l1:
-				switch _v1 {
+				switch _v2 {
 				case 1:
 					break _l1
 					break _l0
 					continue _l0
 				case 2:
 					{
-						_v2 := a
+						_v3 := a
 					_l2:
-						switch _v2.(type) {
+						switch _v3.(type) {
 						case int:
 							break _l2
 							break _l1

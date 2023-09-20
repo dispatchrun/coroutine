@@ -105,7 +105,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 
 	case *ast.CommClause:
 		stmt = &ast.CommClause{
-			Comm: d.desugar(s.Comm, nil, nil, nil),
+			Comm: s.Comm, // desugared as part of the ast.SelectStmt case
 			Body: d.desugarList(s.Body, breakTo, continueTo),
 		}
 
@@ -327,34 +327,100 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		// case bodies are moved into the switch statement over that
 		// selection. This allows coroutines to jump back to the right
 		// case when resuming.
+
 		selection := d.newVar(types.Typ[types.Int])
+		prologue := []ast.Stmt{
+			&ast.AssignStmt{
+				Lhs: []ast.Expr{selection},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
+			},
+		}
+
+		rawSelect := &ast.SelectStmt{Body: &ast.BlockStmt{List: make([]ast.Stmt, len(s.Body.List))}}
 		switchBody := &ast.BlockStmt{List: make([]ast.Stmt, len(s.Body.List))}
+
 		for i, c := range s.Body.List {
 			cc := c.(*ast.CommClause)
-			// TODO: hoist cc.Comm out from select{} so expressions can be desugared
+			caseComm := cc.Comm
+			caseBody := cc.Body
+			switch m := caseComm.(type) {
+			case nil:
+			case *ast.SendStmt:
+				tmpChan := d.newVar(d.info.TypeOf(m.Chan))
+				tmpValue := d.newVar(d.info.TypeOf(m.Value))
+				prologue = append(prologue,
+					&ast.AssignStmt{Lhs: []ast.Expr{tmpChan}, Tok: token.DEFINE, Rhs: []ast.Expr{m.Chan}},
+					&ast.AssignStmt{Lhs: []ast.Expr{tmpValue}, Tok: token.DEFINE, Rhs: []ast.Expr{m.Value}})
+				m.Chan = tmpChan
+				m.Value = tmpValue
+			case *ast.ExprStmt:
+				recv := m.X.(*ast.UnaryExpr)
+				if recv.Op != token.ARROW {
+					panic("unexpected select case")
+				}
+				tmpRecv := d.newVar(d.info.TypeOf(recv.X))
+				prologue = append(prologue,
+					&ast.AssignStmt{Lhs: []ast.Expr{tmpRecv}, Tok: token.DEFINE, Rhs: []ast.Expr{recv.X}})
+				recv.X = tmpRecv
+			case *ast.AssignStmt:
+				if len(m.Rhs) != 1 {
+					panic("unexpected select case")
+				}
+				recv := m.Rhs[0].(*ast.UnaryExpr)
+				if recv.Op != token.ARROW {
+					panic("unexpected select case")
+				}
+				tmpRecv := d.newVar(d.info.TypeOf(recv.X))
+				prologue = append(prologue,
+					&ast.AssignStmt{Lhs: []ast.Expr{tmpRecv}, Tok: token.DEFINE, Rhs: []ast.Expr{recv.X}})
+				recv.X = tmpRecv
+				caseBodyAssigns := make([]ast.Stmt, len(m.Lhs))
+				for j, lhs := range m.Lhs {
+					lhsType := d.info.TypeOf(lhs)
+					tmpLhs := d.newVar(lhsType)
+					prologue = append(prologue,
+						&ast.DeclStmt{Decl: &ast.GenDecl{
+							Tok: token.VAR,
+							Specs: []ast.Spec{
+								&ast.ValueSpec{
+									Names: []*ast.Ident{tmpLhs},
+									Type:  typeExpr(lhsType),
+								},
+							},
+						}})
+
+					caseBodyAssigns[j] = &ast.AssignStmt{Lhs: []ast.Expr{lhs}, Tok: m.Tok, Rhs: []ast.Expr{tmpLhs}}
+					m.Lhs[j] = tmpLhs
+				}
+				caseBody = append(caseBodyAssigns, caseBody...)
+				m.Tok = token.ASSIGN
+			default:
+				panic(fmt.Sprintf("unexpected select case %T", m))
+			}
 			id := &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i + 1)}
 			switchBody.List[i] = &ast.CaseClause{
 				List: []ast.Expr{id},
-				Body: cc.Body,
+				Body: caseBody,
 			}
-			cc.Body = []ast.Stmt{
-				&ast.AssignStmt{
-					Lhs: []ast.Expr{selection},
-					Tok: token.ASSIGN,
-					Rhs: []ast.Expr{id},
+			rawSelect.Body.List[i] = &ast.CommClause{
+				Comm: caseComm,
+				Body: []ast.Stmt{
+					&ast.AssignStmt{
+						Lhs: []ast.Expr{selection},
+						Tok: token.ASSIGN,
+						Rhs: []ast.Expr{id},
+					},
 				},
 			}
+
 		}
+		prologue = d.desugarList(prologue, nil, nil)
 		stmt = &ast.BlockStmt{
-			List: []ast.Stmt{
-				&ast.AssignStmt{
-					Lhs: []ast.Expr{selection},
-					Tok: token.DEFINE,
-					Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
-				},
-				s,
+			List: append(prologue,
+				rawSelect,
 				d.desugar(&ast.SwitchStmt{Tag: selection, Body: switchBody}, breakTo, continueTo, userLabel),
-			},
+			),
 		}
 
 	case *ast.SendStmt:
