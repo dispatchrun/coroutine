@@ -159,22 +159,25 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 
 	case *ast.IfStmt:
 		// Rewrite `if init; cond { ... }` => `{ init; _cond := cond; if _cond { ... } }`
-		condvar := d.newVar(types.Typ[types.Bool])
-		cond := &ast.AssignStmt{
-			Lhs: []ast.Expr{condvar},
-			Tok: token.DEFINE,
-			Rhs: []ast.Expr{s.Cond},
-		}
 		var prologue []ast.Stmt
 		if s.Init != nil {
-			prologue = []ast.Stmt{s.Init, cond}
+			prologue = []ast.Stmt{s.Init}
+		}
+		var cond ast.Expr
+		if i, ok := s.Cond.(*ast.Ident); ok {
+			cond = i
 		} else {
-			prologue = []ast.Stmt{cond}
+			cond = d.newVar(types.Typ[types.Bool])
+			prologue = append(prologue, &ast.AssignStmt{
+				Lhs: []ast.Expr{cond},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{s.Cond},
+			})
 		}
 		prologue = d.desugarList(prologue, nil, nil)
 		stmt = &ast.BlockStmt{
 			List: append(prologue, &ast.IfStmt{
-				Cond: condvar,
+				Cond: cond,
 				Body: d.desugar(s.Body, breakTo, continueTo, nil).(*ast.BlockStmt),
 				Else: d.desugar(s.Else, breakTo, continueTo, nil),
 			}),

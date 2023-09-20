@@ -150,13 +150,11 @@ _l0:
 		default:
 			{
 				_v0 := true
-				_v2 := _v0
-				if _v2 {
+				if _v0 {
 					break _l1
 				} else {
 					_v1 := false
-					_v3 := _v1
-					if _v3 {
+					if _v1 {
 						continue _l0
 					} else {
 						break _l0
@@ -458,8 +456,7 @@ _l0:
 				i := _v4[_v5]
 				{
 					_, _v3 := _v0[i]
-					_v7 := _v3
-					if _v7 {
+					if _v3 {
 						foo
 					}
 				}
@@ -500,8 +497,7 @@ _l0:
 				i := _v4[_v5]
 				{
 					_, _v3 := _v0[i]
-					_v7 := _v3
-					if _v7 {
+					if _v3 {
 						foo
 					}
 				}
@@ -542,8 +538,7 @@ _l0:
 				i := _v4[_v5]
 				{
 					v, _v3 := _v0[i]
-					_v7 := _v3
-					if _v7 {
+					if _v3 {
 						foo
 					}
 				}
@@ -584,8 +579,7 @@ _l0:
 				_v3 := _v5[_v6]
 				{
 					v, _v4 := _v0[_v3]
-					_v8 := _v4
-					if _v8 {
+					if _v4 {
 						foo
 					}
 				}
@@ -679,37 +673,31 @@ default:
 		default:
 			{
 				_v12 := _v11 == 1
-				_v18 := _v12
-				if _v18 {
+				if _v12 {
 					foo
 				} else {
 					_v13 := _v11 == 2
-					_v19 := _v13
-					if _v19 {
+					if _v13 {
 						b := _v3
 						bar
 					} else {
 						_v14 := _v11 == 3
-						_v20 := _v14
-						if _v20 {
+						if _v14 {
 							d := _v5
 							ok := _v6
 							baz
 						} else {
 							_v15 := _v11 == 4
-							_v21 := _v15
-							if _v21 {
+							if _v15 {
 								f[g()] = _v8
 								qux
 							} else {
 								_v16 := _v11 == 5
-								_v22 := _v16
-								if _v22 {
+								if _v16 {
 									abc
 								} else {
 									_v17 := _v11 == 6
-									_v23 := _v17
-									if _v23 {
+									if _v17 {
 										xyz
 									}
 								}
@@ -752,13 +740,11 @@ label:
 		default:
 			{
 				_v4 := _v3 == 1
-				_v6 := _v4
-				if _v6 {
+				if _v4 {
 					break _l0
 				} else {
 					_v5 := _v3 == 2
-					_v7 := _v5
-					if _v7 {
+					if _v5 {
 						break _l0
 					}
 				}
@@ -797,8 +783,7 @@ default:
 		default:
 			{
 				_v2 := _v1 == 1
-				_v3 := _v2
-				if _v3 {
+				if _v2 {
 				}
 			}
 		}
@@ -824,8 +809,7 @@ default:
 	default:
 		{
 			_v1 := _v0 == 1
-			_v2 := _v1
-			if _v2 {
+			if _v1 {
 				bar
 			} else {
 				baz
@@ -854,13 +838,11 @@ default:
 	default:
 		{
 			_v1 := _v0 == 1
-			_v3 := _v1
-			if _v3 {
+			if _v1 {
 				bar
 			} else {
 				_v2 := (_v0 == 2) | (_v0 == 3) | (_v0 == 4)
-				_v4 := _v2
-				if _v4 {
+				if _v2 {
 					baz
 				} else {
 					qux
@@ -908,13 +890,11 @@ switch {
 default:
 	{
 		_v0 := foo == 1
-		_v2 := _v0
-		if _v2 {
+		if _v0 {
 			bar
 		} else {
 			_v1 := foo == 2
-			_v3 := _v1
-			if _v3 {
+			if _v1 {
 				baz
 			} else {
 				qux
@@ -1040,19 +1020,17 @@ _l0:
 				default:
 					{
 						_v3 := _v2 == 1
-						_v5 := _v3
-						if _v5 {
+						if _v3 {
 							break _l1
 							break _l0
 							continue _l0
 						} else {
 							_v4 := _v2 == 2
-							_v6 := _v4
-							if _v6 {
+							if _v4 {
 								{
-									_v7 := a
+									_v5 := a
 								_l2:
-									switch _v7.(type) {
+									switch _v5.(type) {
 									case int:
 										break _l2
 										break _l1
