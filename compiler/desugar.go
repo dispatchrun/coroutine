@@ -362,13 +362,26 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 
 	case *ast.SwitchStmt:
 		// Rewrite switch statements:
-		// - `switch init; tag { case A: ... case B: ... }` => `{ init; if _tag := tag; _tag == A { ... } else if _tag == B { ... }`
-		// - `switch { case A: ... case B: ... default: ... } => `if A { ... } else if B { ... } else { ... }`
+		// - `switch init; tag { ... }` => `{ init; _tag := tag; switch _tag { ... }`
 		switchLabel := d.newLabel()
 		if userLabel != nil {
 			d.addUserLabel(userLabel, switchLabel)
 		}
+		var prologue []ast.Stmt
+		if s.Init != nil {
+			prologue = []ast.Stmt{s.Init}
+		}
+		if s.Tag != nil {
+			tmp := d.newVar(d.info.TypeOf(s.Tag))
+			prologue = append(prologue, &ast.AssignStmt{
+				Lhs: []ast.Expr{tmp},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{s.Tag},
+			})
+			s.Tag = tmp
+		}
 		// TODO: hoist each CaseClause.Cond out from SwitchStmt.Body so expressions can be desugared
+		prologue = d.desugarList(prologue, nil, nil)
 		stmt = &ast.LabeledStmt{
 			Label: switchLabel,
 			Stmt: &ast.SwitchStmt{
@@ -376,8 +389,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 				Body: d.desugar(s.Body, switchLabel, continueTo, nil).(*ast.BlockStmt),
 			},
 		}
-		if s.Init != nil {
-			prologue := d.desugarList([]ast.Stmt{s.Init}, nil, nil)
+		if len(prologue) > 0 {
 			stmt = &ast.BlockStmt{List: append(prologue, stmt)}
 		}
 

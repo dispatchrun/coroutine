@@ -609,13 +609,16 @@ default:
 	default:
 		_v0 = 3
 	}
-	switch _v0 {
-	case 1:
-		foo
-	case 2:
-		bar
-	case 3:
-		baz
+	{
+		_v1 := _v0
+		switch _v1 {
+		case 1:
+			foo
+		case 2:
+			bar
+		case 3:
+			baz
+		}
 	}
 }
 `,
@@ -640,12 +643,15 @@ label:
 	case <-b:
 		_v0 = 2
 	}
-_l0:
-	switch _v0 {
-	case 1:
-		break _l0
-	case 2:
-		break _l0
+	{
+		_v1 := _v0
+	_l0:
+		switch _v1 {
+		case 1:
+			break _l0
+		case 2:
+			break _l0
+		}
 	}
 }
 `,
@@ -663,7 +669,8 @@ default:
 			expect: `
 {
 	foo := bar
-	switch foo {
+	_v0 := foo
+	switch _v0 {
 	case 1:
 		bar
 	default:
@@ -683,11 +690,14 @@ default:
 }
 `,
 			expect: `
-switch foo {
-case 1:
-	bar
-default:
-	baz
+{
+	_v0 := foo
+	switch _v0 {
+	case 1:
+		bar
+	default:
+		baz
+	}
 }
 `,
 		},
@@ -800,7 +810,6 @@ l1:
 					continue l1
 				}
 		}
-	
 	}
 `,
 			defs: map[string]types.Object{
@@ -823,40 +832,43 @@ _l0:
 			default:
 				_v0 = 2
 			}
-		_l1:
-			switch _v0 {
-			case 1:
-				break _l1
-				break _l0
-				continue _l0
-			case 2:
-				{
-					_v1 := a
-				_l2:
-					switch _v1.(type) {
-					case int:
-						break _l2
-						break _l1
-						break _l0
-						continue _l0
-					_l3:
-						switch {
-						default:
-							break _l3
+			{
+				_v1 := _v0
+			_l1:
+				switch _v1 {
+				case 1:
+					break _l1
+					break _l0
+					continue _l0
+				case 2:
+					{
+						_v2 := a
+					_l2:
+						switch _v2.(type) {
+						case int:
 							break _l2
 							break _l1
 							break _l0
 							continue _l0
+						_l3:
+							switch {
+							default:
+								break _l3
+								break _l2
+								break _l1
+								break _l0
+								continue _l0
+							}
 						}
 					}
-				}
-			_l4:
-				for {
-					break _l4
-					break _l1
-					break _l0
-					continue _l4
-					continue _l0
+				_l4:
+					for {
+						break _l4
+						break _l1
+						break _l0
+						continue _l4
+						continue _l0
+					}
 				}
 			}
 		}
