@@ -109,8 +109,6 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 		},
 	})
 
-	fmt.Printf("%v => %+v\n", fn, fn.AnonFuncs)
-
 	anonFuncs := slices.Clone(fn.AnonFuncs)
 	slices.SortFunc(anonFuncs, func(f1, f2 *ssa.Function) int {
 		return cmp.Compare(f1.Name(), f2.Name())
