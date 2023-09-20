@@ -125,8 +125,6 @@ func (c *containers) add(t reflect.Type, p unsafe.Pointer) {
 	if i > 0 {
 		c.fixup(i - 1)
 	}
-
-	c.dump()
 }
 
 func (c *containers) fixup(i int) {
@@ -151,6 +149,7 @@ func (c *containers) fixup(i int) {
 			c.remove(i + 1)
 			return
 		}
+		c.remove(i + 1)
 		// Array fully contains next container. Nothing to do
 		return
 	}

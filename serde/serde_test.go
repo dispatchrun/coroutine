@@ -93,6 +93,16 @@ func TestReflect(t *testing.T) {
 	})
 }
 
+func TestInt257(t *testing.T) {
+	one := 1
+	x := []any{
+		true,
+		one,
+	}
+	serde.RegisterType[[]any]()
+	assertRoundTrip(t, x)
+}
+
 func TestReflectCustom(t *testing.T) {
 	ser := func(s *serde.Serializer, x *int) error {
 		str := strconv.Itoa(*x)
@@ -241,6 +251,32 @@ func TestReflectCustom(t *testing.T) {
 }
 
 func TestReflectSharing(t *testing.T) {
+	testReflect(t, "maps of ints", func(t *testing.T) {
+		m := map[int]int{1: 2, 3: 4}
+
+		type X struct {
+			a map[int]int
+			b map[int]int
+		}
+
+		x := X{
+			a: m,
+			b: m,
+		}
+
+		// make sure map is shared beforehand
+		x.a[5] = 6
+		assertEqual(t, 6, x.b[5])
+
+		serde.RegisterType[X]()
+
+		out := assertRoundTrip(t, x)
+
+		// check map is shared after
+		out.a[7] = 8
+		assertEqual(t, 8, out.b[7])
+	})
+
 	testReflect(t, "slice backing array", func(t *testing.T) {
 		data := make([]int, 10)
 		for i := range data {

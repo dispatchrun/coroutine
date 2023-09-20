@@ -36,3 +36,23 @@ func inlined(t reflect.Type) bool {
 		return false
 	}
 }
+
+var staticuint64s unsafe.Pointer
+
+func init() {
+	zero := 0
+	var x interface{} = zero
+	staticuint64s = (*iface)(unsafe.Pointer(&x)).ptr
+}
+
+func static(p unsafe.Pointer) bool {
+	return uintptr(p) >= uintptr(staticuint64s) && uintptr(p) < uintptr(staticuint64s)+256
+}
+
+func staticOffset(p unsafe.Pointer) int {
+	return int(uintptr(p) - uintptr(staticuint64s))
+}
+
+func staticPointer(offset int) unsafe.Pointer {
+	return unsafe.Add(staticuint64s, offset)
+}
