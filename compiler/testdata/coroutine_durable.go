@@ -2242,12 +2242,26 @@ func Range10ClosureCapturingPointers() {
 	var _o2 *int
 	var _o3 *int
 	var _o4 func() bool
+	var _o5 bool
 	if _f.IP > 0 {
-		_o0 = _f.Get(0).(int)
-		_o1 = _f.Get(1).(int)
-		_o2 = _f.Get(2).(*int)
-		_o3 = _f.Get(3).(*int)
-		_o4 = _f.Get(4).(func() bool)
+		if _v := _f.Get(0); _v != nil {
+			_o0 = _v.(int)
+		}
+		if _v := _f.Get(1); _v != nil {
+			_o1 = _v.(int)
+		}
+		if _v := _f.Get(2); _v != nil {
+			_o2 = _v.(*int)
+		}
+		if _v := _f.Get(3); _v != nil {
+			_o3 = _v.(*int)
+		}
+		if _v := _f.Get(4); _v != nil {
+			_o4 = _v.(func() bool)
+		}
+		if _v := _f.Get(5); _v != nil {
+			_o5 = _v.(bool)
+		}
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -2256,6 +2270,7 @@ func Range10ClosureCapturingPointers() {
 			_f.Set(2, _o2)
 			_f.Set(3, _o3)
 			_f.Set(4, _o4)
+			_f.Set(5, _o5)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
@@ -2285,8 +2300,19 @@ func Range10ClosureCapturingPointers() {
 		}
 		_f.IP = 5
 		fallthrough
-	case _f.IP < 6:
-		for ; _o4(); _f.IP = 5 {
+	case _f.IP < 7:
+	_l0:
+		for ; ; _f.IP = 5 {
+			switch {
+			case _f.IP < 6:
+				_o5 = !_o4()
+				_f.IP = 6
+				fallthrough
+			case _f.IP < 7:
+				if _o5 {
+					break _l0
+				}
+			}
 		}
 	}
 }
@@ -2306,21 +2332,49 @@ func Range10ClosureHeterogenousCapture() {
 	var _o9 int
 	var _o10 func() bool
 	var _o11 int
+	var _o12 bool
 	if _f.IP > 0 {
-		_o0 = _f.Get(0).(int8)
-		_o1 = _f.Get(1).(int16)
-		_o2 = _f.Get(2).(int32)
-		_o3 = _f.Get(3).(int64)
-		_o4 = _f.Get(4).(uint8)
-		_o5 = _f.Get(5).(uint16)
-		_o6 = _f.Get(6).(uint32)
-		_o7 = _f.Get(7).(uint64)
-		_o8 = _f.Get(8).(uintptr)
+		if _v := _f.Get(0); _v != nil {
+			_o0 = _v.(int8)
+		}
+		if _v := _f.Get(1); _v != nil {
+			_o1 = _v.(int16)
+		}
+		if _v := _f.Get(2); _v != nil {
+			_o2 = _v.(int32)
+		}
+		if _v := _f.Get(3); _v != nil {
+			_o3 = _v.(int64)
+		}
+		if _v := _f.Get(4); _v != nil {
+			_o4 = _v.(uint8)
+		}
+		if _v := _f.Get(5); _v != nil {
+			_o5 = _v.(uint16)
+		}
+		if _v := _f.Get(6); _v != nil {
+			_o6 = _v.(uint32)
+		}
+		if _v := _f.Get(7); _v != nil {
+			_o7 = _v.(uint64)
+		}
+		if _v := _f.Get(8); _v != nil {
+			_o8 = _v.(uintptr)
+		}
+		if _v := _f.Get(9); _v != nil {
 
-		_o9 = _f.Get(9).(int)
-		_o10 = _f.Get(10).(func() bool)
+			_o9 = _v.(int)
+		}
+		if _v := _f.Get(10); _v != nil {
+			_o10 = _v.(func() bool)
+		}
+		if _v := _f.Get(11); _v != nil {
 
-		_o11 = _f.Get(11).(int)
+			_o11 = _v.(int)
+		}
+		if _v := _f.Get(12); _v != nil {
+			_o12 = _v.(bool)
+		}
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -2336,6 +2390,7 @@ func Range10ClosureHeterogenousCapture() {
 			_f.Set(9, _o9)
 			_f.Set(10, _o10)
 			_f.Set(11, _o11)
+			_f.Set(12, _o12)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
@@ -2430,8 +2485,19 @@ func Range10ClosureHeterogenousCapture() {
 		}
 		_f.IP = 12
 		fallthrough
-	case _f.IP < 13:
-		for ; _o10(); _f.IP = 12 {
+	case _f.IP < 14:
+	_l0:
+		for ; ; _f.IP = 12 {
+			switch {
+			case _f.IP < 13:
+				_o12 = !_o10()
+				_f.IP = 13
+				fallthrough
+			case _f.IP < 14:
+				if _o12 {
+					break _l0
+				}
+			}
 		}
 	}
 }
@@ -2449,20 +2515,90 @@ func Range10Heterogenous() {
 	var _o7 uint64
 	var _o8 uintptr
 	var _o9 int
-	var _o10 int
+	var _o10 bool
+	var _o11 int
+	var _o12 int
+	var _o13 bool
+	var _o14 bool
+	var _o15 bool
+	var _o16 bool
+	var _o17 bool
+	var _o18 bool
+	var _o19 bool
+	var _o20 bool
+	var _o21 bool
+	var _o22 bool
 	if _f.IP > 0 {
-		_o0 = _f.Get(0).(int8)
-		_o1 = _f.Get(1).(int16)
-		_o2 = _f.Get(2).(int32)
-		_o3 = _f.Get(3).(int64)
-		_o4 = _f.Get(4).(uint8)
-		_o5 = _f.Get(5).(uint16)
-		_o6 = _f.Get(6).(uint32)
-		_o7 = _f.Get(7).(uint64)
-		_o8 = _f.Get(8).(uintptr)
+		if _v := _f.Get(0); _v != nil {
+			_o0 = _v.(int8)
+		}
+		if _v := _f.Get(1); _v != nil {
+			_o1 = _v.(int16)
+		}
+		if _v := _f.Get(2); _v != nil {
+			_o2 = _v.(int32)
+		}
+		if _v := _f.Get(3); _v != nil {
+			_o3 = _v.(int64)
+		}
+		if _v := _f.Get(4); _v != nil {
+			_o4 = _v.(uint8)
+		}
+		if _v := _f.Get(5); _v != nil {
+			_o5 = _v.(uint16)
+		}
+		if _v := _f.Get(6); _v != nil {
+			_o6 = _v.(uint32)
+		}
+		if _v := _f.Get(7); _v != nil {
+			_o7 = _v.(uint64)
+		}
+		if _v := _f.Get(8); _v != nil {
+			_o8 = _v.(uintptr)
+		}
+		if _v := _f.Get(9); _v != nil {
 
-		_o9 = _f.Get(9).(int)
-		_o10 = _f.Get(10).(int)
+			_o9 = _v.(int)
+		}
+		if _v := _f.Get(10); _v != nil {
+			_o10 = _v.(bool)
+		}
+		if _v := _f.Get(11); _v != nil {
+			_o11 = _v.(int)
+		}
+		if _v := _f.Get(12); _v != nil {
+			_o12 = _v.(int)
+		}
+		if _v := _f.Get(13); _v != nil {
+			_o13 = _v.(bool)
+		}
+		if _v := _f.Get(14); _v != nil {
+			_o14 = _v.(bool)
+		}
+		if _v := _f.Get(15); _v != nil {
+			_o15 = _v.(bool)
+		}
+		if _v := _f.Get(16); _v != nil {
+			_o16 = _v.(bool)
+		}
+		if _v := _f.Get(17); _v != nil {
+			_o17 = _v.(bool)
+		}
+		if _v := _f.Get(18); _v != nil {
+			_o18 = _v.(bool)
+		}
+		if _v := _f.Get(19); _v != nil {
+			_o19 = _v.(bool)
+		}
+		if _v := _f.Get(20); _v != nil {
+			_o20 = _v.(bool)
+		}
+		if _v := _f.Get(21); _v != nil {
+			_o21 = _v.(bool)
+		}
+		if _v := _f.Get(22); _v != nil {
+			_o22 = _v.(bool)
+		}
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -2477,6 +2613,18 @@ func Range10Heterogenous() {
 			_f.Set(8, _o8)
 			_f.Set(9, _o9)
 			_f.Set(10, _o10)
+			_f.Set(11, _o11)
+			_f.Set(12, _o12)
+			_f.Set(13, _o13)
+			_f.Set(14, _o14)
+			_f.Set(15, _o15)
+			_f.Set(16, _o16)
+			_f.Set(17, _o17)
+			_f.Set(18, _o18)
+			_f.Set(19, _o19)
+			_f.Set(20, _o20)
+			_f.Set(21, _o21)
+			_f.Set(22, _o22)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
@@ -2522,47 +2670,114 @@ func Range10Heterogenous() {
 		}
 		_f.IP = 10
 		fallthrough
-	case _f.IP < 23:
+	case _f.IP < 36:
 		switch {
 		case _f.IP < 11:
 
 			_o9 = 0
 			_f.IP = 11
 			fallthrough
-		case _f.IP < 23:
-			for ; _o9 < 10; _o9, _f.IP = _o9+1, 11 {
+		case _f.IP < 36:
+		_l0:
+			for ; ; _o9, _f.IP = _o9+1, 11 {
 				switch {
-				case _f.IP < 12:
-					_f.IP = 12
-					fallthrough
-				case _f.IP < 22:
-					switch _o9 {
-					case 0:
-						_o10 = int(_o0)
-					case 1:
-						_o10 = int(_o1)
-					case 2:
-						_o10 = int(_o2)
-					case 3:
-						_o10 = int(_o3)
-					case 4:
-						_o10 = int(_o4)
-					case 5:
-						_o10 = int(_o5)
-					case 6:
-						_o10 = int(_o6)
-					case 7:
-						_o10 = int(_o7)
-					case 8:
-						_o10 = int(_o8)
-					case 9:
-						_o10 = int(_o9)
+				case _f.IP < 13:
+					switch {
+					case _f.IP < 12:
+						_o10 = !(_o9 < 10)
+						_f.IP = 12
+						fallthrough
+					case _f.IP < 13:
+						if _o10 {
+							break _l0
+						}
 					}
-					_f.IP = 22
+					_f.IP = 13
 					fallthrough
-				case _f.IP < 23:
+				case _f.IP < 14:
+					_f.IP = 14
+					fallthrough
+				case _f.IP < 35:
+					switch {
+					case _f.IP < 15:
+						_o12 = _o9
+						_f.IP = 15
+						fallthrough
+					case _f.IP < 35:
+						switch {
+						default:
+							switch {
+							case _f.IP < 16:
+								_o13 = _o12 ==
+									0
+								_f.IP = 16
+								fallthrough
+							case _f.IP < 35:
+								if _o13 {
+									_o11 = int(_o0)
+								} else {
+									_o14 = _o12 ==
+										1
+									if _o14 {
+										_o11 = int(_o1)
+									} else {
+										_o15 = _o12 ==
+											2
+										if _o15 {
+											_o11 = int(_o2)
+										} else {
+											_o16 = _o12 ==
+												3
+											if _o16 {
+												_o11 = int(_o3)
+											} else {
+												_o17 = _o12 ==
+													4
+												if _o17 {
+													_o11 = int(_o4)
+												} else {
+													_o18 = _o12 ==
+														5
+													if _o18 {
+														_o11 = int(_o5)
+													} else {
+														_o19 = _o12 ==
+															6
+														if _o19 {
+															_o11 = int(_o6)
+														} else {
+															_o20 = _o12 ==
+																7
+															if _o20 {
+																_o11 = int(_o7)
+															} else {
+																_o21 = _o12 ==
+																	8
+																if _o21 {
+																	_o11 = int(_o8)
+																} else {
+																	_o22 = _o12 ==
+																		9
+																	if _o22 {
+																		_o11 = int(_o9)
+																	}
+																}
+															}
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+					_f.IP = 35
+					fallthrough
+				case _f.IP < 36:
 
-					coroutine.Yield[int, any](_o10)
+					coroutine.Yield[int, any](_o11)
 				}
 			}
 		}
