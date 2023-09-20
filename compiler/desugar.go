@@ -389,16 +389,36 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		if userLabel != nil {
 			d.addUserLabel(userLabel, switchLabel)
 		}
-		stmt = &ast.LabeledStmt{
-			Label: switchLabel,
-			Stmt: &ast.TypeSwitchStmt{
-				Assign: d.desugar(s.Assign, nil, nil, nil),
-				Body:   d.desugar(s.Body, switchLabel, continueTo, nil).(*ast.BlockStmt),
-			},
-		}
+		var prologue []ast.Stmt
 		if s.Init != nil {
-			prologue := d.desugarList([]ast.Stmt{s.Init}, nil, nil)
-			stmt = &ast.BlockStmt{List: append(prologue, stmt)}
+			prologue = []ast.Stmt{s.Init}
+		}
+
+		// https://go.dev/ref/spec#TypeSwitchStmt
+		var t *ast.TypeAssertExpr
+		switch a := s.Assign.(type) {
+		case *ast.ExprStmt:
+			t = a.X.(*ast.TypeAssertExpr)
+		case *ast.AssignStmt:
+			t = a.Rhs[0].(*ast.TypeAssertExpr)
+		}
+		tmp := d.newVar(d.info.TypeOf(t.X))
+		prologue = append(prologue, &ast.AssignStmt{
+			Lhs: []ast.Expr{tmp},
+			Tok: token.DEFINE,
+			Rhs: []ast.Expr{t.X},
+		})
+		t.X = tmp
+
+		prologue = d.desugarList(prologue, nil, nil)
+		stmt = &ast.BlockStmt{
+			List: append(prologue, &ast.LabeledStmt{
+				Label: switchLabel,
+				Stmt: &ast.TypeSwitchStmt{
+					Assign: s.Assign,
+					Body:   d.desugar(s.Body, switchLabel, continueTo, nil).(*ast.BlockStmt),
+				},
+			}),
 		}
 
 	default:

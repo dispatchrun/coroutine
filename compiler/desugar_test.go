@@ -725,11 +725,14 @@ case bool:
 }
 `,
 			expect: `
-switch a.(type) {
-case int:
-	foo
-case bool:
-	bar
+{
+	_v0 := a
+	switch _v0.(type) {
+	case int:
+		foo
+	case bool:
+		bar
+	}
 }
 `,
 		},
@@ -746,7 +749,8 @@ case bool:
 			expect: `
 {
 	a := 1
-	switch b := a.(type) {
+	_v0 := a
+	switch b := _v0.(type) {
 	case int:
 		foo
 	case bool:
@@ -826,21 +830,24 @@ _l0:
 				break _l0
 				continue _l0
 			case 2:
-			_l2:
-				switch a.(type) {
-				case int:
-					break _l2
-					break _l1
-					break _l0
-					continue _l0
-				_l3:
-					switch {
-					default:
-						break _l3
+				{
+					_v1 := a
+				_l2:
+					switch _v1.(type) {
+					case int:
 						break _l2
 						break _l1
 						break _l0
 						continue _l0
+					_l3:
+						switch {
+						default:
+							break _l3
+							break _l2
+							break _l1
+							break _l0
+							continue _l0
+						}
 					}
 				}
 			_l4:
