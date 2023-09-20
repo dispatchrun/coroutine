@@ -323,11 +323,10 @@ func Range10ClosureHeterogenousCapture() {
 		g uint32  = 6
 		h uint64  = 7
 		i uintptr = 8
-		j         = func() int { return int(i) + 1 }
+		//j         = func() int { return int(i) + 1 }
 	)
 
-	n := 0
-	x := func() bool {
+	for n := 0; n < 10; n++ {
 		var v int
 		switch n {
 		case 0:
@@ -349,15 +348,43 @@ func Range10ClosureHeterogenousCapture() {
 		case 8:
 			v = int(i)
 		case 9:
-			v = j()
+			v = int(n) //j()
 		}
-		n++
 		coroutine.Yield[int, any](v)
-		return n < 10
 	}
 
-	for x() {
-	}
+	// n := 0
+	// x := func() bool {
+	// 	var v int
+	// 	switch n {
+	// 	case 0:
+	// 		v = int(a)
+	// 	case 1:
+	// 		v = int(b)
+	// 	case 2:
+	// 		v = int(c)
+	// 	case 3:
+	// 		v = int(d)
+	// 	case 4:
+	// 		v = int(e)
+	// 	case 5:
+	// 		v = int(f)
+	// 	case 6:
+	// 		v = int(g)
+	// 	case 7:
+	// 		v = int(h)
+	// 	case 8:
+	// 		v = int(i)
+	// 	case 9:
+	// 		v = int(n) //j()
+	// 	}
+	// 	coroutine.Yield[int, any](v)
+	// 	n++
+	// 	return n < 10
+	// }
+
+	// for x() {
+	// }
 }
 
 func Select(n int) {

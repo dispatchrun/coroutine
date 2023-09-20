@@ -496,6 +496,7 @@ func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		deserializeStructFields(d, closure, t.NumField()-1, func(i int) reflect.StructField {
 			return t.Field(i + 1)
 		})
+		//fmt.Printf("%#v\n", v.Interface())
 
 		*(*unsafe.Pointer)(p) = closure
 	} else {

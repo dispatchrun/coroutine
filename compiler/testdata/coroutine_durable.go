@@ -2303,10 +2303,8 @@ func Range10ClosureHeterogenousCapture() {
 	var _o6 uint32
 	var _o7 uint64
 	var _o8 uintptr
-	var _o9 func() int
+	var _o9 int
 	var _o10 int
-	var _o11 func() bool
-	var _o12 int
 	if _f.IP > 0 {
 		_o0 = _f.Get(0).(int8)
 		_o1 = _f.Get(1).(int16)
@@ -2317,11 +2315,9 @@ func Range10ClosureHeterogenousCapture() {
 		_o6 = _f.Get(6).(uint32)
 		_o7 = _f.Get(7).(uint64)
 		_o8 = _f.Get(8).(uintptr)
-		_o9 = _f.Get(9).(func() int)
 
+		_o9 = _f.Get(9).(int)
 		_o10 = _f.Get(10).(int)
-		_o11 = _f.Get(11).(func() bool)
-		_o12 = _f.Get(12).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -2336,15 +2332,13 @@ func Range10ClosureHeterogenousCapture() {
 			_f.Set(8, _o8)
 			_f.Set(9, _o9)
 			_f.Set(10, _o10)
-			_f.Set(11, _o11)
-			_f.Set(12, _o12)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
 	}()
 	switch {
-	case _f.IP < 11:
+	case _f.IP < 10:
 		switch {
 		case _f.IP < 2:
 			_o0 = 0
@@ -2380,51 +2374,52 @@ func Range10ClosureHeterogenousCapture() {
 			fallthrough
 		case _f.IP < 10:
 			_o8 = 8
-			_f.IP = 10
-			fallthrough
+		}
+		_f.IP = 10
+		fallthrough
+	case _f.IP < 23:
+		switch {
 		case _f.IP < 11:
-			_o9 = func() int { return int(_o8) + 1 }
-		}
-		_f.IP = 11
-		fallthrough
-	case _f.IP < 12:
 
-		_o10 = 0
-		_f.IP = 12
-		fallthrough
-	case _f.IP < 13:
-		_o11 = func() bool {
+			_o9 = 0
+			_f.IP = 11
+			fallthrough
+		case _f.IP < 23:
+			for ; _o9 < 10; _o9, _f.IP = _o9+1, 11 {
+				switch {
+				case _f.IP < 12:
+					_f.IP = 12
+					fallthrough
+				case _f.IP < 22:
+					switch _o9 {
+					case 0:
+						_o10 = int(_o0)
+					case 1:
+						_o10 = int(_o1)
+					case 2:
+						_o10 = int(_o2)
+					case 3:
+						_o10 = int(_o3)
+					case 4:
+						_o10 = int(_o4)
+					case 5:
+						_o10 = int(_o5)
+					case 6:
+						_o10 = int(_o6)
+					case 7:
+						_o10 = int(_o7)
+					case 8:
+						_o10 = int(_o8)
+					case 9:
+						_o10 = int(_o9)
+					}
+					_f.IP = 22
+					fallthrough
+				case _f.IP < 23:
 
-			switch _o10 {
-			case 0:
-				_o12 = int(_o0)
-			case 1:
-				_o12 = int(_o1)
-			case 2:
-				_o12 = int(_o2)
-			case 3:
-				_o12 = int(_o3)
-			case 4:
-				_o12 = int(_o4)
-			case 5:
-				_o12 = int(_o5)
-			case 6:
-				_o12 = int(_o6)
-			case 7:
-				_o12 = int(_o7)
-			case 8:
-				_o12 = int(_o8)
-			case 9:
-				_o12 = _o9()
+					coroutine.Yield[int, any](_o10)
+				}
 			}
-			_o10++
-			coroutine.Yield[int, any](_o12)
-			return _o10 < 10
-		}
-		_f.IP = 13
-		fallthrough
-	case _f.IP < 14:
-		for ; _o11(); _f.IP = 13 {
 		}
 	}
 }
