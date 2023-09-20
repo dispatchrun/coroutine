@@ -106,7 +106,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 
 	case *ast.CaseClause:
 		stmt = &ast.CaseClause{
-			List: s.List,
+			List: s.List, // desugared as part of the ast.SwitchStmt case
 			Body: d.desugarList(s.Body, breakTo, continueTo),
 		}
 

@@ -131,8 +131,8 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   func() { Select(8) },
 			yields: []int{-1, 0, 0, 1, 10, 2, 20, 3, 30, 4, 40, 50, 0, 1, 2},
 			// TODO: re-enable test once either chan serialization is supported,
-			//  or the desugaring pass statements that cannot yield (which will
-			//  reduce temporary variables and avoid the need to deser type chan
+			//  or the desugaring pass skips statements that cannot yield (which
+			//  will reduce temporary vars and avoid the need to deser type chan)
 			skip: true,
 		},
 	}
