@@ -322,12 +322,15 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		// TODO: desugar expressions
 
 	case *ast.SelectStmt:
+		if s.Body.List == nil {
+			return &ast.SelectStmt{Body: &ast.BlockStmt{}}
+		}
+
 		// Rewrite select statements into a select+switch statement. The
 		// select cases exist only to record the selection; the select
 		// case bodies are moved into the switch statement over that
 		// selection. This allows coroutines to jump back to the right
 		// case when resuming.
-
 		selection := d.newVar(types.Typ[types.Int])
 		prologue := []ast.Stmt{
 			&ast.AssignStmt{
@@ -336,7 +339,6 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 				Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
 			},
 		}
-
 		rawSelect := &ast.SelectStmt{Body: &ast.BlockStmt{List: make([]ast.Stmt, len(s.Body.List))}}
 		switchBody := &ast.BlockStmt{List: make([]ast.Stmt, len(s.Body.List))}
 
@@ -413,7 +415,6 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 					},
 				},
 			}
-
 		}
 		prologue = d.desugarList(prologue, nil, nil)
 		stmt = &ast.BlockStmt{

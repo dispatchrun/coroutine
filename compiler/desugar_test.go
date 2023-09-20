@@ -723,6 +723,38 @@ label:
 `,
 		},
 		{
+			name: "empty select",
+			body: `
+select {}
+`,
+			expect: `
+select {}
+`,
+		},
+		{
+			name: "empty select with default",
+			body: `
+select {
+default:
+}
+`,
+			expect: `
+{
+	_v0 := 0
+	select {
+	default:
+		_v0 = 1
+	}
+	{
+		_v1 := _v0
+		switch _v1 {
+		case 1:
+		}
+	}
+}
+`,
+		},
+		{
 			name: "switch with init + tag",
 			body: `
 switch foo := bar; foo {
@@ -751,8 +783,10 @@ default:
 switch foo {
 case 1:
 	bar
-default:
+case 2, 3, 4:
 	baz
+default:
+	qux
 }
 `,
 			expect: `
@@ -761,11 +795,28 @@ default:
 	switch _v0 {
 	case 1:
 		bar
-	default:
+	case 2, 3, 4:
 		baz
+	default:
+		qux
 	}
 }
 `,
+		},
+		{
+			name: "empty switch",
+			body: "switch {}",
+			expect: `
+switch {
+}`,
+		},
+		{
+			name: "empty switch with default",
+			body: "switch { default: }",
+			expect: `
+switch {
+default:
+}`,
 		},
 		{
 			name: "raw switch",
@@ -777,8 +828,7 @@ case foo == 2:
 	baz
 default:
 	baz
-}
-`,
+}`,
 			expect: `
 switch {
 case foo == 1:
@@ -796,7 +846,7 @@ default:
 switch a.(type) {
 case int:
 	foo
-case bool:
+case bool, string:
 	bar
 }
 `,
@@ -806,7 +856,7 @@ case bool:
 	switch _v0.(type) {
 	case int:
 		foo
-	case bool:
+	case bool, string:
 		bar
 	}
 }
