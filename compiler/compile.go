@@ -362,24 +362,38 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 	// particular f.IP need to be restored.
 	var restoreStmts []ast.Stmt
 	for i, name := range saveAndRestoreNames {
-		restoreStmts = append(restoreStmts, &ast.AssignStmt{
-			Lhs: []ast.Expr{name},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{
-				&ast.TypeAssertExpr{
-					X: &ast.CallExpr{
-						Fun: &ast.SelectorExpr{
-							X:   frame,
-							Sel: ast.NewIdent("Get"),
-						},
-						Args: []ast.Expr{
-							&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
+		value := ast.NewIdent("_v")
+		restoreStmts = append(restoreStmts,
+			&ast.IfStmt{
+				Init: &ast.AssignStmt{
+					Lhs: []ast.Expr{value},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.SelectorExpr{
+								X:   frame,
+								Sel: ast.NewIdent("Get"),
+							},
+							Args: []ast.Expr{
+								&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
+							},
 						},
 					},
-					Type: typeExpr(saveAndRestoreTypes[i]),
+				},
+				Cond: &ast.BinaryExpr{X: value, Op: token.NEQ, Y: ast.NewIdent("nil")},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{name},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								&ast.TypeAssertExpr{X: value, Type: typeExpr(saveAndRestoreTypes[i])},
+							},
+						},
+					},
 				},
 			},
-		})
+		)
 	}
 	gen.Body.List = append(gen.Body.List, &ast.IfStmt{
 		Cond: &ast.BinaryExpr{

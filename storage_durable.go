@@ -22,7 +22,7 @@ func NewStorage(objects []any) Storage {
 
 // Has is true if an object is defined for a specific index.
 func (v *Storage) Has(i int) bool {
-	return i >= 0 && i < len(v.objects) && v.objects[i] != nil
+	return i >= 0 && i < len(v.objects)
 }
 
 // Get gets the object for a specific index.
