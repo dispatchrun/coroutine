@@ -425,16 +425,34 @@ func FizzBuzzSwitchGenerator(n int) {
 	_f, _fp := _c.Push()
 	var _o0 int
 	var _o1 bool
+	var _o2 bool
+	var _o3 bool
+	var _o4 bool
+	var _o5 bool
+	var _o6 bool
+	var _o7 bool
 	if _f.IP > 0 {
 		n = _f.Get(0).(int)
 		_o0 = _f.Get(1).(int)
 		_o1 = _f.Get(2).(bool)
+		_o2 = _f.Get(3).(bool)
+		_o3 = _f.Get(4).(bool)
+		_o4 = _f.Get(5).(bool)
+		_o5 = _f.Get(6).(bool)
+		_o6 = _f.Get(7).(bool)
+		_o7 = _f.Get(8).(bool)
 	}
 	defer func() {
 		if _c.Unwinding() {
 			_f.Set(0, n)
 			_f.Set(1, _o0)
 			_f.Set(2, _o1)
+			_f.Set(3, _o2)
+			_f.Set(4, _o3)
+			_f.Set(5, _o4)
+			_f.Set(6, _o5)
+			_f.Set(7, _o6)
+			_f.Set(8, _o7)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
@@ -445,7 +463,7 @@ func FizzBuzzSwitchGenerator(n int) {
 		_o0 = 1
 		_f.IP = 2
 		fallthrough
-	case _f.IP < 8:
+	case _f.IP < 14:
 	_l0:
 		for ; ; _o0, _f.IP = _o0+1, 2 {
 			switch {
@@ -462,17 +480,38 @@ func FizzBuzzSwitchGenerator(n int) {
 				}
 				_f.IP = 4
 				fallthrough
-			case _f.IP < 8:
+			case _f.IP < 14:
 				switch {
-				case _o0%3 == 0 && _o0%5 == 0:
-					coroutine.Yield[int, any](FizzBuzz)
-				case _o0%3 == 0:
-					coroutine.Yield[int, any](Fizz)
-				case _o0%5 == 0:
-					coroutine.Yield[int, any](Buzz)
 				default:
+					switch {
+					case _f.IP < 5:
+						_o2 = _o0%3 == 0 && _o0%5 == 0
+						_f.IP = 5
+						fallthrough
+					case _f.IP < 6:
+						_o3 = _o2
+						_f.IP = 6
+						fallthrough
+					case _f.IP < 14:
+						if _o3 {
+							coroutine.Yield[int, any](FizzBuzz)
+						} else {
+							_o4 = _o0%3 == 0
+							_o5 = _o4
+							if _o5 {
+								coroutine.Yield[int, any](Fizz)
+							} else {
+								_o6 = _o0%5 == 0
+								_o7 = _o6
+								if _o7 {
+									coroutine.Yield[int, any](Buzz)
+								} else {
 
-					coroutine.Yield[int, any](_o0)
+									coroutine.Yield[int, any](_o0)
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -489,29 +528,31 @@ func Shadowing(_ int) {
 	var _o4 bool
 	var _o5 int
 	var _o6 int
-	var _o7 int
-	var _o8 int
+	var _o7 bool
+	var _o8 bool
 	var _o9 int
 	var _o10 int
 	var _o11 int
 	var _o12 int
+	var _o13 int
+	var _o14 int
 
-	const _o13 = 11
+	const _o15 = 11
 
-	const _o14 = 12
-	var _o15 int
+	const _o16 = 12
+	var _o17 int
 
-	type _o16 uint16
+	type _o18 uint16
 
-	type _o17 uint32
+	type _o19 uint32
 
-	const _o18 = 1
-	type _o19 [_o18]uint8
+	const _o20 = 1
+	type _o21 [_o20]uint8
 
-	type _o20 [_o18]uint8
+	type _o22 [_o20]uint8
 
-	const _o21 = unsafe.Sizeof(_o20{}) * 2
-	type _o22 [_o21]uint8
+	const _o23 = unsafe.Sizeof(_o22{}) * 2
+	type _o24 [_o23]uint8
 	if _f.IP > 0 {
 		_o0 = _f.Get(0).(int)
 
@@ -523,19 +564,21 @@ func Shadowing(_ int) {
 
 		_o5 = _f.Get(5).(int)
 		_o6 = _f.Get(6).(int)
-
-		_o7 = _f.Get(7).(int)
-		_o8 = _f.Get(8).(int)
+		_o7 = _f.Get(7).(bool)
+		_o8 = _f.Get(8).(bool)
 
 		_o9 = _f.Get(9).(int)
-
 		_o10 = _f.Get(10).(int)
 
 		_o11 = _f.Get(11).(int)
 
 		_o12 = _f.Get(12).(int)
 
-		_o15 = _f.Get(13).(int)
+		_o13 = _f.Get(13).(int)
+
+		_o14 = _f.Get(14).(int)
+
+		_o17 = _f.Get(15).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -552,7 +595,9 @@ func Shadowing(_ int) {
 			_f.Set(10, _o10)
 			_f.Set(11, _o11)
 			_f.Set(12, _o12)
-			_f.Set(13, _o15)
+			_f.Set(13, _o13)
+			_f.Set(14, _o14)
+			_f.Set(15, _o17)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
@@ -626,7 +671,7 @@ func Shadowing(_ int) {
 		coroutine.Yield[int, any](_o0)
 		_f.IP = 12
 		fallthrough
-	case _f.IP < 18:
+	case _f.IP < 20:
 		switch {
 		case _f.IP < 13:
 
@@ -637,144 +682,158 @@ func Shadowing(_ int) {
 			_o6 = _o5
 			_f.IP = 14
 			fallthrough
-		case _f.IP < 18:
-			switch _o6 {
-			case 1:
+		case _f.IP < 20:
+			switch {
+			default:
 				switch {
-				case _f.IP < 17:
-					switch {
-					case _f.IP < 15:
-						_o7 = 2
-						_f.IP = 15
-						fallthrough
-					case _f.IP < 16:
-						_o8 = _o7
-						_f.IP = 16
-						fallthrough
-					case _f.IP < 17:
-						switch _o8 {
-						default:
+				case _f.IP < 15:
+					_o7 = _o6 ==
+						1
+					_f.IP = 15
+					fallthrough
+				case _f.IP < 16:
+					_o8 = _o7
+					_f.IP = 16
+					fallthrough
+				case _f.IP < 20:
+					if _o8 {
+						switch {
+						case _f.IP < 19:
+							switch {
+							case _f.IP < 17:
+								_o9 = 2
+								_f.IP = 17
+								fallthrough
+							case _f.IP < 18:
+								_o10 = _o9
+								_f.IP = 18
+								fallthrough
+							case _f.IP < 19:
+								switch {
+								default:
 
-							coroutine.Yield[int, any](_o7)
+									coroutine.Yield[int, any](_o9)
+								}
+							}
+							_f.IP = 19
+							fallthrough
+						case _f.IP < 20:
+
+							coroutine.Yield[int, any](_o5)
 						}
 					}
-					_f.IP = 17
-					fallthrough
-				case _f.IP < 18:
-
-					coroutine.Yield[int, any](_o5)
 				}
 			}
 		}
-		_f.IP = 18
+		_f.IP = 20
 		fallthrough
-	case _f.IP < 19:
+	case _f.IP < 21:
 
 		coroutine.Yield[int, any](_o0)
-		_f.IP = 19
-		fallthrough
-	case _f.IP < 23:
-		switch {
-		case _f.IP < 20:
-
-			_o9 = 1
-			_f.IP = 20
-			fallthrough
-		case _f.IP < 22:
-			switch {
-			case _f.IP < 21:
-
-				_o10 = 2
-				_f.IP = 21
-				fallthrough
-			case _f.IP < 22:
-				coroutine.Yield[int, any](_o10)
-			}
-			_f.IP = 22
-			fallthrough
-		case _f.IP < 23:
-
-			coroutine.Yield[int, any](_o9)
-		}
-		_f.IP = 23
-		fallthrough
-	case _f.IP < 24:
-
-		coroutine.Yield[int, any](_o0)
-		_f.IP = 24
+		_f.IP = 21
 		fallthrough
 	case _f.IP < 25:
-		_o11 = _o0
+		switch {
+		case _f.IP < 22:
+
+			_o11 = 1
+			_f.IP = 22
+			fallthrough
+		case _f.IP < 24:
+			switch {
+			case _f.IP < 23:
+
+				_o12 = 2
+				_f.IP = 23
+				fallthrough
+			case _f.IP < 24:
+				coroutine.Yield[int, any](_o12)
+			}
+			_f.IP = 24
+			fallthrough
+		case _f.IP < 25:
+
+			coroutine.Yield[int, any](_o11)
+		}
 		_f.IP = 25
 		fallthrough
-	case _f.IP < 27:
-		switch {
-		case _f.IP < 26:
+	case _f.IP < 26:
 
-			_o12 = 1
-			_f.IP = 26
-			fallthrough
-		case _f.IP < 27:
-			coroutine.Yield[int, any](_o12)
-		}
+		coroutine.Yield[int, any](_o0)
+		_f.IP = 26
+		fallthrough
+	case _f.IP < 27:
+		_o13 = _o0
 		_f.IP = 27
 		fallthrough
-	case _f.IP < 28:
-
-		coroutine.Yield[int, any](_o11)
-		_f.IP = 28
-		fallthrough
-	case _f.IP < 31:
+	case _f.IP < 29:
 		switch {
-		case _f.IP < 30:
-			switch {
-			case _f.IP < 29:
+		case _f.IP < 28:
 
-				_o15 = 13
-				_f.IP = 29
-				fallthrough
-			case _f.IP < 30:
-				coroutine.Yield[int, any](_o15)
-			}
-			_f.IP = 30
+			_o14 = 1
+			_f.IP = 28
 			fallthrough
-		case _f.IP < 31:
-
+		case _f.IP < 29:
 			coroutine.Yield[int, any](_o14)
 		}
-		_f.IP = 31
+		_f.IP = 29
 		fallthrough
-	case _f.IP < 32:
+	case _f.IP < 30:
 
 		coroutine.Yield[int, any](_o13)
-		_f.IP = 32
+		_f.IP = 30
 		fallthrough
 	case _f.IP < 33:
+		switch {
+		case _f.IP < 32:
+			switch {
+			case _f.IP < 31:
 
-		coroutine.Yield[int, any](int(unsafe.Sizeof(_o17(0))))
+				_o17 = 13
+				_f.IP = 31
+				fallthrough
+			case _f.IP < 32:
+				coroutine.Yield[int, any](_o17)
+			}
+			_f.IP = 32
+			fallthrough
+		case _f.IP < 33:
+
+			coroutine.Yield[int, any](_o16)
+		}
 		_f.IP = 33
 		fallthrough
 	case _f.IP < 34:
 
-		coroutine.Yield[int, any](int(unsafe.Sizeof(_o16(0))))
+		coroutine.Yield[int, any](_o15)
 		_f.IP = 34
 		fallthrough
+	case _f.IP < 35:
+
+		coroutine.Yield[int, any](int(unsafe.Sizeof(_o19(0))))
+		_f.IP = 35
+		fallthrough
 	case _f.IP < 36:
-		switch {
-		case _f.IP < 35:
 
-			coroutine.Yield[int, any](int(unsafe.Sizeof(_o20{})))
-			_f.IP = 35
-			fallthrough
-		case _f.IP < 36:
-
-			coroutine.Yield[int, any](int(unsafe.Sizeof(_o22{})))
-		}
+		coroutine.Yield[int, any](int(unsafe.Sizeof(_o18(0))))
 		_f.IP = 36
 		fallthrough
-	case _f.IP < 37:
+	case _f.IP < 38:
+		switch {
+		case _f.IP < 37:
 
-		coroutine.Yield[int, any](int(unsafe.Sizeof(_o19{})))
+			coroutine.Yield[int, any](int(unsafe.Sizeof(_o22{})))
+			_f.IP = 37
+			fallthrough
+		case _f.IP < 38:
+
+			coroutine.Yield[int, any](int(unsafe.Sizeof(_o24{})))
+		}
+		_f.IP = 38
+		fallthrough
+	case _f.IP < 39:
+
+		coroutine.Yield[int, any](int(unsafe.Sizeof(_o21{})))
 	}
 }
 
@@ -1022,7 +1081,15 @@ func LoopBreakAndContinue(_ int) {
 	var _o7 int
 	var _o8 bool
 	var _o9 int
-	var _o10 int
+	var _o10 bool
+	var _o11 bool
+	var _o12 bool
+	var _o13 bool
+	var _o14 int
+	var _o15 bool
+	var _o16 bool
+	var _o17 bool
+	var _o18 bool
 	if _f.IP > 0 {
 		_o0 = _f.Get(0).(int)
 		_o1 = _f.Get(1).(bool)
@@ -1035,7 +1102,15 @@ func LoopBreakAndContinue(_ int) {
 		_o7 = _f.Get(7).(int)
 		_o8 = _f.Get(8).(bool)
 		_o9 = _f.Get(9).(int)
-		_o10 = _f.Get(10).(int)
+		_o10 = _f.Get(10).(bool)
+		_o11 = _f.Get(11).(bool)
+		_o12 = _f.Get(12).(bool)
+		_o13 = _f.Get(13).(bool)
+		_o14 = _f.Get(14).(int)
+		_o15 = _f.Get(15).(bool)
+		_o16 = _f.Get(16).(bool)
+		_o17 = _f.Get(17).(bool)
+		_o18 = _f.Get(18).(bool)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -1050,6 +1125,14 @@ func LoopBreakAndContinue(_ int) {
 			_f.Set(8, _o8)
 			_f.Set(9, _o9)
 			_f.Set(10, _o10)
+			_f.Set(11, _o11)
+			_f.Set(12, _o12)
+			_f.Set(13, _o13)
+			_f.Set(14, _o14)
+			_f.Set(15, _o15)
+			_f.Set(16, _o16)
+			_f.Set(17, _o17)
+			_f.Set(18, _o18)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
@@ -1117,14 +1200,14 @@ func LoopBreakAndContinue(_ int) {
 		}
 		_f.IP = 10
 		fallthrough
-	case _f.IP < 22:
+	case _f.IP < 30:
 		switch {
 		case _f.IP < 11:
 
 			_o5 = 0
 			_f.IP = 11
 			fallthrough
-		case _f.IP < 22:
+		case _f.IP < 30:
 		_l1:
 			for ; ; _o5, _f.IP = _o5+1, 11 {
 				switch {
@@ -1141,13 +1224,13 @@ func LoopBreakAndContinue(_ int) {
 					}
 					_f.IP = 13
 					fallthrough
-				case _f.IP < 22:
+				case _f.IP < 30:
 					switch {
 					case _f.IP < 14:
 						_o7 = 0
 						_f.IP = 14
 						fallthrough
-					case _f.IP < 22:
+					case _f.IP < 30:
 					_l2:
 						for ; ; _o7, _f.IP = _o7+1, 14 {
 							switch {
@@ -1168,28 +1251,57 @@ func LoopBreakAndContinue(_ int) {
 								coroutine.Yield[int, any](_o7)
 								_f.IP = 17
 								fallthrough
-							case _f.IP < 22:
+							case _f.IP < 30:
 								switch {
 								case _f.IP < 18:
 									_o9 = _o7
 									_f.IP = 18
 									fallthrough
-								case _f.IP < 22:
-									switch _o9 {
-									case 0:
-										continue _l2
-									case 1:
+								case _f.IP < 30:
+									switch {
+									default:
 										switch {
+										case _f.IP < 19:
+											_o10 = _o9 ==
+												0
+											_f.IP = 19
+											fallthrough
 										case _f.IP < 20:
-											_o10 = _o5
+											_o11 = _o10
 											_f.IP = 20
 											fallthrough
-										case _f.IP < 22:
-											switch _o10 {
-											case 0:
-												continue _l1
-											case 1:
-												break _l1
+										case _f.IP < 30:
+											if _o11 {
+												continue _l2
+											} else {
+												_o12 = _o9 ==
+
+													1
+												_o13 = _o12
+												if _o13 {
+													{
+														_o14 = _o5
+														switch {
+														default:
+															{
+																_o15 = _o14 ==
+																	0
+																_o16 = _o15
+																if _o16 {
+																	continue _l1
+																} else {
+																	_o17 = _o14 ==
+
+																		1
+																	_o18 = _o17
+																	if _o18 {
+																		break _l1
+																	}
+																}
+															}
+														}
+													}
+												}
 											}
 										}
 									}
@@ -1946,44 +2058,64 @@ func Select(n int) {
 	_f, _fp := _c.Push()
 	var _o0 int
 	var _o1 int
-	var _o2 int
+	var _o2 bool
 	var _o3 bool
 	var _o4 int
-	var _o5 <-chan Time
-	var _o6 <-chan Time
-	var _o7 int
-	var _o8 bool
+	var _o5 bool
+	var _o6 int
+	var _o7 <-chan Time
+	var _o8 <-chan Time
 	var _o9 int
-	var _o10 <-chan Time
-	var _o11 int
+	var _o10 bool
+	var _o11 bool
 	var _o12 bool
-	var _o13 int
-	var _o14 <-chan Time
+	var _o13 bool
+	var _o14 bool
 	var _o15 int
-	var _o16 int
-	var _o17 bool
+	var _o16 <-chan Time
+	var _o17 int
+	var _o18 bool
+	var _o19 bool
+	var _o20 bool
+	var _o21 int
+	var _o22 <-chan Time
+	var _o23 int
+	var _o24 bool
+	var _o25 bool
+	var _o26 int
+	var _o27 bool
 	if _f.IP > 0 {
 		n = _f.Get(0).(int)
 		_o0 = _f.Get(1).(int)
 		_o1 = _f.Get(2).(int)
-
-		_o2 = _f.Get(3).(int)
+		_o2 = _f.Get(3).(bool)
 		_o3 = _f.Get(4).(bool)
-		_o4 = _f.Get(5).(int)
-		_o5 = _f.Get(6).(<-chan Time)
-		_o6 = _f.Get(7).(<-chan Time)
-		_o7 = _f.Get(8).(int)
-		_o8 = _f.Get(9).(bool)
-		_o9 = _f.Get(10).(int)
-		_o10 = _f.Get(11).(<-chan Time)
-		_o11 = _f.Get(12).(int)
-		_o12 = _f.Get(13).(bool)
-		_o13 = _f.Get(14).(int)
-		_o14 = _f.Get(15).(<-chan Time)
-		_o15 = _f.Get(16).(int)
 
-		_o16 = _f.Get(17).(int)
-		_o17 = _f.Get(18).(bool)
+		_o4 = _f.Get(5).(int)
+		_o5 = _f.Get(6).(bool)
+		_o6 = _f.Get(7).(int)
+		_o7 = _f.Get(8).(<-chan Time)
+		_o8 = _f.Get(9).(<-chan Time)
+		_o9 = _f.Get(10).(int)
+		_o10 = _f.Get(11).(bool)
+		_o11 = _f.Get(12).(bool)
+		_o12 = _f.Get(13).(bool)
+		_o13 = _f.Get(14).(bool)
+		_o14 = _f.Get(15).(bool)
+		_o15 = _f.Get(16).(int)
+		_o16 = _f.Get(17).(<-chan Time)
+		_o17 = _f.Get(18).(int)
+		_o18 = _f.Get(19).(bool)
+		_o19 = _f.Get(20).(bool)
+		_o20 = _f.Get(21).(bool)
+		_o21 = _f.Get(22).(int)
+		_o22 = _f.Get(23).(<-chan Time)
+		_o23 = _f.Get(24).(int)
+		_o24 = _f.Get(25).(bool)
+		_o25 = _f.Get(26).(bool)
+
+		_o26 = _f.Get(27).(int)
+		_o27 = _f.Get(28).(bool)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -2006,13 +2138,23 @@ func Select(n int) {
 			_f.Set(16, _o15)
 			_f.Set(17, _o16)
 			_f.Set(18, _o17)
+			_f.Set(19, _o18)
+			_f.Set(20, _o19)
+			_f.Set(21, _o20)
+			_f.Set(22, _o21)
+			_f.Set(23, _o22)
+			_f.Set(24, _o23)
+			_f.Set(25, _o24)
+			_f.Set(26, _o25)
+			_f.Set(27, _o26)
+			_f.Set(28, _o27)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
 	}()
 	switch {
-	case _f.IP < 5:
+	case _f.IP < 7:
 		switch {
 		case _f.IP < 2:
 			_o0 = 0
@@ -2025,207 +2167,263 @@ func Select(n int) {
 			}
 			_f.IP = 3
 			fallthrough
-		case _f.IP < 5:
+		case _f.IP < 7:
 			switch {
 			case _f.IP < 4:
 				_o1 = _o0
 				_f.IP = 4
 				fallthrough
-			case _f.IP < 5:
-				switch _o1 {
-				case 1:
-					coroutine.Yield[int, any](-1)
-				}
-			}
-		}
-		_f.IP = 5
-		fallthrough
-	case _f.IP < 25:
-		switch {
-		case _f.IP < 6:
-
-			_o2 = 0
-			_f.IP = 6
-			fallthrough
-		case _f.IP < 25:
-		_l1:
-			for ; ; _o2, _f.IP = _o2+1, 6 {
+			case _f.IP < 7:
 				switch {
-				case _f.IP < 8:
+				default:
 					switch {
+					case _f.IP < 5:
+						_o2 = _o1 == 1
+						_f.IP = 5
+						fallthrough
+					case _f.IP < 6:
+						_o3 = _o2
+						_f.IP = 6
+						fallthrough
 					case _f.IP < 7:
-						_o3 = !(_o2 < n)
-						_f.IP = 7
-						fallthrough
-					case _f.IP < 8:
 						if _o3 {
-							break _l1
-						}
-					}
-					_f.IP = 8
-					fallthrough
-				case _f.IP < 18:
-					switch {
-					case _f.IP < 9:
-						_o4 = 0
-						_f.IP = 9
-						fallthrough
-					case _f.IP < 10:
-						_o5 = time.After(0)
-						_f.IP = 10
-						fallthrough
-					case _f.IP < 11:
-						_o6 = time.After(1 * time.Second)
-						_f.IP = 11
-						fallthrough
-					case _f.IP < 13:
-						select {
-						case <-_o5:
-							_o4 = 1
-						case <-_o6:
-							_o4 = 2
-						}
-						_f.IP = 13
-						fallthrough
-					case _f.IP < 18:
-						switch {
-						case _f.IP < 14:
-							_o7 = _o4
-							_f.IP = 14
-							fallthrough
-						case _f.IP < 18:
-						_l2:
-							switch _o7 {
-							case 1:
-								switch {
-								case _f.IP < 16:
-									switch {
-									case _f.IP < 15:
-										_o8 = _o2 >= 5
-										_f.IP = 15
-										fallthrough
-									case _f.IP < 16:
-										if _o8 {
-											break _l2
-										}
-									}
-									_f.IP = 16
-									fallthrough
-								case _f.IP < 17:
-
-									coroutine.Yield[int, any](_o2)
-								}
-							case 2:
-
-								panic("unreachable")
-							}
-						}
-					}
-					_f.IP = 18
-					fallthrough
-				case _f.IP < 25:
-					switch {
-					case _f.IP < 19:
-						_o9 = 0
-						_f.IP = 19
-						fallthrough
-					case _f.IP < 20:
-						_o10 = time.After(0)
-						_f.IP = 20
-						fallthrough
-					case _f.IP < 21:
-						select {
-						case <-_o10:
-							_o9 = 1
-						}
-						_f.IP = 21
-						fallthrough
-					case _f.IP < 25:
-						switch {
-						case _f.IP < 22:
-							_o11 = _o9
-							_f.IP = 22
-							fallthrough
-						case _f.IP < 25:
-						_l3:
-							switch _o11 {
-							case 1:
-								switch {
-								case _f.IP < 24:
-									switch {
-									case _f.IP < 23:
-										_o12 = _o2 >= 6
-										_f.IP = 23
-										fallthrough
-									case _f.IP < 24:
-										if _o12 {
-											break _l3
-										}
-									}
-									_f.IP = 24
-									fallthrough
-								case _f.IP < 25:
-
-									coroutine.Yield[int, any](_o2 * 10)
-								}
-							}
+							coroutine.Yield[int, any](-1)
 						}
 					}
 				}
 			}
 		}
-		_f.IP = 25
+		_f.IP = 7
 		fallthrough
 	case _f.IP < 33:
 		switch {
-		case _f.IP < 26:
-			_o13 = 0
-			_f.IP = 26
-			fallthrough
-		case _f.IP < 27:
-			_o14 = time.After(0)
-			_f.IP = 27
-			fallthrough
-		case _f.IP < 28:
-			select {
-			case <-_o14:
-				_o13 = 1
-			}
-			_f.IP = 28
+		case _f.IP < 8:
+
+			_o4 = 0
+			_f.IP = 8
 			fallthrough
 		case _f.IP < 33:
-			switch {
-			case _f.IP < 29:
-				_o15 = _o13
-				_f.IP = 29
-				fallthrough
-			case _f.IP < 33:
-				switch _o15 {
-				case 1:
+		_l1:
+			for ; ; _o4, _f.IP = _o4+1, 8 {
+				switch {
+				case _f.IP < 10:
 					switch {
-					case _f.IP < 30:
-						_o16 = 0
-						_f.IP = 30
+					case _f.IP < 9:
+						_o5 = !(_o4 < n)
+						_f.IP = 9
 						fallthrough
-					case _f.IP < 33:
-					_l5:
-						for ; ; _o16, _f.IP = _o16+1, 30 {
+					case _f.IP < 10:
+						if _o5 {
+							break _l1
+						}
+					}
+					_f.IP = 10
+					fallthrough
+				case _f.IP < 24:
+					switch {
+					case _f.IP < 11:
+						_o6 = 0
+						_f.IP = 11
+						fallthrough
+					case _f.IP < 12:
+						_o7 = time.After(0)
+						_f.IP = 12
+						fallthrough
+					case _f.IP < 13:
+						_o8 = time.After(1 * time.Second)
+						_f.IP = 13
+						fallthrough
+					case _f.IP < 15:
+						select {
+						case <-_o7:
+							_o6 = 1
+						case <-_o8:
+							_o6 = 2
+						}
+						_f.IP = 15
+						fallthrough
+					case _f.IP < 24:
+						switch {
+						case _f.IP < 16:
+							_o9 = _o6
+							_f.IP = 16
+							fallthrough
+						case _f.IP < 24:
+						_l2:
 							switch {
-							case _f.IP < 32:
+							default:
 								switch {
-								case _f.IP < 31:
-									_o17 = !(_o16 < 3)
-									_f.IP = 31
+								case _f.IP < 17:
+									_o10 = _o9 == 1
+									_f.IP = 17
 									fallthrough
-								case _f.IP < 32:
-									if _o17 {
-										break _l5
+								case _f.IP < 18:
+									_o11 = _o10
+									_f.IP = 18
+									fallthrough
+								case _f.IP < 24:
+									if _o11 {
+										switch {
+										case _f.IP < 20:
+											switch {
+											case _f.IP < 19:
+												_o12 = _o4 >= 5
+												_f.IP = 19
+												fallthrough
+											case _f.IP < 20:
+												if _o12 {
+													break _l2
+												}
+											}
+											_f.IP = 20
+											fallthrough
+										case _f.IP < 21:
+
+											coroutine.Yield[int, any](_o4)
+										}
+									} else {
+										_o13 = _o9 == 2
+										_o14 = _o13
+										if _o14 {
+
+											panic("unreachable")
+										}
 									}
 								}
-								_f.IP = 32
+							}
+						}
+					}
+					_f.IP = 24
+					fallthrough
+				case _f.IP < 33:
+					switch {
+					case _f.IP < 25:
+						_o15 = 0
+						_f.IP = 25
+						fallthrough
+					case _f.IP < 26:
+						_o16 = time.After(0)
+						_f.IP = 26
+						fallthrough
+					case _f.IP < 27:
+						select {
+						case <-_o16:
+							_o15 = 1
+						}
+						_f.IP = 27
+						fallthrough
+					case _f.IP < 33:
+						switch {
+						case _f.IP < 28:
+							_o17 = _o15
+							_f.IP = 28
+							fallthrough
+						case _f.IP < 33:
+						_l3:
+							switch {
+							default:
+								switch {
+								case _f.IP < 29:
+									_o18 = _o17 == 1
+									_f.IP = 29
+									fallthrough
+								case _f.IP < 30:
+									_o19 = _o18
+									_f.IP = 30
+									fallthrough
+								case _f.IP < 33:
+									if _o19 {
+										switch {
+										case _f.IP < 32:
+											switch {
+											case _f.IP < 31:
+												_o20 = _o4 >= 6
+												_f.IP = 31
+												fallthrough
+											case _f.IP < 32:
+												if _o20 {
+													break _l3
+												}
+											}
+											_f.IP = 32
+											fallthrough
+										case _f.IP < 33:
+
+											coroutine.Yield[int, any](_o4 * 10)
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		_f.IP = 33
+		fallthrough
+	case _f.IP < 43:
+		switch {
+		case _f.IP < 34:
+			_o21 = 0
+			_f.IP = 34
+			fallthrough
+		case _f.IP < 35:
+			_o22 = time.After(0)
+			_f.IP = 35
+			fallthrough
+		case _f.IP < 36:
+			select {
+			case <-_o22:
+				_o21 = 1
+			}
+			_f.IP = 36
+			fallthrough
+		case _f.IP < 43:
+			switch {
+			case _f.IP < 37:
+				_o23 = _o21
+				_f.IP = 37
+				fallthrough
+			case _f.IP < 43:
+				switch {
+				default:
+					switch {
+					case _f.IP < 38:
+						_o24 = _o23 == 1
+						_f.IP = 38
+						fallthrough
+					case _f.IP < 39:
+						_o25 = _o24
+						_f.IP = 39
+						fallthrough
+					case _f.IP < 43:
+						if _o25 {
+							switch {
+							case _f.IP < 40:
+								_o26 = 0
+								_f.IP = 40
 								fallthrough
-							case _f.IP < 33:
-								coroutine.Yield[int, any](_o16)
+							case _f.IP < 43:
+							_l5:
+								for ; ; _o26, _f.IP = _o26+1, 40 {
+									switch {
+									case _f.IP < 42:
+										switch {
+										case _f.IP < 41:
+											_o27 = !(_o26 < 3)
+											_f.IP = 41
+											fallthrough
+										case _f.IP < 42:
+											if _o27 {
+												break _l5
+											}
+										}
+										_f.IP = 42
+										fallthrough
+									case _f.IP < 43:
+										coroutine.Yield[int, any](_o26)
+									}
+								}
 							}
 						}
 					}

@@ -438,22 +438,81 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		if s.Init != nil {
 			prologue = []ast.Stmt{s.Init}
 		}
+		var tag ast.Expr
 		if s.Tag != nil {
-			tmp := d.newVar(d.info.TypeOf(s.Tag))
+			tag = d.newVar(d.info.TypeOf(s.Tag))
 			prologue = append(prologue, &ast.AssignStmt{
-				Lhs: []ast.Expr{tmp},
+				Lhs: []ast.Expr{tag},
 				Tok: token.DEFINE,
 				Rhs: []ast.Expr{s.Tag},
 			})
-			s.Tag = tmp
 		}
-		// TODO: hoist each CaseClause.Cond out from SwitchStmt.Body so expressions can be desugared
+		var defaultCaseBody ast.Stmt
+		var head ast.Stmt
+		var tail *ast.IfStmt
+		for _, caseStmt := range s.Body.List {
+			c := caseStmt.(*ast.CaseClause)
+			if len(c.List) == 0 {
+				defaultCaseBody = &ast.BlockStmt{List: c.Body}
+				continue
+			}
+			list := make([]ast.Expr, len(c.List))
+			for i := range list {
+				if tag != nil {
+					list[i] = &ast.BinaryExpr{X: tag, Op: token.EQL, Y: c.List[i]}
+				} else {
+					list[i] = c.List[i]
+				}
+			}
+			tmp := d.newVar(types.Typ[types.Bool])
+			orExpr := list[0]
+			list = list[1:]
+			for len(list) > 0 {
+				// TODO: balance the tree
+				orExpr = &ast.BinaryExpr{X: orExpr, Op: token.OR, Y: list[0]}
+				list = list[1:]
+			}
+			ifStmt := &ast.IfStmt{
+				Init: &ast.AssignStmt{Lhs: []ast.Expr{tmp}, Tok: token.DEFINE, Rhs: []ast.Expr{orExpr}},
+				Cond: tmp,
+				Body: &ast.BlockStmt{List: c.Body},
+			}
+			if head == nil {
+				head = ifStmt
+				tail = ifStmt
+			} else {
+				tail.Else = ifStmt
+				tail = ifStmt
+			}
+		}
+		if defaultCaseBody != nil {
+			if head == nil {
+				head = defaultCaseBody
+			} else {
+				tail.Else = defaultCaseBody
+			}
+		}
+		if head == nil {
+			head = &ast.EmptyStmt{}
+		} else {
+			s.Tag = nil
+		}
+
 		prologue = d.desugarList(prologue, nil, nil)
+
 		stmt = &ast.LabeledStmt{
 			Label: switchLabel,
 			Stmt: &ast.SwitchStmt{
-				Tag:  s.Tag,
-				Body: d.desugar(s.Body, switchLabel, continueTo, nil).(*ast.BlockStmt),
+				Tag: s.Tag,
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.CaseClause{
+							Body: []ast.Stmt{
+								d.desugar(head, switchLabel, continueTo, nil),
+							},
+						},
+					},
+				},
 			},
 		}
 		if len(prologue) > 0 {

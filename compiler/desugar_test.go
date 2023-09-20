@@ -147,14 +147,25 @@ _l0:
 	for {
 	_l1:
 		switch {
-		case true:
-			break _l1
-		case false:
-			continue _l0
 		default:
-			break _l0
+			{
+				_v0 := true
+				_v2 := _v0
+				if _v2 {
+					break _l1
+				} else {
+					_v1 := false
+					_v3 := _v1
+					if _v3 {
+						continue _l0
+					} else {
+						break _l0
+					}
+				}
+			}
 		}
-	}`,
+	}
+`,
 		},
 		{
 			name: "for range over slice (no index/value)",
@@ -664,27 +675,52 @@ default:
 	}
 	{
 		_v11 := _v0
-		switch _v11 {
-		case 1:
-			foo
-		case 2:
-			b := _v3
-			bar
-		case 3:
-			d := _v5
-			ok := _v6
-			baz
-		case 4:
-			f[g()] = _v8
-			qux
-		case 5:
-			abc
-		case 6:
-			xyz
+		switch {
+		default:
+			{
+				_v12 := _v11 == 1
+				_v18 := _v12
+				if _v18 {
+					foo
+				} else {
+					_v13 := _v11 == 2
+					_v19 := _v13
+					if _v19 {
+						b := _v3
+						bar
+					} else {
+						_v14 := _v11 == 3
+						_v20 := _v14
+						if _v20 {
+							d := _v5
+							ok := _v6
+							baz
+						} else {
+							_v15 := _v11 == 4
+							_v21 := _v15
+							if _v21 {
+								f[g()] = _v8
+								qux
+							} else {
+								_v16 := _v11 == 5
+								_v22 := _v16
+								if _v22 {
+									abc
+								} else {
+									_v17 := _v11 == 6
+									_v23 := _v17
+									if _v23 {
+										xyz
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 }
-
 `,
 		},
 		{
@@ -712,11 +748,21 @@ label:
 	{
 		_v3 := _v0
 	_l0:
-		switch _v3 {
-		case 1:
-			break _l0
-		case 2:
-			break _l0
+		switch {
+		default:
+			{
+				_v4 := _v3 == 1
+				_v6 := _v4
+				if _v6 {
+					break _l0
+				} else {
+					_v5 := _v3 == 2
+					_v7 := _v5
+					if _v7 {
+						break _l0
+					}
+				}
+			}
 		}
 	}
 }
@@ -747,8 +793,14 @@ default:
 	}
 	{
 		_v1 := _v0
-		switch _v1 {
-		case 1:
+		switch {
+		default:
+			{
+				_v2 := _v1 == 1
+				_v3 := _v2
+				if _v3 {
+				}
+			}
 		}
 	}
 }
@@ -768,11 +820,17 @@ default:
 {
 	foo := bar
 	_v0 := foo
-	switch _v0 {
-	case 1:
-		bar
+	switch {
 	default:
-		baz
+		{
+			_v1 := _v0 == 1
+			_v2 := _v1
+			if _v2 {
+				bar
+			} else {
+				baz
+			}
+		}
 	}
 }
 `,
@@ -792,13 +850,23 @@ default:
 			expect: `
 {
 	_v0 := foo
-	switch _v0 {
-	case 1:
-		bar
-	case 2, 3, 4:
-		baz
+	switch {
 	default:
-		qux
+		{
+			_v1 := _v0 == 1
+			_v3 := _v1
+			if _v3 {
+				bar
+			} else {
+				_v2 := (_v0 == 2) | (_v0 == 3) | (_v0 == 4)
+				_v4 := _v2
+				if _v4 {
+					baz
+				} else {
+					qux
+				}
+			}
+		}
 	}
 }
 `,
@@ -806,17 +874,23 @@ default:
 		{
 			name: "empty switch",
 			body: "switch {}",
+			// TODO: remove the unnecessary default case
 			expect: `
 switch {
+default:
 }`,
 		},
 		{
 			name: "empty switch with default",
 			body: "switch { default: }",
+			// TODO: remove empty stmt inside default case
 			expect: `
 switch {
 default:
-}`,
+	{
+	}
+}
+`,
 		},
 		{
 			name: "raw switch",
@@ -824,19 +898,29 @@ default:
 switch {
 case foo == 1:
 	bar
-case foo == 2:
-	baz
 default:
+	qux
+case foo == 2:
 	baz
 }`,
 			expect: `
 switch {
-case foo == 1:
-	bar
-case foo == 2:
-	baz
 default:
-	baz
+	{
+		_v0 := foo == 1
+		_v2 := _v0
+		if _v2 {
+			bar
+		} else {
+			_v1 := foo == 2
+			_v3 := _v1
+			if _v3 {
+				baz
+			} else {
+				qux
+			}
+		}
+	}
 }
 `,
 		},
@@ -952,39 +1036,51 @@ _l0:
 			{
 				_v2 := _v0
 			_l1:
-				switch _v2 {
-				case 1:
-					break _l1
-					break _l0
-					continue _l0
-				case 2:
+				switch {
+				default:
 					{
-						_v3 := a
-					_l2:
-						switch _v3.(type) {
-						case int:
-							break _l2
+						_v3 := _v2 == 1
+						_v5 := _v3
+						if _v5 {
 							break _l1
 							break _l0
 							continue _l0
-						_l3:
-							switch {
-							default:
-								break _l3
-								break _l2
-								break _l1
-								break _l0
-								continue _l0
+						} else {
+							_v4 := _v2 == 2
+							_v6 := _v4
+							if _v6 {
+								{
+									_v7 := a
+								_l2:
+									switch _v7.(type) {
+									case int:
+										break _l2
+										break _l1
+										break _l0
+										continue _l0
+									_l3:
+										switch {
+										default:
+											{
+												break _l3
+												break _l2
+												break _l1
+												break _l0
+												continue _l0
+											}
+										}
+									}
+								}
+							_l4:
+								for {
+									break _l4
+									break _l1
+									break _l0
+									continue _l4
+									continue _l0
+								}
 							}
 						}
-					}
-				_l4:
-					for {
-						break _l4
-						break _l1
-						break _l0
-						continue _l4
-						continue _l0
 					}
 				}
 			}
