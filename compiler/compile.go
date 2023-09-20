@@ -364,6 +364,9 @@ func (c *compiler) compileFunction(p *packages.Package, fn *ast.FuncDecl, color 
 	for i, name := range saveAndRestoreNames {
 		value := ast.NewIdent("_v")
 		restoreStmts = append(restoreStmts,
+			// Generate a guard in case a value of nil was stored when unwinding.
+			// TODO: the guard isn't needed in all cases (e.g. with primitive types
+			//  which can never be nil). Remove the guard unless necessary
 			&ast.IfStmt{
 				Init: &ast.AssignStmt{
 					Lhs: []ast.Expr{value},
