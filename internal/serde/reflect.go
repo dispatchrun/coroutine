@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"unsafe"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stealthrocket/coroutine/types"
 )
 
@@ -288,6 +289,7 @@ func deserializePointedAt(d *Deserializer, t reflect.Type) reflect.Value {
 		ep := e.UnsafePointer()
 		d.store(id, ep)
 		DeserializeAny(d, t, ep)
+		fmt.Printf("deserializePointedAt: %p => %v (%s)\n", ep, e.Elem().Interface(), t)
 		return e
 	}
 
@@ -465,6 +467,11 @@ func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 
 	if fn.Closure != nil {
 		t := fn.Closure
+		v := reflect.NewAt(t, p)
+
+		fmt.Println("SERIALIZE")
+		spew.Dump(v.Interface())
+
 		serializeStructFields(s, p, t.NumField()-1, func(i int) reflect.StructField {
 			return t.Field(i + 1)
 		})
@@ -496,7 +503,8 @@ func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		deserializeStructFields(d, closure, t.NumField()-1, func(i int) reflect.StructField {
 			return t.Field(i + 1)
 		})
-		//fmt.Printf("%#v\n", v.Interface())
+		fmt.Print("DESERIALIZE")
+		spew.Dump(v.Interface())
 
 		*(*unsafe.Pointer)(p) = closure
 	} else {

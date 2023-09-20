@@ -2,7 +2,11 @@
 
 package coroutine
 
-import "github.com/stealthrocket/coroutine/internal/serde"
+import (
+	"fmt"
+
+	"github.com/stealthrocket/coroutine/internal/serde"
+)
 
 type serializedCoroutine struct {
 	entry  func()
@@ -52,6 +56,7 @@ func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
 // the number of bytes that were read in order to reconstruct the
 // context.
 func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
+	fmt.Println("UNMARSHAL:", &b[0])
 	start := len(b)
 	v, b := serde.Deserialize(b)
 	s := v.(*serializedCoroutine)

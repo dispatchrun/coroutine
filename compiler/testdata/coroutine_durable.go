@@ -2319,6 +2319,7 @@ func Range10ClosureHeterogenousCapture() {
 
 		_o9 = _f.Get(9).(int)
 		_o10 = _f.Get(10).(func() bool)
+
 		_o11 = _f.Get(11).(int)
 	}
 	defer func() {
@@ -2387,6 +2388,19 @@ func Range10ClosureHeterogenousCapture() {
 		fallthrough
 	case _f.IP < 12:
 		_o10 = func() bool {
+			print("---",
+				"\n  n = ", _o9, " @", &_o9,
+				"\n  a = ", _o0, " @", &_o0,
+				"\n  b = ", _o1, " @", &_o1,
+				"\n  c = ", _o2, " @", &_o2,
+				"\n  d = ", _o3, " @", &_o3,
+				"\n  e = ", _o4, " @", &_o4,
+				"\n  f = ", _o5, " @", &_o5,
+				"\n  g = ", _o6, " @", &_o6,
+				"\n  h = ", _o7, " @", &_o7,
+				"\n  i = ", _o8, " @", &_o8,
+				"\n---\n",
+			)
 
 			switch _o9 {
 			case 0:

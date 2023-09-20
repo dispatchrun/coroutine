@@ -328,6 +328,19 @@ func Range10ClosureHeterogenousCapture() {
 
 	n := 0
 	x := func() bool {
+		print("---",
+			"\n  n = ", n, " @", &n,
+			"\n  a = ", a, " @", &a,
+			"\n  b = ", b, " @", &b,
+			"\n  c = ", c, " @", &c,
+			"\n  d = ", d, " @", &d,
+			"\n  e = ", e, " @", &e,
+			"\n  f = ", f, " @", &f,
+			"\n  g = ", g, " @", &g,
+			"\n  h = ", h, " @", &h,
+			"\n  i = ", i, " @", &i,
+			"\n---\n",
+		)
 		var v int
 		switch n {
 		case 0:
