@@ -4,7 +4,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"strconv"
 
 	"golang.org/x/tools/go/ast/astutil"
 )
@@ -21,9 +20,13 @@ import (
 // Note that declarations are extracted from all nested scopes within the
 // function body, so there may be duplicate identifiers. Identifiers can be
 // disambiguated using (*types.Info).ObjectOf(ident).
-func extractDecls(fn *ast.FuncDecl, info *types.Info) (decls []*ast.GenDecl) {
-	ast.Inspect(fn.Body, func(node ast.Node) bool {
+func extractDecls(tree ast.Node, info *types.Info) (decls []*ast.GenDecl) {
+	ast.Inspect(tree, func(node ast.Node) bool {
 		switch n := node.(type) {
+		case *ast.FuncLit:
+			// Stop when we encounter a function listeral so we don't hoist its
+			// local variables into the scope of its parent function.
+			return false
 		case *ast.GenDecl: // const, var, type
 			if n.Tok == token.TYPE || n.Tok == token.CONST {
 				decls = append(decls, n)
@@ -91,9 +94,8 @@ func extractDecls(fn *ast.FuncDecl, info *types.Info) (decls []*ast.GenDecl) {
 // renameObjects renames types, constants and variables declared within
 // a function. Each is given a unique name, so that declarations are safe
 // to hoist into the function prologue.
-func renameObjects(tree ast.Node, info *types.Info, decls []*ast.GenDecl) {
+func renameObjects(tree ast.Node, info *types.Info, decls []*ast.GenDecl, scope *scope) {
 	// Scan decls to find objects, giving each new object a unique name.
-	var id int
 	newNames := map[types.Object]*ast.Ident{}
 	for _, decl := range decls {
 		for _, spec := range decl.Specs {
@@ -102,15 +104,13 @@ func renameObjects(tree ast.Node, info *types.Info, decls []*ast.GenDecl) {
 				if s.Name.Name == "_" {
 					continue
 				}
-				newNames[info.ObjectOf(s.Name)] = ast.NewIdent("_o" + strconv.Itoa(id))
-				id++
+				newNames[info.ObjectOf(s.Name)] = scope.newObjectIdent()
 			case *ast.ValueSpec: // const/var
 				for _, name := range s.Names {
 					if name.Name == "_" {
 						continue
 					}
-					newNames[info.ObjectOf(name)] = ast.NewIdent("_o" + strconv.Itoa(id))
-					id++
+					newNames[info.ObjectOf(name)] = scope.newObjectIdent()
 				}
 			}
 		}
@@ -135,6 +135,8 @@ func renameObjects(tree ast.Node, info *types.Info, decls []*ast.GenDecl) {
 func removeDecls(tree ast.Node) {
 	astutil.Apply(tree, func(cursor *astutil.Cursor) bool {
 		switch n := cursor.Node().(type) {
+		case *ast.FuncLit:
+			return false
 		case *ast.AssignStmt:
 			if n.Tok == token.DEFINE {
 				if _, ok := cursor.Parent().(*ast.TypeSwitchStmt); ok {
