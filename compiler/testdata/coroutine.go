@@ -323,24 +323,11 @@ func Range10ClosureHeterogenousCapture() {
 		g uint32  = 6
 		h uint64  = 7
 		i uintptr = 8
-		//j         = func() int { return int(i) + 1 }
+		j         = func() int { return int(i) + 1 }
 	)
 
 	n := 0
 	x := func() bool {
-		print("---",
-			"\n  n = ", n, " @", &n,
-			"\n  a = ", a, " @", &a,
-			"\n  b = ", b, " @", &b,
-			"\n  c = ", c, " @", &c,
-			"\n  d = ", d, " @", &d,
-			"\n  e = ", e, " @", &e,
-			"\n  f = ", f, " @", &f,
-			"\n  g = ", g, " @", &g,
-			"\n  h = ", h, " @", &h,
-			"\n  i = ", i, " @", &i,
-			"\n---\n",
-		)
 		var v int
 		switch n {
 		case 0:
@@ -362,7 +349,7 @@ func Range10ClosureHeterogenousCapture() {
 		case 8:
 			v = int(i)
 		case 9:
-			v = int(n) // j()
+			v = j()
 		}
 		coroutine.Yield[int, any](v)
 		n++

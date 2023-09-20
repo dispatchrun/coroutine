@@ -2329,9 +2329,10 @@ func Range10ClosureHeterogenousCapture() {
 	var _o6 uint32
 	var _o7 uint64
 	var _o8 uintptr
-	var _o9 int
-	var _o10 func() bool
-	var _o11 bool
+	var _o9 func() int
+	var _o10 int
+	var _o11 func() bool
+	var _o12 bool
 	if _f.IP > 0 {
 		if _v := _f.Get(0); _v != nil {
 			_o0 = _v.(int8)
@@ -2361,14 +2362,17 @@ func Range10ClosureHeterogenousCapture() {
 			_o8 = _v.(uintptr)
 		}
 		if _v := _f.Get(9); _v != nil {
-
-			_o9 = _v.(int)
+			_o9 = _v.(func() int)
 		}
 		if _v := _f.Get(10); _v != nil {
-			_o10 = _v.(func() bool)
+
+			_o10 = _v.(int)
 		}
 		if _v := _f.Get(11); _v != nil {
-			_o11 = _v.(bool)
+			_o11 = _v.(func() bool)
+		}
+		if _v := _f.Get(12); _v != nil {
+			_o12 = _v.(bool)
 		}
 	}
 	defer func() {
@@ -2385,13 +2389,14 @@ func Range10ClosureHeterogenousCapture() {
 			_f.Set(9, _o9)
 			_f.Set(10, _o10)
 			_f.Set(11, _o11)
+			_f.Set(12, _o12)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
 		}
 	}()
 	switch {
-	case _f.IP < 10:
+	case _f.IP < 11:
 		switch {
 		case _f.IP < 2:
 			_o0 = 0
@@ -2427,31 +2432,22 @@ func Range10ClosureHeterogenousCapture() {
 			fallthrough
 		case _f.IP < 10:
 			_o8 = 8
+			_f.IP = 10
+			fallthrough
+		case _f.IP < 11:
+			_o9 = func() int { return int(_o8) + 1 }
 		}
-		_f.IP = 10
-		fallthrough
-	case _f.IP < 11:
-
-		_o9 = 0
 		_f.IP = 11
 		fallthrough
 	case _f.IP < 12:
-		_o10 = func() bool {
-			print("---",
-				"\n  n = ", _o9, " @", &_o9,
-				"\n  a = ", _o0, " @", &_o0,
-				"\n  b = ", _o1, " @", &_o1,
-				"\n  c = ", _o2, " @", &_o2,
-				"\n  d = ", _o3, " @", &_o3,
-				"\n  e = ", _o4, " @", &_o4,
-				"\n  f = ", _o5, " @", &_o5,
-				"\n  g = ", _o6, " @", &_o6,
-				"\n  h = ", _o7, " @", &_o7,
-				"\n  i = ", _o8, " @", &_o8,
-				"\n---\n",
-			)
+
+		_o10 = 0
+		_f.IP = 12
+		fallthrough
+	case _f.IP < 13:
+		_o11 = func() bool {
 			var v int
-			switch _o9 {
+			switch _o10 {
 			case 0:
 				v = int(_o0)
 			case 1:
@@ -2471,24 +2467,24 @@ func Range10ClosureHeterogenousCapture() {
 			case 8:
 				v = int(_o8)
 			case 9:
-				v = int(_o9)
+				v = _o9()
 			}
 			coroutine.Yield[int, any](v)
-			_o9++
-			return _o9 < 10
+			_o10++
+			return _o10 < 10
 		}
-		_f.IP = 12
+		_f.IP = 13
 		fallthrough
-	case _f.IP < 14:
+	case _f.IP < 15:
 	_l0:
-		for ; ; _f.IP = 12 {
+		for ; ; _f.IP = 13 {
 			switch {
-			case _f.IP < 13:
-				_o11 = !_o10()
-				_f.IP = 13
-				fallthrough
 			case _f.IP < 14:
-				if _o11 {
+				_o12 = !_o11()
+				_f.IP = 14
+				fallthrough
+			case _f.IP < 15:
+				if _o12 {
 					break _l0
 				}
 			}
