@@ -138,3 +138,17 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 func anonFuncLinkName(base string, index int) string {
 	return fmt.Sprintf("%s.func%d", base, index)
 }
+
+// This function returns true if a function body is composed of at most one
+// expression.
+func functionBodyIsExpr(body *ast.BlockStmt) bool {
+	if len(body.List) == 0 {
+		return true
+	}
+	if len(body.List) == 1 {
+		if _, isExpr := body.List[0].(*ast.ExprStmt); isExpr {
+			return true
+		}
+	}
+	return false
+}

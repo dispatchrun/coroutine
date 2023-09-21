@@ -18,24 +18,7 @@ import (
 func SomeFunctionThatShouldExistInTheCompiledFile() {
 }
 
-func Identity(n int) {
-	_c := coroutine.LoadContext[int, any]()
-	_f, _fp := _c.Push()
-	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			n = _v.(int)
-		}
-	}
-	defer func() {
-		if _c.Unwinding() {
-			_f.Set(0, n)
-			_c.Store(_fp, _f)
-		} else {
-			_c.Pop()
-		}
-	}()
-	coroutine.Yield[int, any](n)
-}
+func Identity(n int) { coroutine.Yield[int, any](n) }
 
 func SquareGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -2251,60 +2234,11 @@ func Range(n int, do func(int)) {
 	}
 }
 
-func Double(n int) {
-	_c := coroutine.LoadContext[int, any]()
-	_f, _fp := _c.Push()
-	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			n = _v.(int)
-		}
-	}
-	defer func() {
-		if _c.Unwinding() {
-			_f.Set(0, n)
-			_c.Store(_fp, _f)
-		} else {
-			_c.Pop()
-		}
-	}()
-	coroutine.Yield[int, any](2 * n)
-}
+func Double(n int) { coroutine.Yield[int, any](2 * n) }
 
+//go:noinline
 func RangeTriple(n int) {
-	_c := coroutine.LoadContext[int, any]()
-	_f, _fp := _c.Push()
-	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			n = _v.(int)
-		}
-	}
-	defer func() {
-		if _c.Unwinding() {
-			_f.Set(0, n)
-			_c.Store(_fp, _f)
-		} else {
-			_c.Pop()
-		}
-	}()
-	Range(n, func(i int) {
-		_c := coroutine.LoadContext[int, any]()
-		_f, _fp := _c.Push()
-		if _f.IP > 0 {
-			if _v := _f.Get(0); _v != nil {
-				i = _v.(int)
-			}
-		}
-		defer func() {
-			if _c.Unwinding() {
-				_f.Set(0, i)
-				_c.Store(_fp, _f)
-			} else {
-				_c.Pop()
-			}
-		}()
-		coroutine.Yield[int, any](3 * i)
-	},
-	)
+	Range(n, func(i int) { coroutine.Yield[int, any](3 * i) })
 }
 
 func RangeTripleFuncValue(n int) {
@@ -2330,24 +2264,7 @@ func RangeTripleFuncValue(n int) {
 	}()
 	switch {
 	case _f.IP < 2:
-		_o0 = func(i int) {
-			_c := coroutine.LoadContext[int, any]()
-			_f, _fp := _c.Push()
-			if _f.IP > 0 {
-				if _v := _f.Get(0); _v != nil {
-					i = _v.(int)
-				}
-			}
-			defer func() {
-				if _c.Unwinding() {
-					_f.Set(0, i)
-					_c.Store(_fp, _f)
-				} else {
-					_c.Pop()
-				}
-			}()
-			coroutine.Yield[int, any](3 * i)
-		}
+		_o0 = func(i int) { coroutine.Yield[int, any](3 * i) }
 		_f.IP = 2
 		fallthrough
 	case _f.IP < 3:
