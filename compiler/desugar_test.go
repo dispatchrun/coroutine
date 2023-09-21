@@ -1068,7 +1068,7 @@ _l0:
 `,
 		},
 		{
-			name: "decompose nested function calls",
+			name: "decompose expressions in expr statements",
 			body: "a(b(c(d(e(1 + 2)))))",
 			expect: `
 {
@@ -1081,7 +1081,17 @@ _l0:
 `,
 		},
 		{
-			name: "decompose expressions in decls",
+			name: "decompose expressions in incdec statements",
+			body: "a(b())++",
+			expect: `
+{
+	_v0 := b()
+	a(_v0)++
+}
+`,
+		},
+		{
+			name: "decompose expressions in decl statements",
 			body: "var _, _ int = a(b(0)), c(d(1))",
 			// See https://go.dev/play/p/PkwoJbDLgQV for order of evaluation.
 			expect: `
@@ -1095,7 +1105,7 @@ _l0:
 `,
 		},
 		{
-			name: "decompose expressions in assignments",
+			name: "decompose expressions in assignment statements",
 			body: "ints[a(b(0))], ints[c(d(1))] = e(f(10)), g(h(11))",
 			// See https://go.dev/play/p/WvrxhauFbsA for order of evaluation
 			expect: `
@@ -1109,6 +1119,33 @@ _l0:
 	_v7 := h(11)
 	_v6 := g(_v7)
 	ints[_v0], ints[_v2] = _v4, _v6
+}
+`,
+		},
+		{
+			name: "decompose expressions in return statements",
+			body: "return a(b(0)), c(d(1))",
+			// See https://go.dev/play/p/PkwoJbDLgQV for order of evaluation.
+			expect: `
+{
+	_v1 := b(0)
+	_v0 := a(_v1)
+	_v3 := d(1)
+	_v2 := c(_v3)
+	return _v0, _v2
+}
+`,
+		},
+		{
+			name: "decompose expressions in send statements",
+			body: "a(b()) <- c(d())",
+			expect: `
+{
+	_v1 := b()
+	_v0 := a(_v1)
+	_v3 := d()
+	_v2 := c(_v3)
+	_v0 <- _v2
 }
 `,
 		},
