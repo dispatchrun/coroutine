@@ -12,6 +12,10 @@ import (
 func typeExpr(typ types.Type) ast.Expr {
 	switch t := typ.(type) {
 	case *types.Basic:
+		switch t {
+		case types.Typ[types.UntypedBool]:
+			t = types.Typ[types.Bool]
+		}
 		return ast.NewIdent(t.String())
 	case *types.Slice:
 		return &ast.ArrayType{Elt: typeExpr(t.Elem())}

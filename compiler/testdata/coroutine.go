@@ -435,3 +435,51 @@ func Select(n int) {
 		}
 	}
 }
+
+func YieldingExpressionDesugaring() {
+	if x := a(b(1)); x == a(b(2)) {
+	} else if y := a(b(3)); y == a(b(4))-1 {
+		coroutine.Yield[int, any](a(b(5)) * 10)
+	} else if a(b(100)) == 100 {
+		panic("unreachable")
+	}
+
+	// TODO: support yields in the post iteration statement
+	for i := a(b(6)); i < a(b(8)); i++ {
+		coroutine.Yield[int, any](70)
+	}
+
+	switch x := a(b(9)); x {
+	default:
+		panic("unreachable")
+	case a(b(10)):
+		panic("unreachable")
+	case a(b(11)):
+		panic("unreachable")
+	case a(b(12)) - 3: // true!
+		a(b(13))
+	case a(b(14)):
+		panic("unreachable")
+	}
+
+	switch x := any(a(b(15))).(type) {
+	case bool:
+		panic("unreachable")
+	case int:
+		coroutine.Yield[int, any](x * 10)
+	default:
+		panic("unreachable")
+	}
+
+	// TODO: test select desugaring here too
+}
+
+func a(v int) int {
+	coroutine.Yield[int, any](v)
+	return v
+}
+
+func b(v int) int {
+	coroutine.Yield[int, any](-v)
+	return v
+}
