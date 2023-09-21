@@ -125,6 +125,12 @@ func TestCoroutineYield(t *testing.T) {
 		},
 
 		{
+			name:   "range over yield and assign to pointer",
+			coro:   func() { RangeYieldAndAssign(4) },
+			yields: []int{0, 1, 2, 3},
+		},
+
+		{
 			name:   "range over closure capturing values",
 			coro:   Range10ClosureCapturingValues,
 			yields: []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},

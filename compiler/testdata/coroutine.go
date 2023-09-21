@@ -282,6 +282,35 @@ func RangeTripleFuncValue(n int) {
 	Range(n, f)
 }
 
+func yieldAndAssign(assign *int, yield, value int) {
+	// The pointer assignment here gets confused because on resume, the variable
+	// that it refers to is recreated during the call to RangeYieldAndAssign,
+	// resulting in assigning the value to a different value than the local `i`
+	// variable of the parent function.
+	f := func() { *assign = value }
+
+	// TODO: remove this function; it's here to ensure that both assign and
+	// value are seen as potentially being written to, so the compiler doesn't
+	// dereference their values in the closure type of f.
+	g := func() { assign = &value }
+
+	coroutine.Yield[int, any](yield)
+	// If we make the call to f before yielding, the coroutine behaves as
+	// expected because the assign pointer is pointing to the `i` variable of
+	/// the parent function, but after resuming the pointers aren't the same
+	// anymore.
+	f()
+
+	// TODO: remove
+	g()
+}
+
+func RangeYieldAndAssign(n int) {
+	for i := 0; i < n; {
+		yieldAndAssign(&i, i, i+1)
+	}
+}
+
 func Range10ClosureCapturingValues() {
 	i := 0
 	n := 10

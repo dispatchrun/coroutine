@@ -54,6 +54,7 @@ func init() {
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeTriple.func1")
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeTripleFuncValue")
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeTripleFuncValue.func2")
+	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeYieldAndAssign")
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.Select")
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.Shadowing")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.SomeFunctionThatShouldExistInTheCompiledFile")
@@ -65,4 +66,15 @@ func init() {
 	_types.RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/compiler/testdata.a")
 	_types.RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/compiler/testdata.b")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.init")
+	_types.RegisterFunc[func(*int, int, int)]("github.com/stealthrocket/coroutine/compiler/testdata.yieldAndAssign")
+	_types.RegisterClosure[func(), struct {
+		_      uintptr
+		assign **int
+		value  *int
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.yieldAndAssign.func2")
+	_types.RegisterClosure[func(), struct {
+		_      uintptr
+		assign **int
+		value  *int
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.yieldAndAssign.func3")
 }
