@@ -11,6 +11,9 @@ import (
 
 //go:generate coroc --output coroutine_durable.go --tags durable
 
+func SomeFunctionThatShouldExistInTheCompiledFile() {
+}
+
 func Identity(n int) {
 	coroutine.Yield[int, any](n)
 }

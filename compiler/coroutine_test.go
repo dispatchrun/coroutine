@@ -9,6 +9,12 @@ import (
 	"github.com/stealthrocket/coroutine/types"
 )
 
+func init() {
+	// Breaks if the compiler did not retain simple top-level functions in the
+	// output file.
+	SomeFunctionThatShouldExistInTheCompiledFile()
+}
+
 func TestCoroutineYield(t *testing.T) {
 	tests := []struct {
 		name   string

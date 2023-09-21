@@ -15,6 +15,9 @@ import (
 	unsafe "unsafe"
 )
 
+func SomeFunctionThatShouldExistInTheCompiledFile() {
+}
+
 func Identity(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
