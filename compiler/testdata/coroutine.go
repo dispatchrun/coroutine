@@ -266,11 +266,11 @@ func Double(n int) {
 	coroutine.Yield[int, any](2 * n)
 }
 
-// func RangeTriple(n int) {
-// 	Range(n, func(i int) {
-// 		coroutine.Yield[int, any](3 * i)
-// 	})
-// }
+func RangeTriple(n int) {
+	Range(n, func(i int) {
+		coroutine.Yield[int, any](3 * i)
+	})
+}
 
 func RangeTripleFuncValue(n int) {
 	f := func(i int) {
