@@ -120,7 +120,18 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 	// stack unwinding, which takes the ".func1" name.
 	_, colored := colors[fn]
 	if colored {
-		index++
+		// We skip functions that only have one expression because they
+		// are not transformed.
+		var body *ast.BlockStmt
+		switch d := fn.Syntax().(type) {
+		case *ast.FuncDecl:
+			body = d.Body
+		case *ast.FuncLit:
+			body = d.Body
+		}
+		if !functionBodyIsExpr(body) {
+			index++
+		}
 	}
 
 	for _, anonFunc := range anonFuncs {
@@ -137,4 +148,18 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 // ".func<index>" suffix, with the index being local to the parent scope.
 func anonFuncLinkName(base string, index int) string {
 	return fmt.Sprintf("%s.func%d", base, index)
+}
+
+// This function returns true if a function body is composed of at most one
+// expression.
+func functionBodyIsExpr(body *ast.BlockStmt) bool {
+	if len(body.List) == 0 {
+		return true
+	}
+	if len(body.List) == 1 {
+		if _, isExpr := body.List[0].(*ast.ExprStmt); isExpr {
+			return true
+		}
+	}
+	return false
 }

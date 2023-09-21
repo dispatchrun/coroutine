@@ -314,6 +314,10 @@ func (scope *scope) compileFuncLit(p *packages.Package, fn *ast.FuncLit, color *
 }
 
 func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, color *types.Signature) *ast.BlockStmt {
+	if functionBodyIsExpr(body) {
+		return body
+	}
+
 	gen := new(ast.BlockStmt)
 	ctx := ast.NewIdent("_c")
 	frame := ast.NewIdent("_f")
