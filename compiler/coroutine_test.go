@@ -89,6 +89,12 @@ func TestCoroutineYield(t *testing.T) {
 		},
 
 		{
+			name:   "range over deferred function",
+			coro:   func() { RangeYieldAndDeferAssign(5) },
+			yields: []int{0, 1, 2, 3, 4},
+		},
+
+		{
 			name:   "type switching",
 			coro:   func() { TypeSwitchingGenerator(0) },
 			yields: []int{1, 10, 2, 20, 4, 30, 8, 40},

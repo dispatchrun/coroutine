@@ -270,7 +270,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 		}
 	}
 
-	log.Print("building type register init function")
+	log.Print("building type registry init function")
 	if err := generateTypesInit(c.fset, gen, p); err != nil {
 		return err
 	}
