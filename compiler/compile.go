@@ -242,6 +242,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 			}
 			color, ok := colorsByDecl[decl]
 			if !ok {
+				gen.Decls = append(gen.Decls, decl)
 				continue
 			}
 			// Reject certain language features for now.
@@ -322,6 +323,23 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	yieldTypeExpr[0] = typeExpr(color.Params().At(0).Type())
 	yieldTypeExpr[1] = typeExpr(color.Results().At(0).Type())
 
+	body = astutil.Apply(body,
+		func(cursor *astutil.Cursor) bool {
+			switch n := cursor.Node().(type) {
+			case *ast.FuncLit:
+				color, ok := scope.colors[n]
+				if ok {
+					cursor.Replace(scope.compileFuncLit(p, n, color))
+				}
+			}
+			return true
+		},
+		nil,
+	).(*ast.BlockStmt)
+
+	// Desugar statements in the tree.
+	body = desugar(body, p.TypesInfo).(*ast.BlockStmt)
+
 	// _c := coroutine.LoadContext[R, S]()
 	gen.List = append(gen.List, &ast.AssignStmt{
 		Lhs: []ast.Expr{ctx},
@@ -349,23 +367,6 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 			},
 		},
 	})
-
-	body = astutil.Apply(body,
-		func(cursor *astutil.Cursor) bool {
-			switch n := cursor.Node().(type) {
-			case *ast.FuncLit:
-				color, ok := scope.colors[n]
-				if ok {
-					cursor.Replace(scope.compileFuncLit(p, n, color))
-				}
-			}
-			return true
-		},
-		nil,
-	).(*ast.BlockStmt)
-
-	// Desugar statements in the tree.
-	body = desugar(body, p.TypesInfo).(*ast.BlockStmt)
 
 	// Handle declarations.
 	//
