@@ -1082,12 +1082,33 @@ _l0:
 		},
 		{
 			name: "decompose expressions in decls",
-			body: "var a, b int = c(d()), e(f())",
+			body: "var _, _ int = a(b(0)), c(d(1))",
+			// See https://go.dev/play/p/PkwoJbDLgQV for order of evaluation.
 			expect: `
 {
-	_v1 := f()
-	_v0 := d()
-	var a, b int = c(_v0), e(_v1)
+	_v1 := b(0)
+	_v0 := a(_v1)
+	_v3 := d(1)
+	_v2 := c(_v3)
+	var _, _ int = _v0, _v2
+}
+`,
+		},
+		{
+			name: "decompose expressions in assignments",
+			body: "ints[a(b(0))], ints[c(d(1))] = e(f(10)), g(h(11))",
+			// See https://go.dev/play/p/WvrxhauFbsA for order of evaluation
+			expect: `
+{
+	_v1 := b(0)
+	_v0 := a(_v1)
+	_v3 := d(1)
+	_v2 := c(_v3)
+	_v5 := f(10)
+	_v4 := e(_v5)
+	_v7 := h(11)
+	_v6 := g(_v7)
+	ints[_v0], ints[_v2] = _v4, _v6
 }
 `,
 		},
