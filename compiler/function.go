@@ -120,18 +120,7 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 	// stack unwinding, which takes the ".func1" name.
 	_, colored := colors[fn]
 	if colored {
-		// We skip functions that only have one expression because they
-		// are not transformed.
-		var body *ast.BlockStmt
-		switch d := fn.Syntax().(type) {
-		case *ast.FuncDecl:
-			body = d.Body
-		case *ast.FuncLit:
-			body = d.Body
-		}
-		if !functionBodyIsExpr(body) {
-			index++
-		}
+		index++
 	}
 
 	for _, anonFunc := range anonFuncs {
