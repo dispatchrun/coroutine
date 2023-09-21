@@ -489,6 +489,10 @@ func b(v int) int {
 
 func YieldAndDeferAssign(assign *int, yield, value int) {
 	defer func() {
+		assign, value = nil, 0
+	}()
+	defer func() {
+		println("assign:", assign)
 		*assign = value
 	}()
 	coroutine.Yield[int, any](yield)
@@ -496,6 +500,7 @@ func YieldAndDeferAssign(assign *int, yield, value int) {
 
 func RangeYieldAndDeferAssign(n int) {
 	for i := 0; i < n; {
+		println("i:", &i)
 		YieldAndDeferAssign(&i, i, i+1)
 	}
 }

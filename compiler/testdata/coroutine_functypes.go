@@ -68,6 +68,11 @@ func init() {
 		assign **int
 		value  *int
 	}]("github.com/stealthrocket/coroutine/compiler/testdata.YieldAndDeferAssign.func2")
+	_types.RegisterClosure[func(), struct {
+		_      uintptr
+		assign **int
+		value  *int
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.YieldAndDeferAssign.func3")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingExpressionDesugaring")
 	_types.RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/compiler/testdata.a")
 	_types.RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/compiler/testdata.b")

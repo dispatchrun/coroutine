@@ -4246,11 +4246,18 @@ func YieldAndDeferAssign(assign *int, yield, value int) {
 	switch {
 	case _f.IP < 2:
 		_defers = append(_defers, func() {
-			*assign = value
+			assign, value = nil, 0
 		})
 		_f.IP = 2
 		fallthrough
 	case _f.IP < 3:
+		_defers = append(_defers, func() {
+			println("assign:", assign)
+			*assign = value
+		})
+		_f.IP = 3
+		fallthrough
+	case _f.IP < 4:
 		coroutine.Yield[int, any](yield)
 	}
 }
@@ -4286,7 +4293,7 @@ func RangeYieldAndDeferAssign(n int) {
 		_o0 = 0
 		_f.IP = 2
 		fallthrough
-	case _f.IP < 5:
+	case _f.IP < 6:
 	_l0:
 		for ; ; _f.IP = 2 {
 			switch {
@@ -4304,6 +4311,10 @@ func RangeYieldAndDeferAssign(n int) {
 				_f.IP = 4
 				fallthrough
 			case _f.IP < 5:
+				println("i:", &_o0)
+				_f.IP = 5
+				fallthrough
+			case _f.IP < 6:
 				YieldAndDeferAssign(&_o0, _o0, _o0+1)
 			}
 		}

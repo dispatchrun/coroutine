@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"unsafe"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stealthrocket/coroutine/types"
 )
 
@@ -465,6 +466,11 @@ func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 
 	if fn.Closure != nil {
 		t := fn.Closure
+
+		v := reflect.NewAt(t, p)
+		println("SERIALIZE")
+		spew.Dump(v.Interface())
+
 		serializeStructFields(s, p, t.NumField()-1, func(i int) reflect.StructField {
 			return t.Field(i + 1)
 		})
