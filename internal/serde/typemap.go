@@ -9,6 +9,15 @@ import (
 // Global type register.
 var Types *TypeMap = NewTypeMap()
 
+func init() {
+	// TODO: these types are registered automatically because they are used to
+	// implement defers; this special case works around the difficulty to
+	// register function types automatically, we should address this limitation
+	// later.
+	RegisterType[func()]()
+	RegisterType[[]func()]()
+}
+
 // RegisterType into the global register to make it known to the serialization
 // system.
 //

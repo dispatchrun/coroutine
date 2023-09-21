@@ -150,9 +150,6 @@ func (w *typesWalker) add(t types.Type) {
 	if _, ok := w.seenTypes[typename]; ok {
 		return
 	}
-	if strings.Contains(typename, "func(") {
-		return
-	}
 
 	path, name, found := cutLast(typename, ".")
 	if !found {
@@ -234,8 +231,8 @@ func validPath(s string) bool {
 func supportedType(t types.Type) bool {
 	switch x := t.(type) {
 	case *types.Signature:
-		// generic functions must be instantiated
-		return x.TypeParams() == nil
+		// don't know how to serialize functions
+		return false
 	case *types.Named:
 		// uninstantiated type parameter
 		if x.Origin() != t {
