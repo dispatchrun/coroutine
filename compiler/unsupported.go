@@ -11,14 +11,6 @@ import (
 func unsupported(decl ast.Node, info *types.Info) (err error) {
 	ast.Inspect(decl, func(node ast.Node) bool {
 		switch nn := node.(type) {
-		case ast.Expr:
-			switch nn.(type) {
-			case *ast.FuncLit:
-			default:
-				if countFunctionCalls(nn, info) > 1 {
-					err = fmt.Errorf("not implemented: multiple function calls in an expression")
-				}
-			}
 		case ast.Stmt:
 			switch n := nn.(type) {
 			// Not yet supported:

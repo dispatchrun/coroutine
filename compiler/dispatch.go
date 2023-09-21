@@ -80,6 +80,9 @@ func compileDispatch(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan) ast
 		}
 	case *ast.IfStmt:
 		s.Body = compileDispatch(s.Body, dispatchSpans).(*ast.BlockStmt)
+		if s.Else != nil {
+			s.Else = compileDispatch(s.Else, dispatchSpans)
+		}
 	case *ast.ForStmt:
 		forSpan := dispatchSpans[s]
 		s.Body = compileDispatch(s.Body, dispatchSpans).(*ast.BlockStmt)

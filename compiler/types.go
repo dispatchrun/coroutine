@@ -12,6 +12,10 @@ import (
 func typeExpr(typ types.Type) ast.Expr {
 	switch t := typ.(type) {
 	case *types.Basic:
+		switch t {
+		case types.Typ[types.UntypedBool]:
+			t = types.Typ[types.Bool]
+		}
 		return ast.NewIdent(t.String())
 	case *types.Slice:
 		return &ast.ArrayType{Elt: typeExpr(t.Elem())}
@@ -59,7 +63,6 @@ func typeExpr(typ types.Type) ast.Expr {
 		// TODO: this needs to be incorporated in the pass to find imports
 		return &ast.SelectorExpr{X: ast.NewIdent(pkg.Name()), Sel: name}
 	case *types.Chan:
-		t.Dir()
 		c := &ast.ChanType{
 			Value: typeExpr(t.Elem()),
 		}

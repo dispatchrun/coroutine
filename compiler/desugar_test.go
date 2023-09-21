@@ -166,7 +166,7 @@ _l0:
 `,
 		},
 		{
-			name: "for range over slice (no index/value)",
+			name: "for range over slice",
 			body: "for range []int{0, 1, 2} { foo }",
 			info: func(stmts []ast.Stmt, info *types.Info) {
 				x := stmts[0].(*ast.RangeStmt).X
@@ -689,7 +689,8 @@ default:
 						} else {
 							_v15 := _v11 == 4
 							if _v15 {
-								f[g()] = _v8
+								_v18 := g()
+								f[_v18] = _v8
 								qux
 							} else {
 								_v16 := _v11 == 5
@@ -1066,6 +1067,88 @@ _l0:
 	}
 `,
 		},
+		{
+			name: "decompose expressions in expr statements",
+			body: "a(b(c(d(e(1 + 2)))))",
+			expect: `
+{
+	_v3 := e(1 + 2)
+	_v2 := d(_v3)
+	_v1 := c(_v2)
+	_v0 := b(_v1)
+	a(_v0)
+}
+`,
+		},
+		{
+			name: "decompose expressions in incdec statements",
+			body: "a(b())++",
+			expect: `
+{
+	_v0 := b()
+	a(_v0)++
+}
+`,
+		},
+		{
+			name: "decompose expressions in decl statements",
+			body: "var _, _ int = a(b(0)), c(d(1))",
+			// See https://go.dev/play/p/PkwoJbDLgQV for order of evaluation.
+			expect: `
+{
+	_v1 := b(0)
+	_v0 := a(_v1)
+	_v3 := d(1)
+	_v2 := c(_v3)
+	var _, _ int = _v0, _v2
+}
+`,
+		},
+		{
+			name: "decompose expressions in assignment statements",
+			body: "ints[a(b(0))], ints[c(d(1))] = e(f(10)), g(h(11))",
+			// See https://go.dev/play/p/WvrxhauFbsA for order of evaluation
+			expect: `
+{
+	_v1 := b(0)
+	_v0 := a(_v1)
+	_v3 := d(1)
+	_v2 := c(_v3)
+	_v5 := f(10)
+	_v4 := e(_v5)
+	_v7 := h(11)
+	_v6 := g(_v7)
+	ints[_v0], ints[_v2] = _v4, _v6
+}
+`,
+		},
+		{
+			name: "decompose expressions in return statements",
+			body: "return a(b(0)), c(d(1))",
+			// See https://go.dev/play/p/PkwoJbDLgQV for order of evaluation.
+			expect: `
+{
+	_v1 := b(0)
+	_v0 := a(_v1)
+	_v3 := d(1)
+	_v2 := c(_v3)
+	return _v0, _v2
+}
+`,
+		},
+		{
+			name: "decompose expressions in send statements",
+			body: "a(b()) <- c(d())",
+			expect: `
+{
+	_v1 := b()
+	_v0 := a(_v1)
+	_v3 := d()
+	_v2 := c(_v3)
+	_v0 <- _v2
+}
+`,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			expr, err := parser.ParseExpr("func() {\n" + test.body + "\n}()")
@@ -1086,9 +1169,14 @@ _l0:
 				if ident, ok := node.(*ast.Ident); ok {
 					if obj, ok := test.defs[ident.Name]; ok {
 						info.Defs[ident] = obj
-					}
-					if obj, ok := test.uses[ident.Name]; ok {
+					} else if obj, ok := test.uses[ident.Name]; ok {
 						info.Uses[ident] = obj
+					} else {
+						// Unless an override has been specified, link
+						// identifiers to objects defined in types.Universe.
+						if obj := types.Universe.Lookup(ident.Name); obj != nil {
+							info.Uses[ident] = obj
+						}
 					}
 					if t, ok := test.types[ident.Name]; ok {
 						info.Types[ident] = t

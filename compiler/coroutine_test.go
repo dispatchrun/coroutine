@@ -153,6 +153,17 @@ func TestCoroutineYield(t *testing.T) {
 			//  will reduce temporary vars and avoid the need to deser type chan)
 			skip: true,
 		},
+
+		{
+			name: "yielding expression desugaring",
+			coro: func() { YieldingExpressionDesugaring() },
+			yields: []int{
+				-1, 1, -2, 2, -3, 3, -4, 4, -5, 5, 50, // if
+				-6, 6, -8, 8, 70, -8, 8, 70, -8, 8, // for
+				-9, 9, -10, 10, -11, 11, -12, 12, -13, 13, // switch
+				-15, 15, 150, // type switch
+			},
+		},
 	}
 
 	// This emulates the installation of function type information by the

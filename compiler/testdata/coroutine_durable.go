@@ -454,17 +454,32 @@ func FizzBuzzIfGenerator(n int) {
 					if _o2 {
 						coroutine.Yield[int, any](FizzBuzz)
 					} else {
-						_o3 = _o0%3 == 0
-						if _o3 {
-							coroutine.Yield[int, any](Fizz)
-						} else {
-							_o4 = _o0 % 5
-							_o5 = _o4 == 0
-							if _o5 {
-								coroutine.Yield[int, any](Buzz)
+						switch {
+						case _f.IP < 7:
+							_o3 = _o0%3 == 0
+							_f.IP = 7
+							fallthrough
+						case _f.IP < 12:
+							if _o3 {
+								coroutine.Yield[int, any](Fizz)
 							} else {
+								switch {
+								case _f.IP < 9:
+									_o4 = _o0 % 5
+									_f.IP = 9
+									fallthrough
+								case _f.IP < 10:
+									_o5 = _o4 == 0
+									_f.IP = 10
+									fallthrough
+								case _f.IP < 12:
+									if _o5 {
+										coroutine.Yield[int, any](Buzz)
+									} else {
 
-								coroutine.Yield[int, any](_o0)
+										coroutine.Yield[int, any](_o0)
+									}
+								}
 							}
 						}
 					}
@@ -549,16 +564,28 @@ func FizzBuzzSwitchGenerator(n int) {
 						if _o2 {
 							coroutine.Yield[int, any](FizzBuzz)
 						} else {
-							_o3 = _o0%3 == 0
-							if _o3 {
-								coroutine.Yield[int, any](Fizz)
-							} else {
-								_o4 = _o0%5 == 0
-								if _o4 {
-									coroutine.Yield[int, any](Buzz)
+							switch {
+							case _f.IP < 7:
+								_o3 = _o0%3 == 0
+								_f.IP = 7
+								fallthrough
+							case _f.IP < 11:
+								if _o3 {
+									coroutine.Yield[int, any](Fizz)
 								} else {
+									switch {
+									case _f.IP < 9:
+										_o4 = _o0%5 == 0
+										_f.IP = 9
+										fallthrough
+									case _f.IP < 11:
+										if _o4 {
+											coroutine.Yield[int, any](Buzz)
+										} else {
 
-									coroutine.Yield[int, any](_o0)
+											coroutine.Yield[int, any](_o0)
+										}
+									}
 								}
 							}
 						}
@@ -594,14 +621,24 @@ func Shadowing(_ int) {
 	type _o16 uint16
 
 	type _o17 uint32
+	var _o18 uintptr
+	var _o19 int
+	var _o20 uintptr
+	var _o21 int
 
-	const _o18 = 1
-	type _o19 [_o18]uint8
+	const _o22 = 1
+	type _o23 [_o22]uint8
 
-	type _o20 [_o18]uint8
+	type _o24 [_o22]uint8
+	var _o25 uintptr
+	var _o26 int
 
-	const _o21 = unsafe.Sizeof(_o20{}) * 2
-	type _o22 [_o21]uint8
+	const _o27 = unsafe.Sizeof(_o24{}) * 2
+	type _o28 [_o27]uint8
+	var _o29 uintptr
+	var _o30 int
+	var _o31 uintptr
+	var _o32 int
 	if _f.IP > 0 {
 		if _v := _f.Get(0); _v != nil {
 			_o0 = _v.(int)
@@ -654,6 +691,36 @@ func Shadowing(_ int) {
 
 			_o15 = _v.(int)
 		}
+		if _v := _f.Get(14); _v != nil {
+			_o18 = _v.(uintptr)
+		}
+		if _v := _f.Get(15); _v != nil {
+			_o19 = _v.(int)
+		}
+		if _v := _f.Get(16); _v != nil {
+			_o20 = _v.(uintptr)
+		}
+		if _v := _f.Get(17); _v != nil {
+			_o21 = _v.(int)
+		}
+		if _v := _f.Get(18); _v != nil {
+			_o25 = _v.(uintptr)
+		}
+		if _v := _f.Get(19); _v != nil {
+			_o26 = _v.(int)
+		}
+		if _v := _f.Get(20); _v != nil {
+			_o29 = _v.(uintptr)
+		}
+		if _v := _f.Get(21); _v != nil {
+			_o30 = _v.(int)
+		}
+		if _v := _f.Get(22); _v != nil {
+			_o31 = _v.(uintptr)
+		}
+		if _v := _f.Get(23); _v != nil {
+			_o32 = _v.(int)
+		}
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -671,6 +738,16 @@ func Shadowing(_ int) {
 			_f.Set(11, _o11)
 			_f.Set(12, _o12)
 			_f.Set(13, _o15)
+			_f.Set(14, _o18)
+			_f.Set(15, _o19)
+			_f.Set(16, _o20)
+			_f.Set(17, _o21)
+			_f.Set(18, _o25)
+			_f.Set(19, _o26)
+			_f.Set(20, _o29)
+			_f.Set(21, _o30)
+			_f.Set(22, _o31)
+			_f.Set(23, _o32)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
@@ -873,32 +950,70 @@ func Shadowing(_ int) {
 		coroutine.Yield[int, any](_o13)
 		_f.IP = 32
 		fallthrough
-	case _f.IP < 33:
-
-		coroutine.Yield[int, any](int(unsafe.Sizeof(_o17(0))))
-		_f.IP = 33
-		fallthrough
-	case _f.IP < 34:
-
-		coroutine.Yield[int, any](int(unsafe.Sizeof(_o16(0))))
-		_f.IP = 34
+	case _f.IP < 35:
+		switch {
+		case _f.IP < 33:
+			_o18 = unsafe.Sizeof(_o17(0))
+			_f.IP = 33
+			fallthrough
+		case _f.IP < 34:
+			_o19 = int(_o18)
+			_f.IP = 34
+			fallthrough
+		case _f.IP < 35:
+			coroutine.Yield[int, any](_o19)
+		}
+		_f.IP = 35
 		fallthrough
 	case _f.IP < 36:
-		switch {
-		case _f.IP < 35:
-
-			coroutine.Yield[int, any](int(unsafe.Sizeof(_o20{})))
-			_f.IP = 35
-			fallthrough
-		case _f.IP < 36:
-
-			coroutine.Yield[int, any](int(unsafe.Sizeof(_o22{})))
-		}
+		_o20 = unsafe.Sizeof(_o16(0))
 		_f.IP = 36
 		fallthrough
 	case _f.IP < 37:
-
-		coroutine.Yield[int, any](int(unsafe.Sizeof(_o19{})))
+		_o21 = int(_o20)
+		_f.IP = 37
+		fallthrough
+	case _f.IP < 38:
+		coroutine.Yield[int, any](_o21)
+		_f.IP = 38
+		fallthrough
+	case _f.IP < 44:
+		switch {
+		case _f.IP < 39:
+			_o25 = unsafe.Sizeof(_o24{})
+			_f.IP = 39
+			fallthrough
+		case _f.IP < 40:
+			_o26 = int(_o25)
+			_f.IP = 40
+			fallthrough
+		case _f.IP < 41:
+			coroutine.Yield[int, any](_o26)
+			_f.IP = 41
+			fallthrough
+		case _f.IP < 42:
+			_o29 = unsafe.Sizeof(_o28{})
+			_f.IP = 42
+			fallthrough
+		case _f.IP < 43:
+			_o30 = int(_o29)
+			_f.IP = 43
+			fallthrough
+		case _f.IP < 44:
+			coroutine.Yield[int, any](_o30)
+		}
+		_f.IP = 44
+		fallthrough
+	case _f.IP < 45:
+		_o31 = unsafe.Sizeof(_o23{})
+		_f.IP = 45
+		fallthrough
+	case _f.IP < 46:
+		_o32 = int(_o31)
+		_f.IP = 46
+		fallthrough
+	case _f.IP < 47:
+		coroutine.Yield[int, any](_o32)
 	}
 }
 
@@ -1379,25 +1494,45 @@ func LoopBreakAndContinue(_ int) {
 											if _o10 {
 												continue _l2
 											} else {
-												_o11 = _o9 ==
+												switch {
+												case _f.IP < 21:
+													_o11 = _o9 ==
 
-													1
-												if _o11 {
-													{
-														_o12 = _o5
+														1
+													_f.IP = 21
+													fallthrough
+												case _f.IP < 26:
+													if _o11 {
 														switch {
-														default:
-															{
-																_o13 = _o12 ==
-																	0
-																if _o13 {
-																	continue _l1
-																} else {
-																	_o14 = _o12 ==
+														case _f.IP < 22:
+															_o12 = _o5
+															_f.IP = 22
+															fallthrough
+														case _f.IP < 26:
+															switch {
+															default:
+																switch {
+																case _f.IP < 23:
+																	_o13 = _o12 ==
+																		0
+																	_f.IP = 23
+																	fallthrough
+																case _f.IP < 26:
+																	if _o13 {
+																		continue _l1
+																	} else {
+																		switch {
+																		case _f.IP < 25:
+																			_o14 = _o12 ==
 
-																		1
-																	if _o14 {
-																		break _l1
+																				1
+																			_f.IP = 25
+																			fallthrough
+																		case _f.IP < 26:
+																			if _o14 {
+																				break _l1
+																			}
+																		}
 																	}
 																}
 															}
@@ -2188,6 +2323,7 @@ func Range10ClosureCapturingValues() {
 	var _o2 int
 	var _o3 func() bool
 	var _o4 bool
+	var _o5 bool
 	if _f.IP > 0 {
 		if _v := _f.Get(0); _v != nil {
 			_o1 = _v.(int)
@@ -2201,6 +2337,9 @@ func Range10ClosureCapturingValues() {
 		if _v := _f.Get(3); _v != nil {
 			_o4 = _v.(bool)
 		}
+		if _v := _f.Get(4); _v != nil {
+			_o5 = _v.(bool)
+		}
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -2208,6 +2347,7 @@ func Range10ClosureCapturingValues() {
 			_f.Set(1, _o2)
 			_f.Set(2, _o3)
 			_f.Set(3, _o4)
+			_f.Set(4, _o5)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
@@ -2273,16 +2413,20 @@ func Range10ClosureCapturingValues() {
 		}
 		_f.IP = 4
 		fallthrough
-	case _f.IP < 6:
+	case _f.IP < 7:
 	_l0:
 		for ; ; _f.IP = 4 {
 			switch {
 			case _f.IP < 5:
-				_o4 = !_o3()
+				_o4 = _o3()
 				_f.IP = 5
 				fallthrough
 			case _f.IP < 6:
-				if _o4 {
+				_o5 = !_o4
+				_f.IP = 6
+				fallthrough
+			case _f.IP < 7:
+				if _o5 {
 					break _l0
 				}
 			}
@@ -2299,6 +2443,7 @@ func Range10ClosureCapturingPointers() {
 	var _o4 *int
 	var _o5 func() bool
 	var _o6 bool
+	var _o7 bool
 	if _f.IP > 0 {
 		if _v := _f.Get(0); _v != nil {
 			_o1 = _v.(int)
@@ -2318,6 +2463,9 @@ func Range10ClosureCapturingPointers() {
 		if _v := _f.Get(5); _v != nil {
 			_o6 = _v.(bool)
 		}
+		if _v := _f.Get(6); _v != nil {
+			_o7 = _v.(bool)
+		}
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -2327,6 +2475,7 @@ func Range10ClosureCapturingPointers() {
 			_f.Set(3, _o4)
 			_f.Set(4, _o5)
 			_f.Set(5, _o6)
+			_f.Set(6, _o7)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
@@ -2396,16 +2545,20 @@ func Range10ClosureCapturingPointers() {
 		}
 		_f.IP = 5
 		fallthrough
-	case _f.IP < 7:
+	case _f.IP < 8:
 	_l0:
 		for ; ; _f.IP = 5 {
 			switch {
 			case _f.IP < 6:
-				_o6 = !_o5()
+				_o6 = _o5()
 				_f.IP = 6
 				fallthrough
 			case _f.IP < 7:
-				if _o6 {
+				_o7 = !_o6
+				_f.IP = 7
+				fallthrough
+			case _f.IP < 8:
+				if _o7 {
 					break _l0
 				}
 			}
@@ -2416,76 +2569,81 @@ func Range10ClosureCapturingPointers() {
 func Range10ClosureHeterogenousCapture() {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
-	var _o12 int8
-	var _o13 int16
-	var _o14 int32
-	var _o15 int64
-	var _o16 uint8
-	var _o17 uint16
-	var _o18 uint32
-	var _o19 uint64
-	var _o20 uintptr
-	var _o21 func() int
-	var _o22 int
-	var _o23 func() bool
-	var _o24 bool
+	var _o13 int8
+	var _o14 int16
+	var _o15 int32
+	var _o16 int64
+	var _o17 uint8
+	var _o18 uint16
+	var _o19 uint32
+	var _o20 uint64
+	var _o21 uintptr
+	var _o22 func() int
+	var _o23 int
+	var _o24 func() bool
+	var _o25 bool
+	var _o26 bool
 	if _f.IP > 0 {
 		if _v := _f.Get(0); _v != nil {
-			_o12 = _v.(int8)
+			_o13 = _v.(int8)
 		}
 		if _v := _f.Get(1); _v != nil {
-			_o13 = _v.(int16)
+			_o14 = _v.(int16)
 		}
 		if _v := _f.Get(2); _v != nil {
-			_o14 = _v.(int32)
+			_o15 = _v.(int32)
 		}
 		if _v := _f.Get(3); _v != nil {
-			_o15 = _v.(int64)
+			_o16 = _v.(int64)
 		}
 		if _v := _f.Get(4); _v != nil {
-			_o16 = _v.(uint8)
+			_o17 = _v.(uint8)
 		}
 		if _v := _f.Get(5); _v != nil {
-			_o17 = _v.(uint16)
+			_o18 = _v.(uint16)
 		}
 		if _v := _f.Get(6); _v != nil {
-			_o18 = _v.(uint32)
+			_o19 = _v.(uint32)
 		}
 		if _v := _f.Get(7); _v != nil {
-			_o19 = _v.(uint64)
+			_o20 = _v.(uint64)
 		}
 		if _v := _f.Get(8); _v != nil {
-			_o20 = _v.(uintptr)
+			_o21 = _v.(uintptr)
 		}
 		if _v := _f.Get(9); _v != nil {
-			_o21 = _v.(func() int)
+			_o22 = _v.(func() int)
 		}
 		if _v := _f.Get(10); _v != nil {
 
-			_o22 = _v.(int)
+			_o23 = _v.(int)
 		}
 		if _v := _f.Get(11); _v != nil {
-			_o23 = _v.(func() bool)
+			_o24 = _v.(func() bool)
 		}
 		if _v := _f.Get(12); _v != nil {
-			_o24 = _v.(bool)
+			_o25 = _v.(bool)
+		}
+		if _v := _f.Get(13); _v != nil {
+			_o26 = _v.(bool)
 		}
 	}
 	defer func() {
 		if _c.Unwinding() {
-			_f.Set(0, _o12)
-			_f.Set(1, _o13)
-			_f.Set(2, _o14)
-			_f.Set(3, _o15)
-			_f.Set(4, _o16)
-			_f.Set(5, _o17)
-			_f.Set(6, _o18)
-			_f.Set(7, _o19)
-			_f.Set(8, _o20)
-			_f.Set(9, _o21)
-			_f.Set(10, _o22)
-			_f.Set(11, _o23)
-			_f.Set(12, _o24)
+			_f.Set(0, _o13)
+			_f.Set(1, _o14)
+			_f.Set(2, _o15)
+			_f.Set(3, _o16)
+			_f.Set(4, _o17)
+			_f.Set(5, _o18)
+			_f.Set(6, _o19)
+			_f.Set(7, _o20)
+			_f.Set(8, _o21)
+			_f.Set(9, _o22)
+			_f.Set(10, _o23)
+			_f.Set(11, _o24)
+			_f.Set(12, _o25)
+			_f.Set(13, _o26)
 			_c.Store(_fp, _f)
 		} else {
 			_c.Pop()
@@ -2495,53 +2653,53 @@ func Range10ClosureHeterogenousCapture() {
 	case _f.IP < 11:
 		switch {
 		case _f.IP < 2:
-			_o12 = 0
+			_o13 = 0
 			_f.IP = 2
 			fallthrough
 		case _f.IP < 3:
-			_o13 = 1
+			_o14 = 1
 			_f.IP = 3
 			fallthrough
 		case _f.IP < 4:
-			_o14 = 2
+			_o15 = 2
 			_f.IP = 4
 			fallthrough
 		case _f.IP < 5:
-			_o15 = 3
+			_o16 = 3
 			_f.IP = 5
 			fallthrough
 		case _f.IP < 6:
-			_o16 = 4
+			_o17 = 4
 			_f.IP = 6
 			fallthrough
 		case _f.IP < 7:
-			_o17 = 5
+			_o18 = 5
 			_f.IP = 7
 			fallthrough
 		case _f.IP < 8:
-			_o18 = 6
+			_o19 = 6
 			_f.IP = 8
 			fallthrough
 		case _f.IP < 9:
-			_o19 = 7
+			_o20 = 7
 			_f.IP = 9
 			fallthrough
 		case _f.IP < 10:
-			_o20 = 8
+			_o21 = 8
 			_f.IP = 10
 			fallthrough
 		case _f.IP < 11:
-			_o21 = func() int { return int(_o20) + 1 }
+			_o22 = func() int { return int(_o21) + 1 }
 		}
 		_f.IP = 11
 		fallthrough
 	case _f.IP < 12:
 
-		_o22 = 0
+		_o23 = 0
 		_f.IP = 12
 		fallthrough
 	case _f.IP < 13:
-		_o23 = func() (_ bool) {
+		_o24 = func() (_ bool) {
 			_c := coroutine.LoadContext[int, any]()
 			_f, _fp := _c.Push()
 			var _o0 int
@@ -2556,6 +2714,7 @@ func Range10ClosureHeterogenousCapture() {
 			var _o9 bool
 			var _o10 bool
 			var _o11 bool
+			var _o12 int
 			if _f.IP > 0 {
 				if _v := _f.Get(0); _v != nil {
 					_o0 = _v.(int)
@@ -2593,6 +2752,9 @@ func Range10ClosureHeterogenousCapture() {
 				if _v := _f.Get(11); _v != nil {
 					_o11 = _v.(bool)
 				}
+				if _v := _f.Get(12); _v != nil {
+					_o12 = _v.(int)
+				}
 			}
 			defer func() {
 				if _c.Unwinding() {
@@ -2608,6 +2770,7 @@ func Range10ClosureHeterogenousCapture() {
 					_f.Set(9, _o9)
 					_f.Set(10, _o10)
 					_f.Set(11, _o11)
+					_f.Set(12, _o12)
 					_c.Store(_fp, _f)
 				} else {
 					_c.Pop()
@@ -2617,13 +2780,13 @@ func Range10ClosureHeterogenousCapture() {
 			case _f.IP < 2:
 				_f.IP = 2
 				fallthrough
-			case _f.IP < 23:
+			case _f.IP < 24:
 				switch {
 				case _f.IP < 3:
-					_o1 = _o22
+					_o1 = _o23
 					_f.IP = 3
 					fallthrough
-				case _f.IP < 23:
+				case _f.IP < 24:
 					switch {
 					default:
 						switch {
@@ -2632,54 +2795,115 @@ func Range10ClosureHeterogenousCapture() {
 								0
 							_f.IP = 4
 							fallthrough
-						case _f.IP < 23:
+						case _f.IP < 24:
 							if _o2 {
-								_o0 = int(_o12)
+								_o0 = int(_o13)
 							} else {
-								_o3 = _o1 ==
-									1
-								if _o3 {
-									_o0 = int(_o13)
-								} else {
-									_o4 = _o1 ==
-										2
-									if _o4 {
+								switch {
+								case _f.IP < 6:
+									_o3 = _o1 ==
+										1
+									_f.IP = 6
+									fallthrough
+								case _f.IP < 24:
+									if _o3 {
 										_o0 = int(_o14)
 									} else {
-										_o5 = _o1 ==
-											3
-										if _o5 {
-											_o0 = int(_o15)
-										} else {
-											_o6 = _o1 ==
-												4
-											if _o6 {
-												_o0 = int(_o16)
+										switch {
+										case _f.IP < 8:
+											_o4 = _o1 ==
+												2
+											_f.IP = 8
+											fallthrough
+										case _f.IP < 24:
+											if _o4 {
+												_o0 = int(_o15)
 											} else {
-												_o7 = _o1 ==
-													5
-												if _o7 {
-													_o0 = int(_o17)
-												} else {
-													_o8 = _o1 ==
-														6
-													if _o8 {
-														_o0 = int(_o18)
+												switch {
+												case _f.IP < 10:
+													_o5 = _o1 ==
+														3
+													_f.IP = 10
+													fallthrough
+												case _f.IP < 24:
+													if _o5 {
+														_o0 = int(_o16)
 													} else {
-														_o9 = _o1 ==
-															7
-														if _o9 {
-															_o0 = int(_o19)
-														} else {
-															_o10 = _o1 ==
-																8
-															if _o10 {
-																_o0 = int(_o20)
+														switch {
+														case _f.IP < 12:
+															_o6 = _o1 ==
+																4
+															_f.IP = 12
+															fallthrough
+														case _f.IP < 24:
+															if _o6 {
+																_o0 = int(_o17)
 															} else {
-																_o11 = _o1 ==
-																	9
-																if _o11 {
-																	_o0 = _o21()
+																switch {
+																case _f.IP < 14:
+																	_o7 = _o1 ==
+																		5
+																	_f.IP = 14
+																	fallthrough
+																case _f.IP < 24:
+																	if _o7 {
+																		_o0 = int(_o18)
+																	} else {
+																		switch {
+																		case _f.IP < 16:
+																			_o8 = _o1 ==
+																				6
+																			_f.IP = 16
+																			fallthrough
+																		case _f.IP < 24:
+																			if _o8 {
+																				_o0 = int(_o19)
+																			} else {
+																				switch {
+																				case _f.IP < 18:
+																					_o9 = _o1 ==
+																						7
+																					_f.IP = 18
+																					fallthrough
+																				case _f.IP < 24:
+																					if _o9 {
+																						_o0 = int(_o20)
+																					} else {
+																						switch {
+																						case _f.IP < 20:
+																							_o10 = _o1 ==
+																								8
+																							_f.IP = 20
+																							fallthrough
+																						case _f.IP < 24:
+																							if _o10 {
+																								_o0 = int(_o21)
+																							} else {
+																								switch {
+																								case _f.IP < 22:
+																									_o11 = _o1 ==
+																										9
+																									_f.IP = 22
+																									fallthrough
+																								case _f.IP < 24:
+																									if _o11 {
+																										switch {
+																										case _f.IP < 23:
+																											_o12 = _o22()
+																											_f.IP = 23
+																											fallthrough
+																										case _f.IP < 24:
+																											_o0 = _o12
+																										}
+																									}
+																								}
+																							}
+																						}
+																					}
+																				}
+																			}
+																		}
+																	}
 																}
 															}
 														}
@@ -2693,34 +2917,38 @@ func Range10ClosureHeterogenousCapture() {
 						}
 					}
 				}
-				_f.IP = 23
-				fallthrough
-			case _f.IP < 24:
-
-				coroutine.Yield[int, any](_o0)
 				_f.IP = 24
 				fallthrough
 			case _f.IP < 25:
-				_o22++
+
+				coroutine.Yield[int, any](_o0)
 				_f.IP = 25
 				fallthrough
 			case _f.IP < 26:
-				return _o22 < 10
+				_o23++
+				_f.IP = 26
+				fallthrough
+			case _f.IP < 27:
+				return _o23 < 10
 			}
 			return
 		}
 		_f.IP = 13
 		fallthrough
-	case _f.IP < 15:
+	case _f.IP < 16:
 	_l0:
 		for ; ; _f.IP = 13 {
 			switch {
 			case _f.IP < 14:
-				_o24 = !_o23()
+				_o25 = _o24()
 				_f.IP = 14
 				fallthrough
 			case _f.IP < 15:
-				if _o24 {
+				_o26 = !_o25
+				_f.IP = 15
+				fallthrough
+			case _f.IP < 16:
+				if _o26 {
 					break _l0
 				}
 			}
@@ -2942,50 +3170,104 @@ func Range10Heterogenous() {
 								if _o13 {
 									_o11 = int(_o0)
 								} else {
-									_o14 = _o12 ==
-										1
-									if _o14 {
-										_o11 = int(_o1)
-									} else {
-										_o15 = _o12 ==
-											2
-										if _o15 {
-											_o11 = int(_o2)
+									switch {
+									case _f.IP < 18:
+										_o14 = _o12 ==
+											1
+										_f.IP = 18
+										fallthrough
+									case _f.IP < 35:
+										if _o14 {
+											_o11 = int(_o1)
 										} else {
-											_o16 = _o12 ==
-												3
-											if _o16 {
-												_o11 = int(_o3)
-											} else {
-												_o17 = _o12 ==
-													4
-												if _o17 {
-													_o11 = int(_o4)
+											switch {
+											case _f.IP < 20:
+												_o15 = _o12 ==
+													2
+												_f.IP = 20
+												fallthrough
+											case _f.IP < 35:
+												if _o15 {
+													_o11 = int(_o2)
 												} else {
-													_o18 = _o12 ==
-														5
-													if _o18 {
-														_o11 = int(_o5)
-													} else {
-														_o19 = _o12 ==
-															6
-														if _o19 {
-															_o11 = int(_o6)
+													switch {
+													case _f.IP < 22:
+														_o16 = _o12 ==
+															3
+														_f.IP = 22
+														fallthrough
+													case _f.IP < 35:
+														if _o16 {
+															_o11 = int(_o3)
 														} else {
-															_o20 = _o12 ==
-																7
-															if _o20 {
-																_o11 = int(_o7)
-															} else {
-																_o21 = _o12 ==
-																	8
-																if _o21 {
-																	_o11 = int(_o8)
+															switch {
+															case _f.IP < 24:
+																_o17 = _o12 ==
+																	4
+																_f.IP = 24
+																fallthrough
+															case _f.IP < 35:
+																if _o17 {
+																	_o11 = int(_o4)
 																} else {
-																	_o22 = _o12 ==
-																		9
-																	if _o22 {
-																		_o11 = int(_o9)
+																	switch {
+																	case _f.IP < 26:
+																		_o18 = _o12 ==
+																			5
+																		_f.IP = 26
+																		fallthrough
+																	case _f.IP < 35:
+																		if _o18 {
+																			_o11 = int(_o5)
+																		} else {
+																			switch {
+																			case _f.IP < 28:
+																				_o19 = _o12 ==
+																					6
+																				_f.IP = 28
+																				fallthrough
+																			case _f.IP < 35:
+																				if _o19 {
+																					_o11 = int(_o6)
+																				} else {
+																					switch {
+																					case _f.IP < 30:
+																						_o20 = _o12 ==
+																							7
+																						_f.IP = 30
+																						fallthrough
+																					case _f.IP < 35:
+																						if _o20 {
+																							_o11 = int(_o7)
+																						} else {
+																							switch {
+																							case _f.IP < 32:
+																								_o21 = _o12 ==
+																									8
+																								_f.IP = 32
+																								fallthrough
+																							case _f.IP < 35:
+																								if _o21 {
+																									_o11 = int(_o8)
+																								} else {
+																									switch {
+																									case _f.IP < 34:
+																										_o22 = _o12 ==
+																											9
+																										_f.IP = 34
+																										fallthrough
+																									case _f.IP < 35:
+																										if _o22 {
+																											_o11 = int(_o9)
+																										}
+																									}
+																								}
+																							}
+																						}
+																					}
+																				}
+																			}
+																		}
 																	}
 																}
 															}
@@ -3264,10 +3546,16 @@ func Select(n int) {
 											coroutine.Yield[int, any](_o3)
 										}
 									} else {
-										_o11 = _o8 == 2
-										if _o11 {
+										switch {
+										case _f.IP < 20:
+											_o11 = _o8 == 2
+											_f.IP = 20
+											fallthrough
+										case _f.IP < 21:
+											if _o11 {
 
-											panic("unreachable")
+												panic("unreachable")
+											}
 										}
 									}
 								}
@@ -3405,14 +3693,577 @@ func Select(n int) {
 		}
 	}
 }
+
+func YieldingExpressionDesugaring() {
+	_c := coroutine.LoadContext[int, any]()
+	_f, _fp := _c.Push()
+	var _o0 int
+	var _o1 int
+	var _o2 int
+	var _o3 int
+	var _o4 bool
+	var _o5 int
+	var _o6 int
+	var _o7 int
+	var _o8 int
+	var _o9 int
+	var _o10 bool
+	var _o11 int
+	var _o12 int
+	var _o13 int
+	var _o14 int
+	var _o15 int
+	var _o16 bool
+	var _o17 int
+	var _o18 int
+	var _o19 int
+	var _o20 int
+	var _o21 bool
+	var _o22 bool
+	var _o23 int
+	var _o24 int
+	var _o25 int
+	var _o26 int
+	var _o27 int
+	var _o28 bool
+	var _o29 int
+	var _o30 int
+	var _o31 bool
+	var _o32 int
+	var _o33 int
+	var _o34 int
+	var _o35 bool
+	var _o36 int
+	var _o37 int
+	var _o38 int
+	var _o39 bool
+	var _o40 int
+	var _o41 int
+	var _o42 any
+	if _f.IP > 0 {
+		if _v := _f.Get(0); _v != nil {
+			_o0 = _v.(int)
+		}
+		if _v := _f.Get(1); _v != nil {
+			_o1 = _v.(int)
+		}
+		if _v := _f.Get(2); _v != nil {
+			_o2 = _v.(int)
+		}
+		if _v := _f.Get(3); _v != nil {
+			_o3 = _v.(int)
+		}
+		if _v := _f.Get(4); _v != nil {
+			_o4 = _v.(bool)
+		}
+		if _v := _f.Get(5); _v != nil {
+			_o5 = _v.(int)
+		}
+		if _v := _f.Get(6); _v != nil {
+			_o6 = _v.(int)
+		}
+		if _v := _f.Get(7); _v != nil {
+			_o7 = _v.(int)
+		}
+		if _v := _f.Get(8); _v != nil {
+			_o8 = _v.(int)
+		}
+		if _v := _f.Get(9); _v != nil {
+			_o9 = _v.(int)
+		}
+		if _v := _f.Get(10); _v != nil {
+			_o10 = _v.(bool)
+		}
+		if _v := _f.Get(11); _v != nil {
+			_o11 = _v.(int)
+		}
+		if _v := _f.Get(12); _v != nil {
+			_o12 = _v.(int)
+		}
+		if _v := _f.Get(13); _v != nil {
+			_o13 = _v.(int)
+		}
+		if _v := _f.Get(14); _v != nil {
+			_o14 = _v.(int)
+		}
+		if _v := _f.Get(15); _v != nil {
+			_o15 = _v.(int)
+		}
+		if _v := _f.Get(16); _v != nil {
+			_o16 = _v.(bool)
+		}
+		if _v := _f.Get(17); _v != nil {
+			_o17 = _v.(int)
+		}
+		if _v := _f.Get(18); _v != nil {
+
+			_o18 = _v.(int)
+		}
+		if _v := _f.Get(19); _v != nil {
+			_o19 = _v.(int)
+		}
+		if _v := _f.Get(20); _v != nil {
+			_o20 = _v.(int)
+		}
+		if _v := _f.Get(21); _v != nil {
+			_o21 = _v.(bool)
+		}
+		if _v := _f.Get(22); _v != nil {
+			_o22 = _v.(bool)
+		}
+		if _v := _f.Get(23); _v != nil {
+			_o23 = _v.(int)
+		}
+		if _v := _f.Get(24); _v != nil {
+
+			_o24 = _v.(int)
+		}
+		if _v := _f.Get(25); _v != nil {
+			_o25 = _v.(int)
+		}
+		if _v := _f.Get(26); _v != nil {
+			_o26 = _v.(int)
+		}
+		if _v := _f.Get(27); _v != nil {
+			_o27 = _v.(int)
+		}
+		if _v := _f.Get(28); _v != nil {
+			_o28 = _v.(bool)
+		}
+		if _v := _f.Get(29); _v != nil {
+			_o29 = _v.(int)
+		}
+		if _v := _f.Get(30); _v != nil {
+			_o30 = _v.(int)
+		}
+		if _v := _f.Get(31); _v != nil {
+			_o31 = _v.(bool)
+		}
+		if _v := _f.Get(32); _v != nil {
+			_o32 = _v.(int)
+		}
+		if _v := _f.Get(33); _v != nil {
+			_o33 = _v.(int)
+		}
+		if _v := _f.Get(34); _v != nil {
+			_o34 = _v.(int)
+		}
+		if _v := _f.Get(35); _v != nil {
+			_o35 = _v.(bool)
+		}
+		if _v := _f.Get(36); _v != nil {
+			_o36 = _v.(int)
+		}
+		if _v := _f.Get(37); _v != nil {
+			_o37 = _v.(int)
+		}
+		if _v := _f.Get(38); _v != nil {
+			_o38 = _v.(int)
+		}
+		if _v := _f.Get(39); _v != nil {
+			_o39 = _v.(bool)
+		}
+		if _v := _f.Get(40); _v != nil {
+			_o40 = _v.(int)
+		}
+		if _v := _f.Get(41); _v != nil {
+			_o41 = _v.(int)
+		}
+		if _v := _f.Get(42); _v != nil {
+			_o42 = _v.(any)
+		}
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, _o0)
+			_f.Set(1, _o1)
+			_f.Set(2, _o2)
+			_f.Set(3, _o3)
+			_f.Set(4, _o4)
+			_f.Set(5, _o5)
+			_f.Set(6, _o6)
+			_f.Set(7, _o7)
+			_f.Set(8, _o8)
+			_f.Set(9, _o9)
+			_f.Set(10, _o10)
+			_f.Set(11, _o11)
+			_f.Set(12, _o12)
+			_f.Set(13, _o13)
+			_f.Set(14, _o14)
+			_f.Set(15, _o15)
+			_f.Set(16, _o16)
+			_f.Set(17, _o17)
+			_f.Set(18, _o18)
+			_f.Set(19, _o19)
+			_f.Set(20, _o20)
+			_f.Set(21, _o21)
+			_f.Set(22, _o22)
+			_f.Set(23, _o23)
+			_f.Set(24, _o24)
+			_f.Set(25, _o25)
+			_f.Set(26, _o26)
+			_f.Set(27, _o27)
+			_f.Set(28, _o28)
+			_f.Set(29, _o29)
+			_f.Set(30, _o30)
+			_f.Set(31, _o31)
+			_f.Set(32, _o32)
+			_f.Set(33, _o33)
+			_f.Set(34, _o34)
+			_f.Set(35, _o35)
+			_f.Set(36, _o36)
+			_f.Set(37, _o37)
+			_f.Set(38, _o38)
+			_f.Set(39, _o39)
+			_f.Set(40, _o40)
+			_f.Set(41, _o41)
+			_f.Set(42, _o42)
+			_c.Store(_fp, _f)
+		} else {
+			_c.Pop()
+		}
+	}()
+	switch {
+	case _f.IP < 21:
+		switch {
+		case _f.IP < 2:
+			_o0 = b(1)
+			_f.IP = 2
+			fallthrough
+		case _f.IP < 3:
+			_o1 = a(_o0)
+			_f.IP = 3
+			fallthrough
+		case _f.IP < 4:
+			_o2 = b(2)
+			_f.IP = 4
+			fallthrough
+		case _f.IP < 5:
+			_o3 = a(_o2)
+			_f.IP = 5
+			fallthrough
+		case _f.IP < 6:
+			_o4 = _o1 == _o3
+			_f.IP = 6
+			fallthrough
+		case _f.IP < 21:
+			if _o4 {
+			} else {
+				switch {
+				case _f.IP < 8:
+					_o5 = b(3)
+					_f.IP = 8
+					fallthrough
+				case _f.IP < 9:
+					_o6 = a(_o5)
+					_f.IP = 9
+					fallthrough
+				case _f.IP < 10:
+					_o7 = b(4)
+					_f.IP = 10
+					fallthrough
+				case _f.IP < 11:
+					_o8 = a(_o7)
+					_f.IP = 11
+					fallthrough
+				case _f.IP < 12:
+					_o9 = _o8 - 1
+					_f.IP = 12
+					fallthrough
+				case _f.IP < 13:
+					_o10 = _o6 == _o9
+					_f.IP = 13
+					fallthrough
+				case _f.IP < 21:
+					if _o10 {
+						switch {
+						case _f.IP < 14:
+							_o11 = b(5)
+							_f.IP = 14
+							fallthrough
+						case _f.IP < 15:
+							_o12 = a(_o11)
+							_f.IP = 15
+							fallthrough
+						case _f.IP < 16:
+							_o13 = _o12 * 10
+							_f.IP = 16
+							fallthrough
+						case _f.IP < 17:
+							coroutine.Yield[int, any](_o13)
+						}
+					} else {
+						switch {
+						case _f.IP < 18:
+							_o14 = b(100)
+							_f.IP = 18
+							fallthrough
+						case _f.IP < 19:
+							_o15 = a(_o14)
+							_f.IP = 19
+							fallthrough
+						case _f.IP < 20:
+							_o16 = _o15 == 100
+							_f.IP = 20
+							fallthrough
+						case _f.IP < 21:
+							if _o16 {
+								panic("unreachable")
+							}
+						}
+					}
+				}
+			}
+		}
+		_f.IP = 21
+		fallthrough
+	case _f.IP < 29:
+		switch {
+		case _f.IP < 22:
+			_o17 = b(6)
+			_f.IP = 22
+			fallthrough
+		case _f.IP < 23:
+			_o18 = a(_o17)
+			_f.IP = 23
+			fallthrough
+		case _f.IP < 29:
+		_l0:
+			for ; ; _o18, _f.IP = _o18+1, 23 {
+				switch {
+				case _f.IP < 28:
+					switch {
+					case _f.IP < 24:
+						_o19 = b(8)
+						_f.IP = 24
+						fallthrough
+					case _f.IP < 25:
+						_o20 = a(_o19)
+						_f.IP = 25
+						fallthrough
+					case _f.IP < 26:
+						_o21 = _o18 < _o20
+						_f.IP = 26
+						fallthrough
+					case _f.IP < 27:
+						_o22 = !_o21
+						_f.IP = 27
+						fallthrough
+					case _f.IP < 28:
+						if _o22 {
+							break _l0
+						}
+					}
+					_f.IP = 28
+					fallthrough
+				case _f.IP < 29:
+					coroutine.Yield[int, any](70)
+				}
+			}
+		}
+		_f.IP = 29
+		fallthrough
+	case _f.IP < 51:
+		switch {
+		case _f.IP < 30:
+			_o23 = b(9)
+			_f.IP = 30
+			fallthrough
+		case _f.IP < 31:
+			_o24 = a(_o23)
+			_f.IP = 31
+			fallthrough
+		case _f.IP < 32:
+			_o25 = _o24
+			_f.IP = 32
+			fallthrough
+		case _f.IP < 51:
+			switch {
+			default:
+				switch {
+				case _f.IP < 33:
+					_o26 = b(10)
+					_f.IP = 33
+					fallthrough
+				case _f.IP < 34:
+					_o27 = a(_o26)
+					_f.IP = 34
+					fallthrough
+				case _f.IP < 35:
+					_o28 = _o25 == _o27
+					_f.IP = 35
+					fallthrough
+				case _f.IP < 51:
+					if _o28 {
+						panic("unreachable")
+					} else {
+						switch {
+						case _f.IP < 37:
+							_o29 = b(11)
+							_f.IP = 37
+							fallthrough
+						case _f.IP < 38:
+							_o30 = a(_o29)
+							_f.IP = 38
+							fallthrough
+						case _f.IP < 39:
+							_o31 = _o25 == _o30
+							_f.IP = 39
+							fallthrough
+						case _f.IP < 51:
+							if _o31 {
+								panic("unreachable")
+							} else {
+								switch {
+								case _f.IP < 41:
+									_o32 = b(12)
+									_f.IP = 41
+									fallthrough
+								case _f.IP < 42:
+									_o33 = a(_o32)
+									_f.IP = 42
+									fallthrough
+								case _f.IP < 43:
+									_o34 = _o33 - 3
+									_f.IP = 43
+									fallthrough
+								case _f.IP < 44:
+									_o35 = _o25 == _o34
+									_f.IP = 44
+									fallthrough
+								case _f.IP < 51:
+									if _o35 {
+										switch {
+										case _f.IP < 45:
+											_o36 = b(13)
+											_f.IP = 45
+											fallthrough
+										case _f.IP < 46:
+											a(_o36)
+										}
+									} else {
+										switch {
+										case _f.IP < 47:
+											_o37 = b(14)
+											_f.IP = 47
+											fallthrough
+										case _f.IP < 48:
+											_o38 = a(_o37)
+											_f.IP = 48
+											fallthrough
+										case _f.IP < 49:
+											_o39 = _o25 == _o38
+											_f.IP = 49
+											fallthrough
+										case _f.IP < 51:
+											if _o39 {
+												panic("unreachable")
+											} else {
+												panic("unreachable")
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		_f.IP = 51
+		fallthrough
+	case _f.IP < 57:
+		switch {
+		case _f.IP < 52:
+			_o40 = b(15)
+			_f.IP = 52
+			fallthrough
+		case _f.IP < 53:
+			_o41 = a(_o40)
+			_f.IP = 53
+			fallthrough
+		case _f.IP < 54:
+			_o42 = any(_o41)
+			_f.IP = 54
+			fallthrough
+		case _f.IP < 57:
+			switch x := _o42.(type) {
+			case bool:
+				panic("unreachable")
+			case int:
+				coroutine.Yield[int, any](x * 10)
+			default:
+
+				panic("unreachable")
+			}
+		}
+	}
+}
+
+func a(v int) (_ int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f, _fp := _c.Push()
+	if _f.IP > 0 {
+		if _v := _f.Get(0); _v != nil {
+			v = _v.(int)
+		}
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, v)
+			_c.Store(_fp, _f)
+		} else {
+			_c.Pop()
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		coroutine.Yield[int, any](v)
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 3:
+		return v
+	}
+	return
+}
+
+func b(v int) (_ int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f, _fp := _c.Push()
+	if _f.IP > 0 {
+		if _v := _f.Get(0); _v != nil {
+			v = _v.(int)
+		}
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, v)
+			_c.Store(_fp, _f)
+		} else {
+			_c.Pop()
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		coroutine.Yield[int, any](-v)
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 3:
+		return v
+	}
+	return
+}
 func init() {
 	serde.RegisterType[**byte]()
 	serde.RegisterType[*[100000]uintptr]()
+	serde.RegisterType[*[1125899906842623]byte]()
 	serde.RegisterType[*[131072]uint16]()
 	serde.RegisterType[*[140737488355327]byte]()
 	serde.RegisterType[*[16]byte]()
 	serde.RegisterType[*[171]uint8]()
 	serde.RegisterType[*[1]uintptr]()
+	serde.RegisterType[*[268435456]uintptr]()
+	serde.RegisterType[*[281474976710655]uint32]()
 	serde.RegisterType[*[2]byte]()
 	serde.RegisterType[*[2]float32]()
 	serde.RegisterType[*[2]float64]()
@@ -3422,11 +4273,12 @@ func init() {
 	serde.RegisterType[*[32]rune]()
 	serde.RegisterType[*[32]uintptr]()
 	serde.RegisterType[*[4]byte]()
-	serde.RegisterType[*[512]uintptr]()
+	serde.RegisterType[*[562949953421311]uint16]()
 	serde.RegisterType[*[65536]uintptr]()
 	serde.RegisterType[*[70368744177663]uint16]()
 	serde.RegisterType[*[8]byte]()
 	serde.RegisterType[*[8]uint8]()
+	serde.RegisterType[*[]byte]()
 	serde.RegisterType[*[]uint64]()
 	serde.RegisterType[*bool]()
 	serde.RegisterType[*byte]()
@@ -3440,77 +4292,80 @@ func init() {
 	serde.RegisterType[*uint64]()
 	serde.RegisterType[*uint8]()
 	serde.RegisterType[*uintptr]()
+	serde.RegisterType[[0]byte]()
+	serde.RegisterType[[0]uint8]()
 	serde.RegisterType[[0]uintptr]()
 	serde.RegisterType[[1000]uintptr]()
 	serde.RegisterType[[100]byte]()
 	serde.RegisterType[[1024]bool]()
 	serde.RegisterType[[1024]byte]()
-	serde.RegisterType[[1024]int8]()
 	serde.RegisterType[[1024]uint8]()
 	serde.RegisterType[[1048576]uint8]()
 	serde.RegisterType[[104]byte]()
-	serde.RegisterType[[104]int8]()
-	serde.RegisterType[[107]string]()
 	serde.RegisterType[[108]byte]()
+	serde.RegisterType[[108]int8]()
 	serde.RegisterType[[10]byte]()
 	serde.RegisterType[[10]string]()
 	serde.RegisterType[[128]byte]()
 	serde.RegisterType[[128]uint64]()
 	serde.RegisterType[[128]uintptr]()
 	serde.RegisterType[[129]uint8]()
-	serde.RegisterType[[12]int8]()
 	serde.RegisterType[[131072]uintptr]()
+	serde.RegisterType[[133]string]()
 	serde.RegisterType[[13]int32]()
 	serde.RegisterType[[14]byte]()
 	serde.RegisterType[[14]int8]()
+	serde.RegisterType[[15]uint64]()
 	serde.RegisterType[[16384]byte]()
 	serde.RegisterType[[16384]uint8]()
 	serde.RegisterType[[16]byte]()
-	serde.RegisterType[[16]int8]()
+	serde.RegisterType[[16]int64]()
 	serde.RegisterType[[16]uint64]()
-	serde.RegisterType[[16]uintptr]()
 	serde.RegisterType[[17]string]()
 	serde.RegisterType[[1]byte]()
-	serde.RegisterType[[1]uint32]()
 	serde.RegisterType[[1]uint64]()
 	serde.RegisterType[[1]uint8]()
 	serde.RegisterType[[1]uintptr]()
 	serde.RegisterType[[20]byte]()
-	serde.RegisterType[[20]uint8]()
 	serde.RegisterType[[21]byte]()
+	serde.RegisterType[[23]uint64]()
 	serde.RegisterType[[249]uint8]()
 	serde.RegisterType[[24]byte]()
+	serde.RegisterType[[24]uint32]()
 	serde.RegisterType[[252]uintptr]()
 	serde.RegisterType[[253]uintptr]()
+	serde.RegisterType[[256]int8]()
 	serde.RegisterType[[256]uint64]()
-	serde.RegisterType[[29]uint64]()
 	serde.RegisterType[[2]byte]()
 	serde.RegisterType[[2]int]()
 	serde.RegisterType[[2]int32]()
-	serde.RegisterType[[2]int64]()
-	serde.RegisterType[[2]uint32]()
 	serde.RegisterType[[2]uint64]()
 	serde.RegisterType[[2]uintptr]()
 	serde.RegisterType[[32]byte]()
-	serde.RegisterType[[32]int32]()
 	serde.RegisterType[[32]string]()
-	serde.RegisterType[[32]uint32]()
+	serde.RegisterType[[32]uint8]()
 	serde.RegisterType[[32]uintptr]()
 	serde.RegisterType[[33]float64]()
 	serde.RegisterType[[3]byte]()
 	serde.RegisterType[[3]int]()
+	serde.RegisterType[[3]int64]()
+	serde.RegisterType[[3]uint16]()
+	serde.RegisterType[[3]uint32]()
+	serde.RegisterType[[3]uint64]()
 	serde.RegisterType[[4096]byte]()
-	serde.RegisterType[[40]int8]()
+	serde.RegisterType[[40]byte]()
+	serde.RegisterType[[44]byte]()
 	serde.RegisterType[[4]byte]()
 	serde.RegisterType[[4]float64]()
+	serde.RegisterType[[4]int64]()
 	serde.RegisterType[[4]string]()
+	serde.RegisterType[[4]uint16]()
 	serde.RegisterType[[4]uint32]()
 	serde.RegisterType[[4]uint64]()
 	serde.RegisterType[[4]uintptr]()
 	serde.RegisterType[[50]uintptr]()
 	serde.RegisterType[[512]byte]()
 	serde.RegisterType[[512]uintptr]()
-	serde.RegisterType[[56]int8]()
 	serde.RegisterType[[5]byte]()
 	serde.RegisterType[[5]uint]()
 	serde.RegisterType[[61]struct {
@@ -3520,9 +4375,11 @@ func init() {
 	}]()
 	serde.RegisterType[[64488]byte]()
 	serde.RegisterType[[64]byte]()
-	serde.RegisterType[[64]uint64]()
 	serde.RegisterType[[64]uintptr]()
 	serde.RegisterType[[65528]byte]()
+	serde.RegisterType[[65]int8]()
+	serde.RegisterType[[65]uint32]()
+	serde.RegisterType[[65]uintptr]()
 	serde.RegisterType[[68]struct {
 		Size    uint32
 		Mallocs uint64
@@ -3532,18 +4389,20 @@ func init() {
 	serde.RegisterType[[68]uint32]()
 	serde.RegisterType[[68]uint64]()
 	serde.RegisterType[[68]uint8]()
+	serde.RegisterType[[6]byte]()
 	serde.RegisterType[[6]int]()
+	serde.RegisterType[[6]int8]()
 	serde.RegisterType[[6]uintptr]()
-	serde.RegisterType[[7]uint64]()
-	serde.RegisterType[[88]byte]()
+	serde.RegisterType[[8192]byte]()
 	serde.RegisterType[[8]byte]()
-	serde.RegisterType[[8]int8]()
 	serde.RegisterType[[8]string]()
 	serde.RegisterType[[8]uint32]()
+	serde.RegisterType[[8]uint64]()
 	serde.RegisterType[[8]uint8]()
-	serde.RegisterType[[92]int8]()
 	serde.RegisterType[[96]byte]()
+	serde.RegisterType[[96]int8]()
 	serde.RegisterType[[9]string]()
+	serde.RegisterType[[9]uintptr]()
 	serde.RegisterType[[]*byte]()
 	serde.RegisterType[[][]int32]()
 	serde.RegisterType[[]byte]()
@@ -3610,51 +4469,8 @@ func init() {
 		alignme uint64
 	}]()
 	serde.RegisterType[struct {
-		fd    int32
-		cmd   int32
-		arg   int32
-		ret   int32
-		errno int32
-	}]()
-	serde.RegisterType[struct {
 		fill     uint64
 		capacity uint64
-	}]()
-	serde.RegisterType[struct {
-		fn  uintptr
-		a1  uintptr
-		a2  uintptr
-		a3  uintptr
-		a4  uintptr
-		a5  uintptr
-		a6  uintptr
-		r1  uintptr
-		r2  uintptr
-		err uintptr
-	}]()
-	serde.RegisterType[struct {
-		fn uintptr
-		a1 uintptr
-		a2 uintptr
-		a3 uintptr
-		a4 uintptr
-		a5 uintptr
-		f1 float64
-		r1 uintptr
-	}]()
-	serde.RegisterType[struct {
-		fn  uintptr
-		a1  uintptr
-		a2  uintptr
-		a3  uintptr
-		r1  uintptr
-		r2  uintptr
-		err uintptr
-	}]()
-	serde.RegisterType[struct {
-		t     int64
-		numer uint32
-		denom uint32
 	}]()
 	serde.RegisterType[struct {
 		tick uint64
@@ -3668,65 +4484,73 @@ func init() {
 	serde.RegisterType[sync.Pool]()
 	serde.RegisterType[sync.RWMutex]()
 	serde.RegisterType[sync.WaitGroup]()
-	serde.RegisterType[syscall.BpfHdr]()
-	serde.RegisterType[syscall.BpfInsn]()
-	serde.RegisterType[syscall.BpfProgram]()
-	serde.RegisterType[syscall.BpfStat]()
-	serde.RegisterType[syscall.BpfVersion]()
 	serde.RegisterType[syscall.Cmsghdr]()
 	serde.RegisterType[syscall.Credential]()
 	serde.RegisterType[syscall.Dirent]()
+	serde.RegisterType[syscall.EpollEvent]()
 	serde.RegisterType[syscall.Errno]()
-	serde.RegisterType[syscall.Fbootstraptransfer_t]()
 	serde.RegisterType[syscall.FdSet]()
 	serde.RegisterType[syscall.Flock_t]()
 	serde.RegisterType[syscall.Fsid]()
-	serde.RegisterType[syscall.Fstore_t]()
 	serde.RegisterType[syscall.ICMPv6Filter]()
 	serde.RegisterType[syscall.IPMreq]()
+	serde.RegisterType[syscall.IPMreqn]()
 	serde.RegisterType[syscall.IPv6MTUInfo]()
 	serde.RegisterType[syscall.IPv6Mreq]()
-	serde.RegisterType[syscall.IfData]()
-	serde.RegisterType[syscall.IfMsghdr]()
-	serde.RegisterType[syscall.IfaMsghdr]()
-	serde.RegisterType[syscall.IfmaMsghdr]()
-	serde.RegisterType[syscall.IfmaMsghdr2]()
+	serde.RegisterType[syscall.IfAddrmsg]()
+	serde.RegisterType[syscall.IfInfomsg]()
 	serde.RegisterType[syscall.Inet4Pktinfo]()
 	serde.RegisterType[syscall.Inet6Pktinfo]()
-	serde.RegisterType[syscall.InterfaceAddrMessage]()
-	serde.RegisterType[syscall.InterfaceMessage]()
-	serde.RegisterType[syscall.InterfaceMulticastAddrMessage]()
+	serde.RegisterType[syscall.InotifyEvent]()
 	serde.RegisterType[syscall.Iovec]()
-	serde.RegisterType[syscall.Kevent_t]()
 	serde.RegisterType[syscall.Linger]()
-	serde.RegisterType[syscall.Log2phys_t]()
 	serde.RegisterType[syscall.Msghdr]()
+	serde.RegisterType[syscall.NetlinkMessage]()
+	serde.RegisterType[syscall.NetlinkRouteAttr]()
+	serde.RegisterType[syscall.NetlinkRouteRequest]()
+	serde.RegisterType[syscall.NlAttr]()
+	serde.RegisterType[syscall.NlMsgerr]()
+	serde.RegisterType[syscall.NlMsghdr]()
 	serde.RegisterType[syscall.ProcAttr]()
-	serde.RegisterType[syscall.Radvisory_t]()
+	serde.RegisterType[syscall.PtraceRegs]()
 	serde.RegisterType[syscall.RawSockaddr]()
 	serde.RegisterType[syscall.RawSockaddrAny]()
-	serde.RegisterType[syscall.RawSockaddrDatalink]()
 	serde.RegisterType[syscall.RawSockaddrInet4]()
 	serde.RegisterType[syscall.RawSockaddrInet6]()
+	serde.RegisterType[syscall.RawSockaddrLinklayer]()
+	serde.RegisterType[syscall.RawSockaddrNetlink]()
 	serde.RegisterType[syscall.RawSockaddrUnix]()
 	serde.RegisterType[syscall.Rlimit]()
-	serde.RegisterType[syscall.RouteMessage]()
-	serde.RegisterType[syscall.RtMetrics]()
-	serde.RegisterType[syscall.RtMsghdr]()
+	serde.RegisterType[syscall.RtAttr]()
+	serde.RegisterType[syscall.RtGenmsg]()
+	serde.RegisterType[syscall.RtMsg]()
+	serde.RegisterType[syscall.RtNexthop]()
 	serde.RegisterType[syscall.Rusage]()
 	serde.RegisterType[syscall.Signal]()
-	serde.RegisterType[syscall.SockaddrDatalink]()
+	serde.RegisterType[syscall.SockFilter]()
+	serde.RegisterType[syscall.SockFprog]()
 	serde.RegisterType[syscall.SockaddrInet4]()
 	serde.RegisterType[syscall.SockaddrInet6]()
+	serde.RegisterType[syscall.SockaddrLinklayer]()
+	serde.RegisterType[syscall.SockaddrNetlink]()
 	serde.RegisterType[syscall.SockaddrUnix]()
 	serde.RegisterType[syscall.SocketControlMessage]()
 	serde.RegisterType[syscall.Stat_t]()
 	serde.RegisterType[syscall.Statfs_t]()
 	serde.RegisterType[syscall.SysProcAttr]()
+	serde.RegisterType[syscall.SysProcIDMap]()
+	serde.RegisterType[syscall.Sysinfo_t]()
+	serde.RegisterType[syscall.TCPInfo]()
 	serde.RegisterType[syscall.Termios]()
+	serde.RegisterType[syscall.Time_t]()
 	serde.RegisterType[syscall.Timespec]()
 	serde.RegisterType[syscall.Timeval]()
-	serde.RegisterType[syscall.Timeval32]()
+	serde.RegisterType[syscall.Timex]()
+	serde.RegisterType[syscall.Tms]()
+	serde.RegisterType[syscall.Ucred]()
+	serde.RegisterType[syscall.Ustat_t]()
+	serde.RegisterType[syscall.Utimbuf]()
+	serde.RegisterType[syscall.Utsname]()
 	serde.RegisterType[syscall.WaitStatus]()
 	serde.RegisterType[time.Duration]()
 	serde.RegisterType[time.Location]()
