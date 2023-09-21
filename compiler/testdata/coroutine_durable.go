@@ -4210,6 +4210,105 @@ func b(v int) (_ int) {
 	}
 	return
 }
+
+func YieldAndDeferAssign(assign *int, yield, value int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f, _fp := _c.Push()
+	var _defers []func()
+	if _f.IP > 0 {
+		if _v := _f.Get(0); _v != nil {
+			assign = _v.(*int)
+		}
+		if _v := _f.Get(1); _v != nil {
+			yield = _v.(int)
+		}
+		if _v := _f.Get(2); _v != nil {
+			value = _v.(int)
+		}
+		if _v := _f.Get(3); _v != nil {
+			_defers = _v.([]func())
+		}
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, assign)
+			_f.Set(1, yield)
+			_f.Set(2, value)
+			_f.Set(3, _defers)
+			_c.Store(_fp, _f)
+		} else {
+			_c.Pop()
+			for _, f := range _defers {
+				defer f()
+			}
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		_defers = append(_defers, func() {
+			*assign = value
+		})
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 3:
+		coroutine.Yield[int, any](yield)
+	}
+}
+
+func RangeYieldAndDeferAssign(n int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f, _fp := _c.Push()
+	var _o0 int
+	var _o1 bool
+	if _f.IP > 0 {
+		if _v := _f.Get(0); _v != nil {
+			n = _v.(int)
+		}
+		if _v := _f.Get(1); _v != nil {
+			_o0 = _v.(int)
+		}
+		if _v := _f.Get(2); _v != nil {
+			_o1 = _v.(bool)
+		}
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, n)
+			_f.Set(1, _o0)
+			_f.Set(2, _o1)
+			_c.Store(_fp, _f)
+		} else {
+			_c.Pop()
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		_o0 = 0
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 5:
+	_l0:
+		for ; ; _f.IP = 2 {
+			switch {
+			case _f.IP < 4:
+				switch {
+				case _f.IP < 3:
+					_o1 = !(_o0 < n)
+					_f.IP = 3
+					fallthrough
+				case _f.IP < 4:
+					if _o1 {
+						break _l0
+					}
+				}
+				_f.IP = 4
+				fallthrough
+			case _f.IP < 5:
+				YieldAndDeferAssign(&_o0, _o0, _o0+1)
+			}
+		}
+	}
+}
 func init() {
 	serde.RegisterType[**byte]()
 	serde.RegisterType[*[100000]uintptr]()

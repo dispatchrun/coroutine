@@ -117,7 +117,12 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		}
 
 	case *ast.DeferStmt:
-		panic("not implemented")
+		// TODO:
+		// -----
+		// defer D(42)
+		// ...
+		// arg := 42
+		// defer func() { D(arg) }()
 
 	case *ast.EmptyStmt:
 

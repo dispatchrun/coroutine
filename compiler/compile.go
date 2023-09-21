@@ -372,6 +372,8 @@ func (scope *scope) compileFuncLit(p *packages.Package, fn *ast.FuncLit, color *
 }
 
 func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, color *types.Signature) *ast.BlockStmt {
+	var defers *ast.Ident
+
 	body = desugar(body, p.TypesInfo).(*ast.BlockStmt)
 	body = astutil.Apply(body,
 		func(cursor *astutil.Cursor) bool {
@@ -381,6 +383,21 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 				if ok {
 					cursor.Replace(scope.compileFuncLit(p, n, color))
 				}
+				return false
+			case *ast.DeferStmt:
+				if defers == nil {
+					defers = ast.NewIdent("_defers")
+				}
+				cursor.Replace(&ast.AssignStmt{
+					Lhs: []ast.Expr{defers},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun:  ast.NewIdent("append"),
+							Args: []ast.Expr{defers, n.Call.Fun},
+						},
+					},
+				})
 			}
 			return true
 		},
@@ -448,6 +465,22 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	}
 	removeDecls(body)
 
+	if defers != nil {
+		gen.List = append(gen.List,
+			&ast.DeclStmt{
+				Decl: &ast.GenDecl{
+					Tok: token.VAR,
+					Specs: []ast.Spec{
+						&ast.ValueSpec{
+							Names: []*ast.Ident{defers},
+							Type:  &ast.ArrayType{Elt: &ast.FuncType{}},
+						},
+					},
+				},
+			},
+		)
+	}
+
 	// Collect params/results/variables that need to be saved/restored.
 	var saveAndRestoreNames []*ast.Ident
 	var saveAndRestoreTypes []types.Type
@@ -459,6 +492,12 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 		saveAndRestoreNames = append(saveAndRestoreNames, name)
 		saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
 	})
+	if defers != nil {
+		saveAndRestoreNames = append(saveAndRestoreNames, defers)
+		saveAndRestoreTypes = append(saveAndRestoreTypes, types.NewSlice(
+			types.NewSignatureType(nil, nil, nil, nil, nil, false),
+		))
+	}
 
 	// Restore state when rewinding the stack.
 	//
@@ -502,6 +541,7 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 			},
 		)
 	}
+
 	gen.List = append(gen.List, &ast.IfStmt{
 		Cond: &ast.BinaryExpr{
 			X:  &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")},
@@ -523,6 +563,23 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 			},
 		})
 	}
+
+	popFrame := []ast.Stmt{
+		&ast.ExprStmt{X: &ast.CallExpr{Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Pop")}}},
+	}
+
+	if defers != nil {
+		popFrame = append(popFrame, &ast.RangeStmt{
+			Key:   ast.NewIdent("_"),
+			Value: ast.NewIdent("f"),
+			Tok:   token.DEFINE,
+			X:     defers,
+			Body: &ast.BlockStmt{List: []ast.Stmt{
+				&ast.DeferStmt{Call: &ast.CallExpr{Fun: ast.NewIdent("f")}},
+			}},
+		})
+	}
+
 	gen.List = append(gen.List, &ast.DeferStmt{
 		Call: &ast.CallExpr{
 			Fun: &ast.FuncLit{
@@ -541,9 +598,7 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 									},
 								}),
 							},
-							Else: &ast.BlockStmt{List: []ast.Stmt{
-								&ast.ExprStmt{X: &ast.CallExpr{Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Pop")}}}},
-							},
+							Else: &ast.BlockStmt{List: popFrame},
 						},
 					},
 				},
