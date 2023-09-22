@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/callgraph/cha"
+	"golang.org/x/tools/go/callgraph/vta"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
@@ -117,11 +118,11 @@ func (c *compiler) compile(path string) error {
 	}
 
 	log.Printf("building SSA program")
-	prog, _ := ssautil.Packages(pkgs, ssa.InstantiateGenerics|ssa.GlobalDebug)
+	prog, _ := ssautil.AllPackages(pkgs, ssa.InstantiateGenerics|ssa.GlobalDebug)
 	prog.Build()
 
 	log.Printf("building call graph")
-	cg := cha.CallGraph(prog)
+	cg := vta.CallGraph(ssautil.AllFunctions(prog), cha.CallGraph(prog))
 
 	log.Printf("finding generic yield instantiations")
 	var coroutinePkg *packages.Package
