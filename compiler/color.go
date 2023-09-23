@@ -27,6 +27,13 @@ func colorFunctions(cg *callgraph.Graph, yieldInstances functionColors) (functio
 type functionColors map[*ssa.Function]*types.Signature
 
 func colorFunctions0(cg *callgraph.Graph, colors functionColors, fn *ssa.Function, color *types.Signature) error {
+	if origin := fn.Origin(); origin != nil && origin.Pkg != nil {
+		// Don't follow edges into and through the coroutine package.
+		if pkgPath := origin.Pkg.Pkg.Path(); pkgPath == coroutinePackage {
+			return nil
+		}
+	}
+
 	existing, ok := colors[fn]
 	if ok {
 		if !types.Identical(existing, color) {

@@ -1149,6 +1149,26 @@ _l0:
 }
 `,
 		},
+		{
+			name: "FIXME: don't hoist function calls when there are multiple results",
+			body: "a, b, c = d(e())",
+			info: func(stmts []ast.Stmt, info *types.Info) {
+				callExpr := stmts[0].(*ast.AssignStmt).Rhs[0]
+				info.Types[callExpr] = types.TypeAndValue{
+					Type: types.NewTuple(
+						types.NewVar(0, nil, "a", intType),
+						types.NewVar(0, nil, "b", intType),
+						types.NewVar(0, nil, "c", intType),
+					),
+				}
+			},
+			expect: `
+{
+	_v0 := e()
+	a, b, c = d(_v0)
+}
+`,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			expr, err := parser.ParseExpr("func() {\n" + test.body + "\n}()")
