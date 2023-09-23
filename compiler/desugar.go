@@ -701,13 +701,20 @@ func (d *desugarer) decomposeExpression(expr ast.Expr, flags exprFlags) (ast.Exp
 				// Need to hoist the CallExpr out into a temporary variable in
 				// this case, so that the relative order of calls (and their
 				// prerequisites) is preserved.
-				queue[i] = decompose(e)
-			} else {
-				e.Fun = decompose(e.Fun)
-				for i, arg := range e.Args {
-					e.Args[i] = decompose(arg)
+				switch d.info.TypeOf(e).(type) {
+				case *types.Tuple:
+					// TODO: can't hoist like this when it's a function
+					//  that returns multiple values
+				default:
+					queue[i] = decompose(e)
+					continue
 				}
 			}
+			e.Fun = decompose(e.Fun)
+			for i, arg := range e.Args {
+				e.Args[i] = decompose(arg)
+			}
+
 		case *ast.CompositeLit:
 			for i, elt := range e.Elts {
 				e.Elts[i] = decompose(elt)
