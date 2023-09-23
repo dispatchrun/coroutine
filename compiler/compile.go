@@ -110,11 +110,16 @@ func (c *compiler) compile(path string) error {
 			return fmt.Errorf("pattern more than one module (%s + %s)", moduleDir, p.Module.Dir)
 		}
 	}
-	flatpkgs := flattenPackages(pkgs)
-	for _, p := range flatpkgs {
-		for _, err := range p.Errors {
-			return err
+	err = nil
+	packages.Visit(pkgs, func(p *packages.Package) bool {
+		for _, e := range p.Errors {
+			err = e
+			break
 		}
+		return err == nil
+	}, nil)
+	if err != nil {
+		return err
 	}
 
 	log.Printf("building SSA program")
@@ -126,12 +131,12 @@ func (c *compiler) compile(path string) error {
 
 	log.Printf("finding generic yield instantiations")
 	var coroutinePkg *packages.Package
-	for _, p := range flatpkgs {
+	packages.Visit(pkgs, func(p *packages.Package) bool {
 		if p.PkgPath == coroutinePackage {
 			coroutinePkg = p
-			break
 		}
-	}
+		return coroutinePkg == nil
+	}, nil)
 	if coroutinePkg == nil {
 		log.Printf("%s not imported by the module. Nothing to do", coroutinePackage)
 		return nil
@@ -150,9 +155,10 @@ func (c *compiler) compile(path string) error {
 		return err
 	}
 	pkgsByTypes := map[*types.Package]*packages.Package{}
-	for _, p := range flatpkgs {
+	packages.Visit(pkgs, func(p *packages.Package) bool {
 		pkgsByTypes[p.Types] = p
-	}
+		return true
+	}, nil)
 	colorsByPkg := map[*packages.Package]functionColors{}
 	for fn, color := range colors {
 		if fn.Pkg == nil {
@@ -168,10 +174,22 @@ func (c *compiler) compile(path string) error {
 		pkgColors[fn] = color
 	}
 
-	for p, colors := range colorsByPkg {
+	var needVendoring []*packages.Package
+	for p := range colorsByPkg {
 		if p.Module == nil || p.Module.Dir != moduleDir {
-			return fmt.Errorf("not implemented: compilation for packages outside module (need to compile %s)", p.PkgPath)
+			needVendoring = append(needVendoring, p)
+			break
 		}
+	}
+	if len(needVendoring) > 0 {
+		log.Printf("vendoring packages")
+		newRoot := filepath.Join(moduleDir, "goroot")
+		if err := vendor(newRoot, needVendoring); err != nil {
+			return err
+		}
+	}
+
+	for p, colors := range colorsByPkg {
 		if err := c.compilePackage(p, colors, prog); err != nil {
 			return err
 		}
