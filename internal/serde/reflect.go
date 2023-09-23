@@ -10,80 +10,14 @@ import (
 	"github.com/stealthrocket/coroutine/types"
 )
 
-// A type is serialized as follow:
-//
-// - No type (t is nil) => varint(0)
-// - Any type but array => varint(1-MaxInt)
-// - Array type [X]T    => varint(-1) varint(X) [serialize T]
-//
-// This is so that we can represent slices as pointers to arrays, with a size
-// not known at compile time (so precise array type hasn't been registered.
 func serializeType(s *Serializer, t reflect.Type) {
-	if t == nil {
-		serializeVarint(s, 0)
-		return
-	}
-
-	switch t.Kind() {
-	case reflect.Array:
-		serializeVarint(s, -1)
-		serializeVarint(s, t.Len())
-		serializeType(s, t.Elem())
-
-	case reflect.Func: // TODO: generics
-		numIn, numOut, variadic := t.NumIn(), t.NumOut(), t.IsVariadic()
-		serializeVarint(s, -2)
-		serializeVarint(s, numIn)
-		serializeVarint(s, numOut)
-		serializeBool(s, variadic)
-		for i := 0; i < numIn; i++ {
-			serializeType(s, t.In(i))
-		}
-		for i := 0; i < numOut; i++ {
-			serializeType(s, t.Out(i))
-		}
-
-	default:
-		serializeVarint(s, int(Types.idOf(t)))
-	}
+	x := Types.ToType(t)
+	serializePointedAt(s, typeinfoT, unsafe.Pointer(x))
 }
 
 func deserializeType(d *Deserializer) reflect.Type {
-	n := deserializeVarint(d)
-	if n == 0 {
-		return nil
-	}
-
-	if n > 0 {
-		return Types.typeOf(sID(n))
-	}
-
-	switch n {
-	case -1:
-		l := deserializeVarint(d)
-		et := deserializeType(d)
-		return reflect.ArrayOf(l, et)
-
-	case -2:
-		numIn := deserializeVarint(d)
-		numOut := deserializeVarint(d)
-		variadic := deserializeBool(d)
-		in := deserializeTypes(d, numIn)
-		out := deserializeTypes(d, numOut)
-		return reflect.FuncOf(in, out, variadic)
-
-	default:
-		panic(fmt.Errorf("unknown type first int: %d", n))
-	}
-
-}
-
-func deserializeTypes(d *Deserializer, n int) []reflect.Type {
-	types := make([]reflect.Type, n)
-	for i := range types {
-		types[i] = deserializeType(d)
-	}
-	return types
+	t := deserializePointedAt(d, typeinfoT).Interface().(*typeinfo)
+	return t.reflectType(Types)
 }
 
 func SerializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
@@ -730,6 +664,12 @@ func DeserializeComplex128(d *Deserializer, x *complex128) {
 	DeserializeFloat64(d, &p.img)
 }
 
+func typeof[X any]() reflect.Type {
+	return reflect.TypeOf((*X)(nil)).Elem()
+}
+
 var (
-	byteT = reflect.TypeOf(byte(0))
+	byteT      = typeof[byte]()
+	typeinfoT  = typeof[typeinfo]()
+	ptypeinfoT = typeof[*typeinfo]()
 )
