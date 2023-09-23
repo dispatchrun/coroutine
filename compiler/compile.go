@@ -190,9 +190,6 @@ func (c *compiler) compile(path string) error {
 	}
 
 	for p, colors := range colorsByPkg {
-		if p.Module == nil || p.Module.Dir != moduleDir {
-			return fmt.Errorf("not implemented: compilation for packages outside module (need to compile %s)", p.PkgPath)
-		}
 		if err := c.compilePackage(p, colors, prog); err != nil {
 			return err
 		}
