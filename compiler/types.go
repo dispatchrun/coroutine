@@ -9,7 +9,7 @@ import (
 	"strconv"
 )
 
-func typeExpr(typ types.Type) ast.Expr {
+func typeExpr(p *types.Package, typ types.Type) ast.Expr {
 	switch t := typ.(type) {
 	case *types.Basic:
 		switch t {
@@ -18,22 +18,22 @@ func typeExpr(typ types.Type) ast.Expr {
 		}
 		return ast.NewIdent(t.String())
 	case *types.Slice:
-		return &ast.ArrayType{Elt: typeExpr(t.Elem())}
+		return &ast.ArrayType{Elt: typeExpr(p, t.Elem())}
 	case *types.Array:
 		return &ast.ArrayType{
 			Len: &ast.BasicLit{Kind: token.INT, Value: strconv.FormatInt(t.Len(), 10)},
-			Elt: typeExpr(t.Elem()),
+			Elt: typeExpr(p, t.Elem()),
 		}
 	case *types.Map:
 		return &ast.MapType{
-			Key:   typeExpr(t.Key()),
-			Value: typeExpr(t.Elem()),
+			Key:   typeExpr(p, t.Key()),
+			Value: typeExpr(p, t.Elem()),
 		}
 	case *types.Struct:
 		fields := make([]*ast.Field, t.NumFields())
 		for i := range fields {
 			f := t.Field(i)
-			fields[i] = &ast.Field{Type: typeExpr(f.Type())}
+			fields[i] = &ast.Field{Type: typeExpr(p, f.Type())}
 			if !f.Anonymous() {
 				fields[i].Names = []*ast.Ident{ast.NewIdent(f.Name())}
 			}
@@ -43,13 +43,13 @@ func typeExpr(typ types.Type) ast.Expr {
 		}
 		return &ast.StructType{Fields: &ast.FieldList{List: fields}}
 	case *types.Pointer:
-		return &ast.StarExpr{X: typeExpr(t.Elem())}
+		return &ast.StarExpr{X: typeExpr(p, t.Elem())}
 	case *types.Interface:
 		if t.Empty() {
 			return ast.NewIdent("any")
 		}
 	case *types.Signature:
-		return newFuncType(t)
+		return newFuncType(p, t)
 	case *types.Named:
 		if t.TypeParams() != nil || t.TypeArgs() != nil {
 			panic("not implemented: generic types")
@@ -57,14 +57,13 @@ func typeExpr(typ types.Type) ast.Expr {
 		obj := t.Obj()
 		name := ast.NewIdent(obj.Name())
 		pkg := obj.Pkg()
-		if pkg == nil {
+		if pkg == nil || p == pkg {
 			return name
 		}
-		// TODO: this needs to be incorporated in the pass to find imports
 		return &ast.SelectorExpr{X: ast.NewIdent(pkg.Name()), Sel: name}
 	case *types.Chan:
 		c := &ast.ChanType{
-			Value: typeExpr(t.Elem()),
+			Value: typeExpr(p, t.Elem()),
 		}
 		switch t.Dir() {
 		case types.SendRecv:
@@ -79,24 +78,24 @@ func typeExpr(typ types.Type) ast.Expr {
 	panic(fmt.Sprintf("not implemented: %T", typ))
 }
 
-func newFuncType(signature *types.Signature) *ast.FuncType {
+func newFuncType(p *types.Package, signature *types.Signature) *ast.FuncType {
 	return &ast.FuncType{
-		Params:  newFieldList(signature.Params()),
-		Results: newFieldList(signature.Results()),
+		Params:  newFieldList(p, signature.Params()),
+		Results: newFieldList(p, signature.Results()),
 	}
 }
 
-func newFieldList(tuple *types.Tuple) *ast.FieldList {
+func newFieldList(p *types.Package, tuple *types.Tuple) *ast.FieldList {
 	return &ast.FieldList{
-		List: newFields(tuple),
+		List: newFields(p, tuple),
 	}
 }
 
-func newFields(tuple *types.Tuple) []*ast.Field {
+func newFields(p *types.Package, tuple *types.Tuple) []*ast.Field {
 	fields := make([]*ast.Field, tuple.Len())
 	for i := range fields {
 		fields[i] = &ast.Field{
-			Type: typeExpr(tuple.At(i).Type()),
+			Type: typeExpr(p, tuple.At(i).Type()),
 		}
 	}
 	return fields

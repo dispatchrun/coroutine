@@ -54,7 +54,6 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 	if fn.TypeParams() != nil {
 		return // ignore non-instantiated generic functions
 	}
-
 	var register ast.Expr
 	if len(fn.FreeVars) == 0 {
 		register = &ast.IndexListExpr{
@@ -63,7 +62,7 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 				Sel: ast.NewIdent("RegisterFunc"),
 			},
 			Indices: []ast.Expr{
-				newFuncType(fn.Signature),
+				newFuncType(pkg.Pkg, fn.Signature),
 			},
 		}
 	} else {
@@ -77,7 +76,7 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 		for i, freeVar := range fn.FreeVars {
 			fields[i+1] = &ast.Field{
 				Names: []*ast.Ident{ast.NewIdent(freeVar.Name())},
-				Type:  typeExpr(freeVar.Type()),
+				Type:  typeExpr(pkg.Pkg, freeVar.Type()),
 			}
 		}
 
@@ -87,7 +86,7 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 				Sel: ast.NewIdent("RegisterClosure"),
 			},
 			Indices: []ast.Expr{
-				newFuncType(fn.Signature),
+				newFuncType(pkg.Pkg, fn.Signature),
 				&ast.StructType{
 					Fields: &ast.FieldList{
 						List: fields,

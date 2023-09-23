@@ -1204,7 +1204,7 @@ _l0:
 				}
 				return true
 			})
-			desugared := desugar(body, info)
+			desugared := desugar(nil, body, info)
 			desugared = unnestBlocks(desugared)
 
 			expect := strings.TrimSpace(test.expect)
@@ -1220,7 +1220,7 @@ _l0:
 
 func formatNode(node ast.Node) string {
 	fset := token.NewFileSet()
-	//ast.Print(fset, node)
+	// ast.Print(fset, node)
 	var b bytes.Buffer
 	if err := format.Node(&b, fset, node); err != nil {
 		panic(err)

@@ -20,7 +20,7 @@ import (
 // Note that declarations are extracted from all nested scopes within the
 // function body, so there may be duplicate identifiers. Identifiers can be
 // disambiguated using (*types.Info).ObjectOf(ident).
-func extractDecls(tree ast.Node, info *types.Info) (decls []*ast.GenDecl) {
+func extractDecls(p *types.Package, tree ast.Node, info *types.Info) (decls []*ast.GenDecl) {
 	ast.Inspect(tree, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.FuncLit:
@@ -46,7 +46,7 @@ func extractDecls(tree ast.Node, info *types.Info) (decls []*ast.GenDecl) {
 							Specs: []ast.Spec{
 								&ast.ValueSpec{
 									Names: []*ast.Ident{name},
-									Type:  typeExpr(info.TypeOf(name)),
+									Type:  typeExpr(p, info.TypeOf(name)),
 								},
 							},
 						})
@@ -80,7 +80,7 @@ func extractDecls(tree ast.Node, info *types.Info) (decls []*ast.GenDecl) {
 					Specs: []ast.Spec{
 						&ast.ValueSpec{
 							Names: []*ast.Ident{name},
-							Type:  typeExpr(t),
+							Type:  typeExpr(p, t),
 						},
 					},
 				})

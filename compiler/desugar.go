@@ -39,8 +39,8 @@ import (
 // types.Info. If this gets unruly in the future, desugaring should be
 // performed after parsing AST's but before type checking so that this is
 // done automatically by the type checker.
-func desugar(stmt ast.Stmt, info *types.Info) ast.Stmt {
-	d := desugarer{info: info}
+func desugar(p *types.Package, stmt ast.Stmt, info *types.Info) ast.Stmt {
+	d := desugarer{pkg: p, info: info}
 	stmt = d.desugar(stmt, nil, nil, nil)
 
 	// Unused labels cause a compile error (label X defined and not used)
@@ -56,6 +56,7 @@ func desugar(stmt ast.Stmt, info *types.Info) ast.Stmt {
 }
 
 type desugarer struct {
+	pkg          *types.Package
 	info         *types.Info
 	vars         int
 	labels       int
@@ -253,7 +254,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 							&ast.CallExpr{
 								Fun: d.builtin("make"),
 								Args: []ast.Expr{
-									typeExpr(keySliceType),
+									typeExpr(d.pkg, keySliceType),
 									&ast.BasicLit{Kind: token.INT, Value: "0"},
 									&ast.CallExpr{Fun: d.builtin("len"), Args: []ast.Expr{x}},
 								},
@@ -385,7 +386,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 							Specs: []ast.Spec{
 								&ast.ValueSpec{
 									Names: []*ast.Ident{tmpLhs},
-									Type:  typeExpr(lhsType),
+									Type:  typeExpr(d.pkg, lhsType),
 								},
 							},
 						}})

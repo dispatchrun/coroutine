@@ -41,11 +41,7 @@ import (
 	big "math/big"
 	rand "math/rand"
 	atomic "sync/atomic"
-	asn1_1 "encoding/asn1"
-	pem "encoding/pem"
-	hex "encoding/hex"
-	base64 "encoding/base64"
-	asn1 "vendor/golang.org/x/crypto/cryptobyte/asn1"
+	asn1_1 "vendor/golang.org/x/crypto/cryptobyte/asn1"
 	dnsmessage "vendor/golang.org/x/net/dns/dnsmessage"
 	route "vendor/golang.org/x/net/route"
 	idna "vendor/golang.org/x/net/idna"
@@ -57,6 +53,10 @@ import (
 	transform "vendor/golang.org/x/text/transform"
 	norm "vendor/golang.org/x/text/unicode/norm"
 	bidirule "vendor/golang.org/x/text/secure/bidirule"
+	asn1 "encoding/asn1"
+	pem "encoding/pem"
+	hex "encoding/hex"
+	base64 "encoding/base64"
 	aes "crypto/aes"
 	x509 "crypto/x509"
 	tls "crypto/tls"
@@ -459,15 +459,15 @@ func init() {
 	serde.RegisterType[[]uint8]()
 	serde.RegisterType[[]uintptr]()
 	serde.RegisterType[aes.KeySizeError]()
-	serde.RegisterType[asn1.Tag]()
-	serde.RegisterType[asn1_1.BitString]()
-	serde.RegisterType[asn1_1.Enumerated]()
-	serde.RegisterType[asn1_1.Flag]()
-	serde.RegisterType[asn1_1.ObjectIdentifier]()
-	serde.RegisterType[asn1_1.RawContent]()
-	serde.RegisterType[asn1_1.RawValue]()
-	serde.RegisterType[asn1_1.StructuralError]()
-	serde.RegisterType[asn1_1.SyntaxError]()
+	serde.RegisterType[asn1.BitString]()
+	serde.RegisterType[asn1.Enumerated]()
+	serde.RegisterType[asn1.Flag]()
+	serde.RegisterType[asn1.ObjectIdentifier]()
+	serde.RegisterType[asn1.RawContent]()
+	serde.RegisterType[asn1.RawValue]()
+	serde.RegisterType[asn1.StructuralError]()
+	serde.RegisterType[asn1.SyntaxError]()
+	serde.RegisterType[asn1_1.Tag]()
 	serde.RegisterType[atomic.Bool]()
 	serde.RegisterType[atomic.Int32]()
 	serde.RegisterType[atomic.Int64]()
