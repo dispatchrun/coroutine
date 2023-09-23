@@ -174,6 +174,21 @@ func (c *compiler) compile(path string) error {
 		pkgColors[fn] = color
 	}
 
+	var needVendoring []*packages.Package
+	for p := range colorsByPkg {
+		if p.Module == nil || p.Module.Dir != moduleDir {
+			needVendoring = append(needVendoring, p)
+			break
+		}
+	}
+	if len(needVendoring) > 0 {
+		log.Printf("vendoring packages")
+		newRoot := filepath.Join(moduleDir, "goroot")
+		if err := vendor(newRoot, needVendoring); err != nil {
+			return err
+		}
+	}
+
 	for p, colors := range colorsByPkg {
 		if p.Module == nil || p.Module.Dir != moduleDir {
 			return fmt.Errorf("not implemented: compilation for packages outside module (need to compile %s)", p.PkgPath)
