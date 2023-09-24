@@ -669,7 +669,6 @@ func typeof[X any]() reflect.Type {
 }
 
 var (
-	byteT      = typeof[byte]()
-	typeinfoT  = typeof[typeinfo]()
-	ptypeinfoT = typeof[*typeinfo]()
+	byteT     = typeof[byte]()
+	typeinfoT = typeof[typeinfo]()
 )
