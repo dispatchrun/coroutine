@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	RegisterTypeWithSerde[time.Time](serializeTime, deserializeTime)
+	RegisterSerde[time.Time](serializeTime, deserializeTime)
 }
 
 func serializeTime(s *Serializer, x *time.Time) error {

@@ -12,10 +12,6 @@ type serializedCoroutine struct {
 	resume bool
 }
 
-func init() {
-	serde.RegisterType[serializedCoroutine]()
-}
-
 // Context is passed to a coroutine and flows through all
 // functions that Yield (or could yield).
 type Context[R, S any] struct {

@@ -25,6 +25,10 @@ const (
 // to get right, and we will be revamping serde anyway.
 type typeinfo struct {
 	kind typekind
+
+	// Only present for named types. See documentation of [namedTypeOffset].
+	offset namedTypeOffset
+
 	// - typeCustom uses this field to store the index in the typemap of the
 	//   custom type it represents.
 	// - typeBasic uses it to store the reflect.Kind it represents.
@@ -41,6 +45,10 @@ type typeinfo struct {
 }
 
 func (t *typeinfo) reflectType(tm *TypeMap) reflect.Type {
+	if t.offset != 0 {
+		return typeForOffset(t.offset)
+	}
+
 	switch t.kind {
 	case typeNone:
 		return nil
@@ -142,13 +150,27 @@ func (m *TypeMap) ToType(t reflect.Type) *typeinfo {
 	}
 
 	if t == nil {
-		return &typeinfo{kind: typeNone}
+		return m.cache.Add(t, &typeinfo{kind: typeNone})
 	}
 
+	var offset namedTypeOffset
 	if named(t) {
-		panic(fmt.Errorf("named type should be registered (%s)", t))
+		offset = offsetForType(t)
+		// Technically types with an offset do not need more information
+		// than that. However for debugging purposes also generate the
+		// rest of the type information.
 	}
 
+	if s, ok := m.serdes[t]; ok {
+		return m.cache.Add(t, &typeinfo{
+			kind:   typeCustom,
+			offset: offset,
+			val:    s.id,
+		})
+	}
+
+	ti := &typeinfo{offset: offset}
+	m.cache.Add(t, ti) // add now for recursion
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic("can't handle reflect.Invalid")
@@ -170,40 +192,29 @@ func (m *TypeMap) ToType(t reflect.Type) *typeinfo {
 		reflect.Complex128,
 		reflect.String,
 		reflect.Interface:
-		return &typeinfo{
-			kind: typeBasic,
-			val:  int(t.Kind()),
-		}
+		ti.kind = typeBasic
+		ti.val = int(t.Kind())
 	case reflect.Array:
-		return &typeinfo{
-			kind: typeArray,
-			elem: m.ToType(t.Elem()),
-			val:  t.Len(),
-		}
+		ti.kind = typeArray
+		ti.val = t.Len()
+		ti.elem = m.ToType(t.Elem())
 	case reflect.Map:
-		return &typeinfo{
-			kind: typeMap,
-			key:  m.ToType(t.Key()),
-			elem: m.ToType(t.Elem()),
-		}
+		ti.kind = typeMap
+		ti.key = m.ToType(t.Key())
+		ti.elem = m.ToType(t.Elem())
 	case reflect.Pointer:
-		return &typeinfo{
-			kind: typePointer,
-			elem: m.ToType(t.Elem()),
-		}
+		ti.kind = typePointer
+		ti.elem = m.ToType(t.Elem())
 	case reflect.Slice:
-		return &typeinfo{
-			kind: typeSlice,
-			elem: m.ToType(t.Elem()),
-		}
+		ti.kind = typeSlice
+		ti.elem = m.ToType(t.Elem())
 	case reflect.Struct:
 		n := t.NumField()
 		fields := make([]Field, n)
 		for i := 0; i < n; i++ {
 			f := t.Field(i)
-			// Unexported fields are not supported.
-			if !f.IsExported() {
-				panic(fmt.Errorf("struct with unexported fields should be registered (%s)", t))
+			if !f.IsExported() && offset == 0 {
+				ti.offset = offsetForType(t)
 			}
 			fields[i].name = f.Name
 			fields[i].anon = f.Anonymous
@@ -212,10 +223,8 @@ func (m *TypeMap) ToType(t reflect.Type) *typeinfo {
 			fields[i].tag = string(f.Tag)
 			fields[i].typ = m.ToType(f.Type)
 		}
-		return &typeinfo{
-			kind:   typeStruct,
-			fields: fields,
-		}
+		ti.kind = typeStruct
+		ti.fields = fields
 	case reflect.Func:
 		nin := t.NumIn()
 		nout := t.NumOut()
@@ -226,14 +235,13 @@ func (m *TypeMap) ToType(t reflect.Type) *typeinfo {
 		for i := 0; i < nout; i++ {
 			types[nin+i] = m.ToType(t.Out(i))
 		}
-		return &typeinfo{
-			kind: typeFunc,
-			val:  nin<<1 | boolint(t.IsVariadic()),
-			args: types,
-		}
+		ti.kind = typeFunc
+		ti.val = nin<<1 | boolint(t.IsVariadic())
+		ti.args = types
 	default:
 		panic(fmt.Errorf("unsupported reflect.Kind (%s)", t.Kind()))
 	}
+	return ti
 }
 
 func boolint(x bool) int {

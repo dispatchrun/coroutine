@@ -67,7 +67,6 @@ func TestReflect(t *testing.T) {
 
 		for _, x := range cases {
 			t := reflect.TypeOf(x)
-			serdeinternal.Types.Add(t)
 
 			if t.Kind() == reflect.Func {
 				a := types.FuncAddr(x)
@@ -99,7 +98,6 @@ func TestInt257(t *testing.T) {
 		true,
 		one,
 	}
-	serde.RegisterType[[]any]()
 	assertRoundTrip(t, x)
 }
 
@@ -137,7 +135,7 @@ func TestReflectCustom(t *testing.T) {
 	}
 
 	testReflect(t, "int wrapper", func(t *testing.T) {
-		serde.RegisterTypeWithSerde[int](ser, des)
+		serde.RegisterSerde[int](ser, des)
 
 		x := 42
 		p := &x
@@ -160,8 +158,7 @@ func TestReflectCustom(t *testing.T) {
 			y   Y
 		}
 
-		serde.RegisterType[X]()
-		serde.RegisterTypeWithSerde[int](ser, des)
+		serde.RegisterSerde[int](ser, des)
 
 		x := X{
 			foo: "test",
@@ -186,8 +183,7 @@ func TestReflectCustom(t *testing.T) {
 			y   *Y
 		}
 
-		serde.RegisterType[X]()
-		serde.RegisterTypeWithSerde[int](ser, des)
+		serde.RegisterSerde[int](ser, des)
 
 		x := &X{y: &Y{}}
 		x.y.foo = "test"
@@ -202,8 +198,7 @@ func TestReflectCustom(t *testing.T) {
 	})
 
 	testReflect(t, "custom type in slice", func(t *testing.T) {
-		serde.RegisterTypeWithSerde[int](ser, des)
-		serde.RegisterType[[]int]()
+		serde.RegisterSerde[int](ser, des)
 		x := []int{1, 2, 3, 42, 5, 6}
 		assertRoundTrip(t, x)
 		b := serdeinternal.Serialize(x)
@@ -226,7 +221,7 @@ func TestReflectCustom(t *testing.T) {
 			return nil
 		}
 
-		serde.RegisterTypeWithSerde[http.Client](ser, des)
+		serde.RegisterSerde[http.Client](ser, des)
 
 		x := http.Client{
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -268,8 +263,6 @@ func TestReflectSharing(t *testing.T) {
 		x.a[5] = 6
 		assertEqual(t, 6, x.b[5])
 
-		serde.RegisterType[X]()
-
 		out := assertRoundTrip(t, x)
 
 		// check map is shared after
@@ -304,8 +297,6 @@ func TestReflectSharing(t *testing.T) {
 		assertEqual(t, 6, len(orig.s2))
 		assertEqual(t, 3, cap(orig.s3))
 		assertEqual(t, 3, len(orig.s3))
-
-		serde.RegisterType[X]()
 
 		out := assertRoundTrip(t, orig)
 
@@ -350,8 +341,6 @@ func TestReflectSharing(t *testing.T) {
 		assertEqual(t, 3, cap(orig.s3))
 		assertEqual(t, 3, len(orig.s3))
 
-		serde.RegisterType[X]()
-
 		out := assertRoundTrip(t, orig)
 
 		// verify that the initial arrays were shared
@@ -394,7 +383,6 @@ func TestReflectSharing(t *testing.T) {
 		x.A.Y = 42
 		assertEqual(t, 42, *x.B.P)
 
-		serde.RegisterType[X]()
 		out := assertRoundTrip(t, x)
 
 		// verify the resulting pointer is correct
@@ -410,8 +398,6 @@ func TestReflectSharing(t *testing.T) {
 		x := &X{}
 		x.z = x
 		assertEqual(t, x, x.z)
-
-		serde.RegisterType[X]()
 
 		out := assertRoundTrip(t, x)
 
@@ -431,7 +417,6 @@ func TestReflectSharing(t *testing.T) {
 
 		x := X{Y{Z{42}}}
 
-		serde.RegisterType[X]()
 		assertRoundTrip(t, x)
 	})
 
@@ -455,7 +440,6 @@ func TestReflectSharing(t *testing.T) {
 			},
 		}
 
-		serde.RegisterType[X]()
 		assertRoundTrip(t, x)
 	})
 
@@ -477,7 +461,6 @@ func TestReflectSharing(t *testing.T) {
 
 		assertEqual(t, unsafe.Pointer(x), unsafe.Pointer(x.y.z))
 
-		serde.RegisterType[X]()
 		out := assertRoundTrip(t, x)
 
 		out.z.v = "test"
@@ -506,8 +489,6 @@ func TestReflectSharing(t *testing.T) {
 		assertEqual(t, 3, cap(x.s1))
 		assertEqual(t, 2, cap(x.s2))
 
-		serde.RegisterType[X]()
-
 		out := assertRoundTrip(t, x)
 
 		// check underlying arrays are not shared
@@ -527,7 +508,6 @@ func TestReflectSharing(t *testing.T) {
 			"trois": data[0:3],
 		}
 
-		serde.RegisterType[map[string][]int]()
 		out := assertRoundTrip(t, x)
 
 		out["un"][0] = 100
