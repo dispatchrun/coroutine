@@ -113,6 +113,12 @@ func TestCoroutineYield(t *testing.T) {
 		},
 
 		{
+			name:   "reverse range over closure capturing by value",
+			coro:   func() { RangeReverseClosureCaptureByValue(10) },
+			yields: []int{9, 8, 7, 6, 5, 4, 3, 2, 1, 0},
+		},
+
+		{
 			name:   "range over anonymous function",
 			coro:   func() { RangeTriple(4) },
 			yields: []int{0, 3, 6, 9},

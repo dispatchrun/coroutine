@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -75,6 +76,7 @@ func extractDecls(p *types.Package, tree ast.Node, info *types.Info) (decls []*a
 					// AssignStmt that declares it.
 					continue
 				}
+
 				decls = append(decls, &ast.GenDecl{
 					Tok: token.VAR,
 					Specs: []ast.Spec{
@@ -97,28 +99,39 @@ func extractDecls(p *types.Package, tree ast.Node, info *types.Info) (decls []*a
 func renameObjects(tree ast.Node, info *types.Info, decls []*ast.GenDecl, scope *scope) {
 	// Scan decls to find objects, giving each new object a unique name.
 	newNames := map[types.Object]*ast.Ident{}
+
+	generateUniqueIdent := func() *ast.Ident {
+		ident := scope.objectIdent
+		scope.objectIdent++
+		return ast.NewIdent(fmt.Sprintf("_o%d", ident))
+	}
+
+	addName := func(ident *ast.Ident) {
+		if ident.Name != "_" {
+			obj := info.ObjectOf(ident)
+			newIdent := generateUniqueIdent()
+			newNames[obj] = newIdent
+			// Add type info for the new identifiers.
+			info.Defs[newIdent] = types.NewVar(0, nil, ident.Name, obj.Type())
+		}
+	}
+
 	for _, decl := range decls {
 		for _, spec := range decl.Specs {
 			switch s := spec.(type) {
 			case *ast.TypeSpec: // type
-				if s.Name.Name == "_" {
-					continue
-				}
-				newNames[info.ObjectOf(s.Name)] = scope.newObjectIdent()
+				addName(s.Name)
 			case *ast.ValueSpec: // const/var
 				for _, name := range s.Names {
 					if name.Name == "_" {
 						continue
 					}
-					newNames[info.ObjectOf(name)] = scope.newObjectIdent()
+					addName(name)
 				}
 			}
 		}
 	}
-	// Add type info for the new identifiers.
-	for obj, name := range newNames {
-		info.Defs[name] = types.NewVar(0, nil, name.Name, obj.Type())
-	}
+
 	// Rename identifiers in the tree.
 	ast.Inspect(tree, func(node ast.Node) bool {
 		if ident, ok := node.(*ast.Ident); ok {
