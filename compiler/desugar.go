@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/go/packages"
 )
 
 // desugar recursively replaces sugared AST nodes with simpler constructs.
@@ -39,8 +40,8 @@ import (
 // types.Info. If this gets unruly in the future, desugaring should be
 // performed after parsing AST's but before type checking so that this is
 // done automatically by the type checker.
-func desugar(p *types.Package, stmt ast.Stmt, info *types.Info, mayYield map[ast.Node]struct{}) ast.Stmt {
-	d := desugarer{pkg: p, info: info, nodesThatMayYield: mayYield}
+func desugar(p *packages.Package, stmt ast.Stmt, mayYield map[ast.Node]struct{}) ast.Stmt {
+	d := desugarer{pkg: p, info: p.TypesInfo, nodesThatMayYield: mayYield}
 	stmt = d.desugar(stmt, nil, nil, nil)
 
 	// Unused labels cause a compile error (label X defined and not used)
@@ -56,7 +57,7 @@ func desugar(p *types.Package, stmt ast.Stmt, info *types.Info, mayYield map[ast
 }
 
 type desugarer struct {
-	pkg               *types.Package
+	pkg               *packages.Package
 	info              *types.Info
 	vars              int
 	labels            int

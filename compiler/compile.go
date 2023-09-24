@@ -290,7 +290,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 		return err
 	}
 
-	functypesFile := generateFunctypes(prog.Package(p.Types), colors)
+	functypesFile := generateFunctypes(p, prog.Package(p.Types), colors)
 	functypesPath := filepath.Join(packageDir, "coroutine_functypes.go")
 	if err := c.writeFile(functypesPath, functypesFile); err != nil {
 		return err
@@ -306,9 +306,10 @@ func addImports(p *packages.Package, gen *ast.File) *ast.File {
 		switch x := n.(type) {
 		case *ast.SelectorExpr:
 			ident, ok := x.X.(*ast.Ident)
-			if !ok {
+			if !ok || ident.Name == "" {
 				break
 			}
+
 			obj := p.TypesInfo.ObjectOf(ident)
 			pkgname, ok := obj.(*types.PkgName)
 			if !ok {
@@ -316,6 +317,9 @@ func addImports(p *packages.Package, gen *ast.File) *ast.File {
 			}
 
 			pkg := pkgname.Imported().Path()
+			if pkg == "" {
+				break
+			}
 
 			if existing, ok := imports[ident.Name]; ok && existing != pkg {
 				fmt.Println("existing:", ident.Name, existing)
@@ -326,6 +330,10 @@ func addImports(p *packages.Package, gen *ast.File) *ast.File {
 		}
 		return true
 	})
+
+	if len(imports) == 0 {
+		return gen
+	}
 
 	importspecs := make([]ast.Spec, 0, len(imports))
 	for name, path := range imports {
@@ -426,8 +434,7 @@ func (scope *scope) compileFuncLit(p *packages.Package, fn *ast.FuncLit, color *
 
 func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, color *types.Signature) *ast.BlockStmt {
 	mayYield := findCalls(body, p.TypesInfo)
-
-	body = desugar(p.Types, body, p.TypesInfo, mayYield).(*ast.BlockStmt)
+	body = desugar(p, body, mayYield).(*ast.BlockStmt)
 	body = astutil.Apply(body,
 		func(cursor *astutil.Cursor) bool {
 			switch n := cursor.Node().(type) {
@@ -452,8 +459,8 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	fp := ast.NewIdent("_fp")
 
 	yieldTypeExpr := make([]ast.Expr, 2)
-	yieldTypeExpr[0] = typeExpr(p.Types, color.Params().At(0).Type())
-	yieldTypeExpr[1] = typeExpr(p.Types, color.Results().At(0).Type())
+	yieldTypeExpr[0] = typeExpr(p, color.Params().At(0).Type())
+	yieldTypeExpr[1] = typeExpr(p, color.Results().At(0).Type())
 
 	// _c := coroutine.LoadContext[R, S]()
 	gen.List = append(gen.List, &ast.AssignStmt{
@@ -496,7 +503,7 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	// declarations to the function prologue. We downgrade inline var decls and
 	// assignments that use := to assignments that use =. Constant decls are
 	// hoisted and also have their value assigned in the function prologue.
-	decls := extractDecls(p.Types, body, p.TypesInfo)
+	decls := extractDecls(p, body, p.TypesInfo)
 	renameObjects(body, p.TypesInfo, decls, scope)
 	for _, decl := range decls {
 		gen.List = append(gen.List, &ast.DeclStmt{Decl: decl})
@@ -555,7 +562,7 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 								Lhs: []ast.Expr{name},
 								Tok: token.ASSIGN,
 								Rhs: []ast.Expr{
-									&ast.TypeAssertExpr{X: value, Type: typeExpr(p.Types, saveAndRestoreTypes[i])},
+									&ast.TypeAssertExpr{X: value, Type: typeExpr(p, saveAndRestoreTypes[i])},
 								},
 							},
 						},
@@ -578,7 +585,7 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 									&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
 								},
 							},
-							Type: typeExpr(p.Types, t),
+							Type: typeExpr(p, t),
 						},
 					},
 				},

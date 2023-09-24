@@ -4,6 +4,7 @@
 
 package testdata
 
+import time "time"
 import _types "github.com/stealthrocket/coroutine/types"
 
 func init() {
@@ -61,6 +62,11 @@ func init() {
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.SquareGeneratorTwice")
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.SquareGeneratorTwiceLoop")
 	_types.RegisterFunc[func(int)]("github.com/stealthrocket/coroutine/compiler/testdata.TypeSwitchingGenerator")
+	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingDurations")
+	_types.RegisterClosure[func(), struct {
+		_ uintptr
+		t **time.Duration
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingDurations.func2")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingExpressionDesugaring")
 	_types.RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/compiler/testdata.a")
 	_types.RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/compiler/testdata.b")

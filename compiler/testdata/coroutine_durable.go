@@ -3122,3 +3122,107 @@ func b(v int) (_ int) {
 	}
 	return
 }
+
+func YieldingDurations() {
+	_c := coroutine.LoadContext[int, any]()
+	_f, _fp := _c.Push()
+	var _o3 *time.Duration
+	var _o4 time.Duration
+	var _o5 func()
+	var _o6 int
+	if _f.IP > 0 {
+		if _v := _f.Get(0); _v != nil {
+			_o3 = _v.(*time.Duration)
+		}
+		_o4 = _f.Get(1).(time.Duration)
+		if _v := _f.Get(2); _v != nil {
+
+			_o5 = _v.(func())
+		}
+
+		_o6 = _f.Get(3).(int)
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, _o3)
+			_f.Set(1, _o4)
+			_f.Set(2, _o5)
+			_f.Set(3, _o6)
+			_c.Store(_fp, _f)
+		} else {
+			_c.Pop()
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		_o3 = new(time.Duration)
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 3:
+		_o4 = time.Duration(100)
+		_f.IP = 3
+		fallthrough
+	case _f.IP < 4:
+		*_o3 = _o4
+		_f.IP = 4
+		fallthrough
+	case _f.IP < 5:
+
+		_o5 = func() {
+			_c := coroutine.LoadContext[int, any]()
+			_f, _fp := _c.Push()
+			var _o0 int64
+			var _o1 int
+			var _o2 time.Duration
+			if _f.IP > 0 {
+				_o0 = _f.Get(0).(int64)
+				_o1 = _f.Get(1).(int)
+				_o2 = _f.Get(2).(time.Duration)
+			}
+			defer func() {
+				if _c.Unwinding() {
+					_f.Set(0, _o0)
+					_f.Set(1, _o1)
+					_f.Set(2, _o2)
+					_c.Store(_fp, _f)
+				} else {
+					_c.Pop()
+				}
+			}()
+			switch {
+			case _f.IP < 2:
+				_o0 = _o3.Nanoseconds()
+				_f.IP = 2
+				fallthrough
+			case _f.IP < 3:
+				_o1 = int(_o0)
+				_f.IP = 3
+				fallthrough
+			case _f.IP < 4:
+				_o2 = time.Duration(_o1 + 1)
+				_f.IP = 4
+				fallthrough
+			case _f.IP < 5:
+				*_o3 = _o2
+				_f.IP = 5
+				fallthrough
+			case _f.IP < 6:
+				coroutine.Yield[int, any](_o1)
+			}
+		}
+		_f.IP = 5
+		fallthrough
+	case _f.IP < 7:
+		switch {
+		case _f.IP < 6:
+
+			_o6 = 0
+			_f.IP = 6
+			fallthrough
+		case _f.IP < 7:
+			for ; _o6 < 10; _o6, _f.IP = _o6+1, 6 {
+				_o5()
+			}
+		}
+	}
+}
