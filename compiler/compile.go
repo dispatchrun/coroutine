@@ -238,6 +238,10 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 			&ast.ImportSpec{
 				Path: &ast.BasicLit{Kind: token.STRING, Value: strconv.Quote(coroutinePackage)},
 			},
+			// Add unsafe for unsafe.Sizeof().
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{Kind: token.STRING, Value: strconv.Quote("unsafe")},
+			},
 		},
 	})
 

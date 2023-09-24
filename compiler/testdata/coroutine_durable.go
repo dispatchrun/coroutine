@@ -12,7 +12,7 @@ import (
 	atomic "sync/atomic"
 	syscall "syscall"
 	time "time"
-	unsafe "unsafe"
+	"unsafe"
 )
 
 func SomeFunctionThatShouldExistInTheCompiledFile() {
