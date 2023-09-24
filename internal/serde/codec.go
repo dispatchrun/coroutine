@@ -14,7 +14,8 @@ func serializeTime(s *Serializer, x *time.Time) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal time.Time: %w", err)
 	}
-	Serialize(s, data)
+
+	SerializeT(s, data)
 	return nil
 }
 

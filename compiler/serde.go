@@ -114,7 +114,7 @@ func (w *typesWalker) Walk(p *packages.Package) {
 			continue
 		}
 		t := o.Type()
-		if !supported(w.from, t) {
+		if !required(t) || !supported(w.from, t) {
 			continue
 		}
 
@@ -123,7 +123,7 @@ func (w *typesWalker) Walk(p *packages.Package) {
 
 	// Walk type instances from generics in this package.
 	for _, i := range p.TypesInfo.Instances {
-		if !supported(w.from, i.Type) {
+		if !required(i.Type) || !supported(w.from, i.Type) {
 			continue
 		}
 		w.add(i.Type)
@@ -199,6 +199,12 @@ func importSpecName(imp *ast.ImportSpec) string {
 
 func supported(from string, t types.Type) bool {
 	return supportedType(t) && supportedImport(from, t)
+}
+
+func required(t types.Type) bool {
+	// we only require named types to be registered
+	_, ok := t.(*types.Named)
+	return ok
 }
 
 func supportedImport(from string, t types.Type) bool {

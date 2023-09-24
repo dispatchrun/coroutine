@@ -12,7 +12,7 @@ import (
 	atomic "sync/atomic"
 	syscall "syscall"
 	time "time"
-	unsafe "unsafe"
+	"unsafe"
 )
 
 func SomeFunctionThatShouldExistInTheCompiledFile() {
@@ -4211,160 +4211,6 @@ func b(v int) (_ int) {
 	return
 }
 func init() {
-	serde.RegisterType[**byte]()
-	serde.RegisterType[*[100000]uintptr]()
-	serde.RegisterType[*[131072]uint16]()
-	serde.RegisterType[*[140737488355327]byte]()
-	serde.RegisterType[*[16]byte]()
-	serde.RegisterType[*[171]uint8]()
-	serde.RegisterType[*[1]uintptr]()
-	serde.RegisterType[*[2]byte]()
-	serde.RegisterType[*[2]float32]()
-	serde.RegisterType[*[2]float64]()
-	serde.RegisterType[*[2]int32]()
-	serde.RegisterType[*[2]uint32]()
-	serde.RegisterType[*[2]uintptr]()
-	serde.RegisterType[*[32]rune]()
-	serde.RegisterType[*[32]uintptr]()
-	serde.RegisterType[*[4]byte]()
-	serde.RegisterType[*[512]uintptr]()
-	serde.RegisterType[*[65536]uintptr]()
-	serde.RegisterType[*[70368744177663]uint16]()
-	serde.RegisterType[*[8]byte]()
-	serde.RegisterType[*[8]uint8]()
-	serde.RegisterType[*[]uint64]()
-	serde.RegisterType[*bool]()
-	serde.RegisterType[*byte]()
-	serde.RegisterType[*int]()
-	serde.RegisterType[*int32]()
-	serde.RegisterType[*int64]()
-	serde.RegisterType[*string]()
-	serde.RegisterType[*uint]()
-	serde.RegisterType[*uint16]()
-	serde.RegisterType[*uint32]()
-	serde.RegisterType[*uint64]()
-	serde.RegisterType[*uint8]()
-	serde.RegisterType[*uintptr]()
-	serde.RegisterType[[0]uintptr]()
-	serde.RegisterType[[1000]uintptr]()
-	serde.RegisterType[[100]byte]()
-	serde.RegisterType[[1024]bool]()
-	serde.RegisterType[[1024]byte]()
-	serde.RegisterType[[1024]int8]()
-	serde.RegisterType[[1024]uint8]()
-	serde.RegisterType[[1048576]uint8]()
-	serde.RegisterType[[104]byte]()
-	serde.RegisterType[[104]int8]()
-	serde.RegisterType[[107]string]()
-	serde.RegisterType[[108]byte]()
-	serde.RegisterType[[10]byte]()
-	serde.RegisterType[[10]string]()
-	serde.RegisterType[[128]byte]()
-	serde.RegisterType[[128]uint64]()
-	serde.RegisterType[[128]uintptr]()
-	serde.RegisterType[[129]uint8]()
-	serde.RegisterType[[12]int8]()
-	serde.RegisterType[[131072]uintptr]()
-	serde.RegisterType[[13]int32]()
-	serde.RegisterType[[14]byte]()
-	serde.RegisterType[[14]int8]()
-	serde.RegisterType[[16384]byte]()
-	serde.RegisterType[[16384]uint8]()
-	serde.RegisterType[[16]byte]()
-	serde.RegisterType[[16]int8]()
-	serde.RegisterType[[16]uint64]()
-	serde.RegisterType[[16]uintptr]()
-	serde.RegisterType[[17]string]()
-	serde.RegisterType[[1]byte]()
-	serde.RegisterType[[1]uint32]()
-	serde.RegisterType[[1]uint64]()
-	serde.RegisterType[[1]uint8]()
-	serde.RegisterType[[1]uintptr]()
-	serde.RegisterType[[20]byte]()
-	serde.RegisterType[[20]uint8]()
-	serde.RegisterType[[21]byte]()
-	serde.RegisterType[[249]uint8]()
-	serde.RegisterType[[24]byte]()
-	serde.RegisterType[[252]uintptr]()
-	serde.RegisterType[[253]uintptr]()
-	serde.RegisterType[[256]uint64]()
-	serde.RegisterType[[29]uint64]()
-	serde.RegisterType[[2]byte]()
-	serde.RegisterType[[2]int]()
-	serde.RegisterType[[2]int32]()
-	serde.RegisterType[[2]int64]()
-	serde.RegisterType[[2]uint32]()
-	serde.RegisterType[[2]uint64]()
-	serde.RegisterType[[2]uintptr]()
-	serde.RegisterType[[32]byte]()
-	serde.RegisterType[[32]int32]()
-	serde.RegisterType[[32]string]()
-	serde.RegisterType[[32]uint32]()
-	serde.RegisterType[[32]uintptr]()
-	serde.RegisterType[[33]float64]()
-	serde.RegisterType[[3]byte]()
-	serde.RegisterType[[3]int]()
-	serde.RegisterType[[4096]byte]()
-	serde.RegisterType[[40]int8]()
-	serde.RegisterType[[4]byte]()
-	serde.RegisterType[[4]float64]()
-	serde.RegisterType[[4]string]()
-	serde.RegisterType[[4]uint32]()
-	serde.RegisterType[[4]uint64]()
-	serde.RegisterType[[4]uintptr]()
-	serde.RegisterType[[50]uintptr]()
-	serde.RegisterType[[512]byte]()
-	serde.RegisterType[[512]uintptr]()
-	serde.RegisterType[[56]int8]()
-	serde.RegisterType[[5]byte]()
-	serde.RegisterType[[5]uint]()
-	serde.RegisterType[[61]struct {
-		Size    uint32
-		Mallocs uint64
-		Frees   uint64
-	}]()
-	serde.RegisterType[[64488]byte]()
-	serde.RegisterType[[64]byte]()
-	serde.RegisterType[[64]uint64]()
-	serde.RegisterType[[64]uintptr]()
-	serde.RegisterType[[65528]byte]()
-	serde.RegisterType[[68]struct {
-		Size    uint32
-		Mallocs uint64
-		Frees   uint64
-	}]()
-	serde.RegisterType[[68]uint16]()
-	serde.RegisterType[[68]uint32]()
-	serde.RegisterType[[68]uint64]()
-	serde.RegisterType[[68]uint8]()
-	serde.RegisterType[[6]int]()
-	serde.RegisterType[[6]uintptr]()
-	serde.RegisterType[[7]uint64]()
-	serde.RegisterType[[88]byte]()
-	serde.RegisterType[[8]byte]()
-	serde.RegisterType[[8]int8]()
-	serde.RegisterType[[8]string]()
-	serde.RegisterType[[8]uint32]()
-	serde.RegisterType[[8]uint8]()
-	serde.RegisterType[[92]int8]()
-	serde.RegisterType[[96]byte]()
-	serde.RegisterType[[9]string]()
-	serde.RegisterType[[]*byte]()
-	serde.RegisterType[[][]int32]()
-	serde.RegisterType[[]byte]()
-	serde.RegisterType[[]float64]()
-	serde.RegisterType[[]int]()
-	serde.RegisterType[[]int16]()
-	serde.RegisterType[[]int32]()
-	serde.RegisterType[[]int64]()
-	serde.RegisterType[[]int8]()
-	serde.RegisterType[[]rune]()
-	serde.RegisterType[[]string]()
-	serde.RegisterType[[]uint16]()
-	serde.RegisterType[[]uint32]()
-	serde.RegisterType[[]uint64]()
-	serde.RegisterType[[]uint8]()
-	serde.RegisterType[[]uintptr]()
 	serde.RegisterType[atomic.Bool]()
 	serde.RegisterType[atomic.Int32]()
 	serde.RegisterType[atomic.Int64]()
@@ -4372,23 +4218,6 @@ func init() {
 	serde.RegisterType[atomic.Uint64]()
 	serde.RegisterType[atomic.Uintptr]()
 	serde.RegisterType[atomic.Value]()
-	serde.RegisterType[bool]()
-	serde.RegisterType[byte]()
-	serde.RegisterType[complex128]()
-	serde.RegisterType[float32]()
-	serde.RegisterType[float64]()
-	serde.RegisterType[int]()
-	serde.RegisterType[int16]()
-	serde.RegisterType[int32]()
-	serde.RegisterType[int64]()
-	serde.RegisterType[int8]()
-	serde.RegisterType[map[*byte][]byte]()
-	serde.RegisterType[map[int]int]()
-	serde.RegisterType[map[int]struct{}]()
-	serde.RegisterType[map[string]bool]()
-	serde.RegisterType[map[string]int]()
-	serde.RegisterType[map[string]uint64]()
-	serde.RegisterType[rune]()
 	serde.RegisterType[runtime.BlockProfileRecord]()
 	serde.RegisterType[runtime.Frame]()
 	serde.RegisterType[runtime.Frames]()
@@ -4399,73 +4228,6 @@ func init() {
 	serde.RegisterType[runtime.Pinner]()
 	serde.RegisterType[runtime.StackRecord]()
 	serde.RegisterType[runtime.TypeAssertionError]()
-	serde.RegisterType[string]()
-	serde.RegisterType[struct {
-		b bool
-		x any
-	}]()
-	serde.RegisterType[struct {
-		base uintptr
-		end  uintptr
-	}]()
-	serde.RegisterType[struct {
-		enabled bool
-		pad     [3]byte
-		needed  bool
-		alignme uint64
-	}]()
-	serde.RegisterType[struct {
-		fd    int32
-		cmd   int32
-		arg   int32
-		ret   int32
-		errno int32
-	}]()
-	serde.RegisterType[struct {
-		fill     uint64
-		capacity uint64
-	}]()
-	serde.RegisterType[struct {
-		fn  uintptr
-		a1  uintptr
-		a2  uintptr
-		a3  uintptr
-		a4  uintptr
-		a5  uintptr
-		a6  uintptr
-		r1  uintptr
-		r2  uintptr
-		err uintptr
-	}]()
-	serde.RegisterType[struct {
-		fn uintptr
-		a1 uintptr
-		a2 uintptr
-		a3 uintptr
-		a4 uintptr
-		a5 uintptr
-		f1 float64
-		r1 uintptr
-	}]()
-	serde.RegisterType[struct {
-		fn  uintptr
-		a1  uintptr
-		a2  uintptr
-		a3  uintptr
-		r1  uintptr
-		r2  uintptr
-		err uintptr
-	}]()
-	serde.RegisterType[struct {
-		t     int64
-		numer uint32
-		denom uint32
-	}]()
-	serde.RegisterType[struct {
-		tick uint64
-		i    int
-	}]()
-	serde.RegisterType[struct{}]()
 	serde.RegisterType[sync.Cond]()
 	serde.RegisterType[sync.Map]()
 	serde.RegisterType[sync.Mutex]()
@@ -4541,11 +4303,4 @@ func init() {
 	serde.RegisterType[time.Time]()
 	serde.RegisterType[time.Timer]()
 	serde.RegisterType[time.Weekday]()
-	serde.RegisterType[uint]()
-	serde.RegisterType[uint16]()
-	serde.RegisterType[uint32]()
-	serde.RegisterType[uint64]()
-	serde.RegisterType[uint8]()
-	serde.RegisterType[uintptr]()
-	serde.RegisterType[unsafe.Pointer]()
 }
