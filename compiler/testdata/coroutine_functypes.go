@@ -70,5 +70,4 @@ func init() {
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingExpressionDesugaring")
 	_types.RegisterFunc[func(v int) (_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.a")
 	_types.RegisterFunc[func(v int) (_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.b")
-	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.init")
 }
