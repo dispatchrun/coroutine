@@ -39,18 +39,12 @@ import (
 // types.Info. If this gets unruly in the future, desugaring should be
 // performed after parsing AST's but before type checking so that this is
 // done automatically by the type checker.
-func desugar(p *types.Package, stmt ast.Stmt, info *types.Info) ast.Stmt {
-	d := desugarer{pkg: p, info: info}
-
-	// First pass finds function calls and marks nodes in the tree
-	// that may yield
-	d.nodesThatMayYield = findCalls(stmt, info)
-
-	// Second pass desugars statements that may yield.
+func desugar(p *types.Package, stmt ast.Stmt, info *types.Info, mayYield map[ast.Node]struct{}) ast.Stmt {
+	d := desugarer{pkg: p, info: info, nodesThatMayYield: mayYield}
 	stmt = d.desugar(stmt, nil, nil, nil)
 
 	// Unused labels cause a compile error (label X defined and not used)
-	// so we need a third pass over the tree to delete unused labels.
+	// so we need a second pass over the tree to delete unused labels.
 	astutil.Apply(stmt, func(cursor *astutil.Cursor) bool {
 		if ls, ok := cursor.Node().(*ast.LabeledStmt); ok && d.isUnusedLabel(ls.Label) {
 			cursor.Replace(ls.Stmt)
@@ -138,19 +132,19 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 			d.addUserLabel(userLabel, forLabel)
 		}
 		body := &ast.BlockStmt{List: s.Body.List}
-		if s.Cond != nil {
+		if d.mayYield(s.Cond) {
 			cond := &ast.UnaryExpr{Op: token.NOT, X: s.Cond}
-			if d.mayYield(s.Cond) {
-				d.nodesThatMayYield[cond] = struct{}{}
-			}
+			d.nodesThatMayYield[cond] = struct{}{}
 			body.List = append([]ast.Stmt{&ast.IfStmt{
 				Cond: cond,
 				Body: &ast.BlockStmt{List: []ast.Stmt{&ast.BranchStmt{Tok: token.BREAK}}},
 			}}, body.List...)
+			s.Cond = nil
 		}
 		stmt = &ast.LabeledStmt{
 			Label: forLabel,
 			Stmt: &ast.ForStmt{
+				Cond: s.Cond,
 				Body: d.desugar(body, forLabel, forLabel, nil).(*ast.BlockStmt),
 				// The post iteration statement is currently preserved for a
 				// later pass.
@@ -175,21 +169,19 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		if s.Init != nil {
 			prologue = []ast.Stmt{s.Init}
 		}
-		var cond ast.Expr
-		if i, ok := s.Cond.(*ast.Ident); ok {
-			cond = i
-		} else {
-			cond = d.newVar(types.Typ[types.Bool])
+		if d.mayYield(s.Cond) {
+			cond := d.newVar(types.Typ[types.Bool])
 			prologue = append(prologue, &ast.AssignStmt{
 				Lhs: []ast.Expr{cond},
 				Tok: token.DEFINE,
 				Rhs: []ast.Expr{s.Cond},
 			})
+			s.Cond = cond
 		}
 		prologue = d.desugarList(prologue, nil, nil)
 		stmt = &ast.BlockStmt{
 			List: append(prologue, &ast.IfStmt{
-				Cond: cond,
+				Cond: s.Cond,
 				Body: d.desugar(s.Body, breakTo, continueTo, nil).(*ast.BlockStmt),
 				Else: d.desugar(s.Else, breakTo, continueTo, nil),
 			}),
@@ -555,13 +547,15 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		case *ast.AssignStmt:
 			t = a.Rhs[0].(*ast.TypeAssertExpr)
 		}
-		tmp := d.newVar(d.info.TypeOf(t.X))
-		prologue = append(prologue, &ast.AssignStmt{
-			Lhs: []ast.Expr{tmp},
-			Tok: token.DEFINE,
-			Rhs: []ast.Expr{t.X},
-		})
-		t.X = tmp
+		if d.mayYield(t.X) {
+			tmp := d.newVar(d.info.TypeOf(t.X))
+			prologue = append(prologue, &ast.AssignStmt{
+				Lhs: []ast.Expr{tmp},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{t.X},
+			})
+			t.X = tmp
+		}
 
 		prologue = d.desugarList(prologue, nil, nil)
 		stmt = &ast.BlockStmt{

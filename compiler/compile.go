@@ -395,7 +395,9 @@ func (scope *scope) compileFuncLit(p *packages.Package, fn *ast.FuncLit, color *
 }
 
 func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, color *types.Signature) *ast.BlockStmt {
-	body = desugar(p.Types, body, p.TypesInfo).(*ast.BlockStmt)
+	mayYield := findCalls(body, p.TypesInfo)
+
+	body = desugar(p.Types, body, p.TypesInfo, mayYield).(*ast.BlockStmt)
 	body = astutil.Apply(body,
 		func(cursor *astutil.Cursor) bool {
 			switch n := cursor.Node().(type) {
