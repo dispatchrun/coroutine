@@ -242,6 +242,10 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 			&ast.ImportSpec{
 				Path: &ast.BasicLit{Kind: token.STRING, Value: strconv.Quote("unsafe")},
 			},
+			// TODO: remove me
+			&ast.ImportSpec{
+				Path: &ast.BasicLit{Kind: token.STRING, Value: strconv.Quote("time")},
+			},
 		},
 	})
 
@@ -291,11 +295,6 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 
 			gen.Decls = append(gen.Decls, compiledFunction)
 		}
-	}
-
-	log.Print("building type register init function")
-	if err := generateTypesInit(c.fset, gen, p); err != nil {
-		return err
 	}
 
 	packageDir := filepath.Dir(p.GoFiles[0])
