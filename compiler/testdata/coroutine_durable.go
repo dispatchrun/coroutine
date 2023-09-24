@@ -5,9 +5,9 @@
 package testdata
 
 import (
-	"github.com/stealthrocket/coroutine"
-	"time"
-	"unsafe"
+	coroutine "github.com/stealthrocket/coroutine"
+	time "time"
+	unsafe "unsafe"
 )
 
 func SomeFunctionThatShouldExistInTheCompiledFile() {

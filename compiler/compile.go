@@ -232,22 +232,6 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 	gen := &ast.File{
 		Name: ast.NewIdent(p.Name),
 	}
-	gen.Decls = append(gen.Decls, &ast.GenDecl{
-		Tok: token.IMPORT,
-		Specs: []ast.Spec{
-			&ast.ImportSpec{
-				Path: &ast.BasicLit{Kind: token.STRING, Value: strconv.Quote(coroutinePackage)},
-			},
-			// Add unsafe for unsafe.Sizeof().
-			&ast.ImportSpec{
-				Path: &ast.BasicLit{Kind: token.STRING, Value: strconv.Quote("unsafe")},
-			},
-			// TODO: remove me
-			&ast.ImportSpec{
-				Path: &ast.BasicLit{Kind: token.STRING, Value: strconv.Quote("time")},
-			},
-		},
-	})
 
 	ssaFnsByDecl := map[ast.Node]*ssa.Function{}
 	colorsByDecl := map[ast.Node]*types.Signature{}
@@ -297,6 +281,9 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 		}
 	}
 
+	// Find all the required imports for this file.
+	gen = addImports(p, gen)
+
 	packageDir := filepath.Dir(p.GoFiles[0])
 	outputPath := filepath.Join(packageDir, c.outputFilename)
 	if err := c.writeFile(outputPath, gen); err != nil {
@@ -310,6 +297,50 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 	}
 
 	return nil
+}
+
+func addImports(p *packages.Package, gen *ast.File) *ast.File {
+	imports := map[string]string{}
+
+	ast.Inspect(gen, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.SelectorExpr:
+			ident, ok := x.X.(*ast.Ident)
+			if !ok {
+				break
+			}
+			obj := p.TypesInfo.ObjectOf(ident)
+			pkgname, ok := obj.(*types.PkgName)
+			if !ok {
+				break
+			}
+
+			pkg := pkgname.Imported().Path()
+
+			if existing, ok := imports[ident.Name]; ok && existing != pkg {
+				fmt.Println("existing:", ident.Name, existing)
+				fmt.Println("new:", pkg)
+				panic("conflicting imports")
+			}
+			imports[ident.Name] = pkg
+		}
+		return true
+	})
+
+	importspecs := make([]ast.Spec, 0, len(imports))
+	for name, path := range imports {
+		importspecs = append(importspecs, &ast.ImportSpec{
+			Name: ast.NewIdent(name),
+			Path: &ast.BasicLit{Kind: token.STRING, Value: strconv.Quote(path)},
+		})
+	}
+
+	gen.Decls = append([]ast.Decl{&ast.GenDecl{
+		Tok:   token.IMPORT,
+		Specs: importspecs,
+	}}, gen.Decls...)
+
+	return gen
 }
 
 type scope struct {
@@ -589,5 +620,6 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 			gen.List = append(gen.List, &ast.ReturnStmt{})
 		}
 	}
+
 	return gen
 }
