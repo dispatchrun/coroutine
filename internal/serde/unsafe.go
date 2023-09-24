@@ -56,3 +56,23 @@ func staticOffset(p unsafe.Pointer) int {
 func staticPointer(offset int) unsafe.Pointer {
 	return unsafe.Add(staticuint64s, offset)
 }
+
+// namedType offset is the number of bytes from the address of the 'byte' type
+// value to the ptr field of a reflect.Type. It is used to roundtrip named types
+// for a given version of the program.
+type namedTypeOffset int
+
+func offsetForType(t reflect.Type) namedTypeOffset {
+	tptr := (*iface)(unsafe.Pointer(&t)).ptr
+	bptr := (*iface)(unsafe.Pointer(&byteT)).ptr
+	return namedTypeOffset(uintptr(tptr) - uintptr(bptr))
+}
+
+func typeForOffset(offset namedTypeOffset) reflect.Type {
+	biface := (*iface)(unsafe.Pointer(&byteT))
+	tiface := &iface{
+		typ: biface.typ,
+		ptr: unsafe.Add(biface.ptr, offset),
+	}
+	return *(*reflect.Type)(unsafe.Pointer(tiface))
+}

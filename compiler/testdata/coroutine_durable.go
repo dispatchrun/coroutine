@@ -5,14 +5,9 @@
 package testdata
 
 import (
-	"github.com/stealthrocket/coroutine"
-	serde "github.com/stealthrocket/coroutine/serde"
-	runtime "runtime"
-	sync "sync"
-	atomic "sync/atomic"
-	syscall "syscall"
+	coroutine "github.com/stealthrocket/coroutine"
 	time "time"
-	"unsafe"
+	unsafe "unsafe"
 )
 
 func SomeFunctionThatShouldExistInTheCompiledFile() {
@@ -3126,98 +3121,4 @@ func b(v int) (_ int) {
 		return v
 	}
 	return
-}
-func init() {
-	serde.RegisterType[atomic.Bool]()
-	serde.RegisterType[atomic.Int32]()
-	serde.RegisterType[atomic.Int64]()
-	serde.RegisterType[atomic.Uint32]()
-	serde.RegisterType[atomic.Uint64]()
-	serde.RegisterType[atomic.Uintptr]()
-	serde.RegisterType[atomic.Value]()
-	serde.RegisterType[runtime.BlockProfileRecord]()
-	serde.RegisterType[runtime.Frame]()
-	serde.RegisterType[runtime.Frames]()
-	serde.RegisterType[runtime.Func]()
-	serde.RegisterType[runtime.MemProfileRecord]()
-	serde.RegisterType[runtime.MemStats]()
-	serde.RegisterType[runtime.PanicNilError]()
-	serde.RegisterType[runtime.Pinner]()
-	serde.RegisterType[runtime.StackRecord]()
-	serde.RegisterType[runtime.TypeAssertionError]()
-	serde.RegisterType[sync.Cond]()
-	serde.RegisterType[sync.Map]()
-	serde.RegisterType[sync.Mutex]()
-	serde.RegisterType[sync.Once]()
-	serde.RegisterType[sync.Pool]()
-	serde.RegisterType[sync.RWMutex]()
-	serde.RegisterType[sync.WaitGroup]()
-	serde.RegisterType[syscall.BpfHdr]()
-	serde.RegisterType[syscall.BpfInsn]()
-	serde.RegisterType[syscall.BpfProgram]()
-	serde.RegisterType[syscall.BpfStat]()
-	serde.RegisterType[syscall.BpfVersion]()
-	serde.RegisterType[syscall.Cmsghdr]()
-	serde.RegisterType[syscall.Credential]()
-	serde.RegisterType[syscall.Dirent]()
-	serde.RegisterType[syscall.Errno]()
-	serde.RegisterType[syscall.Fbootstraptransfer_t]()
-	serde.RegisterType[syscall.FdSet]()
-	serde.RegisterType[syscall.Flock_t]()
-	serde.RegisterType[syscall.Fsid]()
-	serde.RegisterType[syscall.Fstore_t]()
-	serde.RegisterType[syscall.ICMPv6Filter]()
-	serde.RegisterType[syscall.IPMreq]()
-	serde.RegisterType[syscall.IPv6MTUInfo]()
-	serde.RegisterType[syscall.IPv6Mreq]()
-	serde.RegisterType[syscall.IfData]()
-	serde.RegisterType[syscall.IfMsghdr]()
-	serde.RegisterType[syscall.IfaMsghdr]()
-	serde.RegisterType[syscall.IfmaMsghdr]()
-	serde.RegisterType[syscall.IfmaMsghdr2]()
-	serde.RegisterType[syscall.Inet4Pktinfo]()
-	serde.RegisterType[syscall.Inet6Pktinfo]()
-	serde.RegisterType[syscall.InterfaceAddrMessage]()
-	serde.RegisterType[syscall.InterfaceMessage]()
-	serde.RegisterType[syscall.InterfaceMulticastAddrMessage]()
-	serde.RegisterType[syscall.Iovec]()
-	serde.RegisterType[syscall.Kevent_t]()
-	serde.RegisterType[syscall.Linger]()
-	serde.RegisterType[syscall.Log2phys_t]()
-	serde.RegisterType[syscall.Msghdr]()
-	serde.RegisterType[syscall.ProcAttr]()
-	serde.RegisterType[syscall.Radvisory_t]()
-	serde.RegisterType[syscall.RawSockaddr]()
-	serde.RegisterType[syscall.RawSockaddrAny]()
-	serde.RegisterType[syscall.RawSockaddrDatalink]()
-	serde.RegisterType[syscall.RawSockaddrInet4]()
-	serde.RegisterType[syscall.RawSockaddrInet6]()
-	serde.RegisterType[syscall.RawSockaddrUnix]()
-	serde.RegisterType[syscall.Rlimit]()
-	serde.RegisterType[syscall.RouteMessage]()
-	serde.RegisterType[syscall.RtMetrics]()
-	serde.RegisterType[syscall.RtMsghdr]()
-	serde.RegisterType[syscall.Rusage]()
-	serde.RegisterType[syscall.Signal]()
-	serde.RegisterType[syscall.SockaddrDatalink]()
-	serde.RegisterType[syscall.SockaddrInet4]()
-	serde.RegisterType[syscall.SockaddrInet6]()
-	serde.RegisterType[syscall.SockaddrUnix]()
-	serde.RegisterType[syscall.SocketControlMessage]()
-	serde.RegisterType[syscall.Stat_t]()
-	serde.RegisterType[syscall.Statfs_t]()
-	serde.RegisterType[syscall.SysProcAttr]()
-	serde.RegisterType[syscall.Termios]()
-	serde.RegisterType[syscall.Timespec]()
-	serde.RegisterType[syscall.Timeval]()
-	serde.RegisterType[syscall.Timeval32]()
-	serde.RegisterType[syscall.WaitStatus]()
-	serde.RegisterType[time.Duration]()
-	serde.RegisterType[time.Location]()
-	serde.RegisterType[time.Month]()
-	serde.RegisterType[time.ParseError]()
-	serde.RegisterType[time.Ticker]()
-	serde.RegisterType[time.Time]()
-	serde.RegisterType[time.Timer]()
-	serde.RegisterType[time.Weekday]()
 }
