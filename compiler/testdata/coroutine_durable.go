@@ -13,8 +13,10 @@ import (
 func SomeFunctionThatShouldExistInTheCompiledFile() {
 }
 
+//go:noinline
 func Identity(n int) { coroutine.Yield[int, any](n) }
 
+//go:noinline
 func SquareGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -44,6 +46,7 @@ func SquareGenerator(n int) {
 	}
 }
 
+//go:noinline
 func SquareGeneratorTwice(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -68,6 +71,7 @@ func SquareGeneratorTwice(n int) {
 	}
 }
 
+//go:noinline
 func SquareGeneratorTwiceLoop(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -97,6 +101,7 @@ func SquareGeneratorTwiceLoop(n int) {
 	}
 }
 
+//go:noinline
 func EvenSquareGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -138,6 +143,7 @@ func EvenSquareGenerator(n int) {
 	}
 }
 
+//go:noinline
 func NestedLoops(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -191,6 +197,7 @@ func NestedLoops(n int) {
 	}
 }
 
+//go:noinline
 func FizzBuzzIfGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -244,6 +251,7 @@ func FizzBuzzIfGenerator(n int) {
 	}
 }
 
+//go:noinline
 func FizzBuzzSwitchGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -319,6 +327,7 @@ func FizzBuzzSwitchGenerator(n int) {
 	}
 }
 
+//go:noinline
 func Shadowing(_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -672,6 +681,7 @@ func Shadowing(_ int) {
 	}
 }
 
+//go:noinline
 func RangeSliceIndexGenerator(_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -711,6 +721,7 @@ func RangeSliceIndexGenerator(_ int) {
 	}
 }
 
+//go:noinline
 func RangeArrayIndexValueGenerator(_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -762,6 +773,7 @@ func RangeArrayIndexValueGenerator(_ int) {
 	}
 }
 
+//go:noinline
 func TypeSwitchingGenerator(_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -835,6 +847,7 @@ func TypeSwitchingGenerator(_ int) {
 	}
 }
 
+//go:noinline
 func LoopBreakAndContinue(_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -983,6 +996,7 @@ func LoopBreakAndContinue(_ int) {
 	}
 }
 
+//go:noinline
 func RangeOverMaps(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -1334,6 +1348,7 @@ func RangeOverMaps(n int) {
 	}
 }
 
+//go:noinline
 func Range(n int, do func(int)) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -1367,6 +1382,7 @@ func Range(n int, do func(int)) {
 	}
 }
 
+//go:noinline
 func Double(n int) { coroutine.Yield[int, any](2 * n) }
 
 //go:noinline
@@ -1374,6 +1390,7 @@ func RangeTriple(n int) {
 	Range(n, func(i int) { coroutine.Yield[int, any](3 * i) })
 }
 
+//go:noinline
 func RangeTripleFuncValue(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -1404,6 +1421,53 @@ func RangeTripleFuncValue(n int) {
 	}
 }
 
+//go:noinline
+func RangeReverseClosureCaptureByValue(n int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f, _fp := _c.Push()
+	var _o0 int
+	var _o1 func()
+	if _f.IP > 0 {
+		n = _f.Get(0).(int)
+		_o0 = _f.Get(1).(int)
+		if _v := _f.Get(2); _v != nil {
+			_o1 = _v.(func())
+		}
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, n)
+			_f.Set(1, _o0)
+			_f.Set(2, _o1)
+			_c.Store(_fp, _f)
+		} else {
+			_c.Pop()
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		_o0 = 0
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 3:
+		_o1 = func() { coroutine.Yield[int, any](n - (_o0 + 1)) }
+		_f.IP = 3
+		fallthrough
+	case _f.IP < 5:
+		for ; _o0 < n; _f.IP = 3 {
+			switch {
+			case _f.IP < 4:
+				_o1()
+				_f.IP = 4
+				fallthrough
+			case _f.IP < 5:
+				_o0++
+			}
+		}
+	}
+}
+
+//go:noinline
 func Range10ClosureCapturingValues() {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -1502,6 +1566,7 @@ func Range10ClosureCapturingValues() {
 	}
 }
 
+//go:noinline
 func Range10ClosureCapturingPointers() {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -1614,6 +1679,7 @@ func Range10ClosureCapturingPointers() {
 	}
 }
 
+//go:noinline
 func Range10ClosureHeterogenousCapture() {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -1828,6 +1894,7 @@ func Range10ClosureHeterogenousCapture() {
 	}
 }
 
+//go:noinline
 func Range10Heterogenous() {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -1936,6 +2003,7 @@ func Range10Heterogenous() {
 	}
 }
 
+//go:noinline
 func Select(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -2232,6 +2300,7 @@ func Select(n int) {
 	}
 }
 
+//go:noinline
 func YieldingExpressionDesugaring() {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -2653,6 +2722,7 @@ func YieldingExpressionDesugaring() {
 	}
 }
 
+//go:noinline
 func a(v int) (_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -2678,6 +2748,7 @@ func a(v int) (_ int) {
 	return
 }
 
+//go:noinline
 func b(v int) (_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
@@ -2703,6 +2774,7 @@ func b(v int) (_ int) {
 	return
 }
 
+//go:noinline
 func YieldingDurations() {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
