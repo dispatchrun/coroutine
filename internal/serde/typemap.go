@@ -105,14 +105,3 @@ func (m *doublemap[K, V]) Add(k K, v V) V {
 	m.fromV[v] = k
 	return v
 }
-
-type set[T comparable] map[T]struct{}
-
-func (s set[T]) has(x T) bool {
-	_, ok := s[x]
-	return ok
-}
-
-func (s set[T]) add(x T) {
-	s[x] = struct{}{}
-}
