@@ -486,3 +486,17 @@ func b(v int) int {
 	coroutine.Yield[int, any](-v)
 	return v
 }
+
+func YieldingDurations() {
+	t := new(time.Duration)
+	*t = time.Duration(100)
+
+	f := func() {
+		i := int(t.Nanoseconds())
+		*t = time.Duration(i + 1)
+		coroutine.Yield[int, any](i)
+	}
+	for i := 0; i < 10; i++ {
+		f()
+	}
+}

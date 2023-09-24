@@ -7,9 +7,11 @@ import (
 	"go/types"
 	"slices"
 	"strconv"
+
+	"golang.org/x/tools/go/packages"
 )
 
-func typeExpr(p *types.Package, typ types.Type) ast.Expr {
+func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
 	switch t := typ.(type) {
 	case *types.Basic:
 		switch t {
@@ -57,10 +59,17 @@ func typeExpr(p *types.Package, typ types.Type) ast.Expr {
 		obj := t.Obj()
 		name := ast.NewIdent(obj.Name())
 		pkg := obj.Pkg()
-		if pkg == nil || p == pkg {
+		if pkg == nil || p.Types == pkg {
 			return name
 		}
-		return &ast.SelectorExpr{X: ast.NewIdent(pkg.Name()), Sel: name}
+
+		// Update the package's type map to track that this package is
+		// imported with this identifier. We do not attempt to reuse
+		// identifiers at the moment.
+		pkgident := ast.NewIdent(pkg.Name())
+		p.TypesInfo.Uses[pkgident] = types.NewPkgName(pkgident.NamePos, p.Types, pkgident.Name, pkg)
+
+		return &ast.SelectorExpr{X: pkgident, Sel: name}
 	case *types.Chan:
 		c := &ast.ChanType{
 			Value: typeExpr(p, t.Elem()),
@@ -78,20 +87,20 @@ func typeExpr(p *types.Package, typ types.Type) ast.Expr {
 	panic(fmt.Sprintf("not implemented: %T", typ))
 }
 
-func newFuncType(p *types.Package, signature *types.Signature) *ast.FuncType {
+func newFuncType(p *packages.Package, signature *types.Signature) *ast.FuncType {
 	return &ast.FuncType{
 		Params:  newFieldList(p, signature.Params()),
 		Results: newFieldList(p, signature.Results()),
 	}
 }
 
-func newFieldList(p *types.Package, tuple *types.Tuple) *ast.FieldList {
+func newFieldList(p *packages.Package, tuple *types.Tuple) *ast.FieldList {
 	return &ast.FieldList{
 		List: newFields(p, tuple),
 	}
 }
 
-func newFields(p *types.Package, tuple *types.Tuple) []*ast.Field {
+func newFields(p *packages.Package, tuple *types.Tuple) []*ast.Field {
 	fields := make([]*ast.Field, tuple.Len())
 	for i := range fields {
 		fields[i] = &ast.Field{
