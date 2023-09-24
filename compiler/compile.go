@@ -491,41 +491,69 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	// particular f.IP need to be restored.
 	var restoreStmts []ast.Stmt
 	for i, name := range saveAndRestoreNames {
+		t := saveAndRestoreTypes[i]
+		var needNilGuard bool
+		switch t.Underlying().(type) {
+		case *types.Basic, *types.Struct, *types.Array:
+		default:
+			needNilGuard = true
+		}
+
 		value := ast.NewIdent("_v")
-		restoreStmts = append(restoreStmts,
-			// Generate a guard in case a value of nil was stored when unwinding.
-			// TODO: the guard isn't needed in all cases (e.g. with primitive types
-			//  which can never be nil). Remove the guard unless necessary
-			&ast.IfStmt{
-				Init: &ast.AssignStmt{
-					Lhs: []ast.Expr{value},
-					Tok: token.DEFINE,
+		if needNilGuard {
+			restoreStmts = append(restoreStmts,
+				&ast.IfStmt{
+					Init: &ast.AssignStmt{
+						Lhs: []ast.Expr{value},
+						Tok: token.DEFINE,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   frame,
+									Sel: ast.NewIdent("Get"),
+								},
+								Args: []ast.Expr{
+									&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
+								},
+							},
+						},
+					},
+					Cond: &ast.BinaryExpr{X: value, Op: token.NEQ, Y: ast.NewIdent("nil")},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.AssignStmt{
+								Lhs: []ast.Expr{name},
+								Tok: token.ASSIGN,
+								Rhs: []ast.Expr{
+									&ast.TypeAssertExpr{X: value, Type: typeExpr(p.Types, saveAndRestoreTypes[i])},
+								},
+							},
+						},
+					},
+				},
+			)
+		} else {
+			restoreStmts = append(restoreStmts,
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{name},
+					Tok: token.ASSIGN,
 					Rhs: []ast.Expr{
-						&ast.CallExpr{
-							Fun: &ast.SelectorExpr{
-								X:   frame,
-								Sel: ast.NewIdent("Get"),
+						&ast.TypeAssertExpr{
+							X: &ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   frame,
+									Sel: ast.NewIdent("Get"),
+								},
+								Args: []ast.Expr{
+									&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
+								},
 							},
-							Args: []ast.Expr{
-								&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
-							},
+							Type: typeExpr(p.Types, t),
 						},
 					},
 				},
-				Cond: &ast.BinaryExpr{X: value, Op: token.NEQ, Y: ast.NewIdent("nil")},
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						&ast.AssignStmt{
-							Lhs: []ast.Expr{name},
-							Tok: token.ASSIGN,
-							Rhs: []ast.Expr{
-								&ast.TypeAssertExpr{X: value, Type: typeExpr(p.Types, saveAndRestoreTypes[i])},
-							},
-						},
-					},
-				},
-			},
-		)
+			)
+		}
 	}
 	gen.List = append(gen.List, &ast.IfStmt{
 		Cond: &ast.BinaryExpr{

@@ -25,12 +25,8 @@ func SquareGenerator(n int) {
 	_f, _fp := _c.Push()
 	var _o0 int
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			n = _v.(int)
-		}
-		if _v := _f.Get(1); _v != nil {
-			_o0 = _v.(int)
-		}
+		n = _f.Get(0).(int)
+		_o0 = _f.Get(1).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -57,9 +53,7 @@ func SquareGeneratorTwice(n int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			n = _v.(int)
-		}
+		n = _f.Get(0).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -84,12 +78,8 @@ func SquareGeneratorTwiceLoop(n int) {
 	_f, _fp := _c.Push()
 	var _o0 int
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			n = _v.(int)
-		}
-		if _v := _f.Get(1); _v != nil {
-			_o0 = _v.(int)
-		}
+		n = _f.Get(0).(int)
+		_o0 = _f.Get(1).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -118,15 +108,9 @@ func EvenSquareGenerator(n int) {
 	var _o0 int
 	var _o1 int
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			n = _v.(int)
-		}
-		if _v := _f.Get(1); _v != nil {
-			_o0 = _v.(int)
-		}
-		if _v := _f.Get(2); _v != nil {
-			_o1 = _v.(int)
-		}
+		n = _f.Get(0).(int)
+		_o0 = _f.Get(1).(int)
+		_o1 = _f.Get(2).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -166,18 +150,10 @@ func NestedLoops(n int) {
 	var _o1 int
 	var _o2 int
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			n = _v.(int)
-		}
-		if _v := _f.Get(1); _v != nil {
-			_o0 = _v.(int)
-		}
-		if _v := _f.Get(2); _v != nil {
-			_o1 = _v.(int)
-		}
-		if _v := _f.Get(3); _v != nil {
-			_o2 = _v.(int)
-		}
+		n = _f.Get(0).(int)
+		_o0 = _f.Get(1).(int)
+		_o1 = _f.Get(2).(int)
+		_o2 = _f.Get(3).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -226,16 +202,10 @@ func FizzBuzzIfGenerator(n int) {
 	var _o0 int
 	var _o1 int
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			n = _v.(int)
-		}
-		if _v := _f.Get(1); _v != nil {
-			_o0 = _v.(int)
-		}
-		if _v := _f.Get(2); _v != nil {
+		n = _f.Get(0).(int)
+		_o0 = _f.Get(1).(int)
 
-			_o1 = _v.(int)
-		}
+		_o1 = _f.Get(2).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -287,21 +257,11 @@ func FizzBuzzSwitchGenerator(n int) {
 	var _o2 bool
 	var _o3 bool
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			n = _v.(int)
-		}
-		if _v := _f.Get(1); _v != nil {
-			_o0 = _v.(int)
-		}
-		if _v := _f.Get(2); _v != nil {
-			_o1 = _v.(bool)
-		}
-		if _v := _f.Get(3); _v != nil {
-			_o2 = _v.(bool)
-		}
-		if _v := _f.Get(4); _v != nil {
-			_o3 = _v.(bool)
-		}
+		n = _f.Get(0).(int)
+		_o0 = _f.Get(1).(int)
+		_o1 = _f.Get(2).(bool)
+		_o2 = _f.Get(3).(bool)
+		_o3 = _f.Get(4).(bool)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -407,84 +367,38 @@ func Shadowing(_ int) {
 	var _o30 uintptr
 	var _o31 int
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			_o0 = _v.(int)
-		}
-		if _v := _f.Get(1); _v != nil {
+		_o0 = _f.Get(0).(int)
 
-			_o1 = _v.(int)
-		}
-		if _v := _f.Get(2); _v != nil {
+		_o1 = _f.Get(1).(int)
 
-			_o2 = _v.(int)
-		}
-		if _v := _f.Get(3); _v != nil {
+		_o2 = _f.Get(2).(int)
 
-			_o3 = _v.(int)
-		}
-		if _v := _f.Get(4); _v != nil {
-			_o4 = _v.(int)
-		}
-		if _v := _f.Get(5); _v != nil {
-			_o5 = _v.(bool)
-		}
-		if _v := _f.Get(6); _v != nil {
+		_o3 = _f.Get(3).(int)
+		_o4 = _f.Get(4).(int)
+		_o5 = _f.Get(5).(bool)
 
-			_o6 = _v.(int)
-		}
-		if _v := _f.Get(7); _v != nil {
-			_o7 = _v.(int)
-		}
-		if _v := _f.Get(8); _v != nil {
+		_o6 = _f.Get(6).(int)
+		_o7 = _f.Get(7).(int)
 
-			_o8 = _v.(int)
-		}
-		if _v := _f.Get(9); _v != nil {
+		_o8 = _f.Get(8).(int)
 
-			_o9 = _v.(int)
-		}
-		if _v := _f.Get(10); _v != nil {
+		_o9 = _f.Get(9).(int)
 
-			_o10 = _v.(int)
-		}
-		if _v := _f.Get(11); _v != nil {
+		_o10 = _f.Get(10).(int)
 
-			_o11 = _v.(int)
-		}
-		if _v := _f.Get(12); _v != nil {
+		_o11 = _f.Get(11).(int)
 
-			_o14 = _v.(int)
-		}
-		if _v := _f.Get(13); _v != nil {
-			_o17 = _v.(uintptr)
-		}
-		if _v := _f.Get(14); _v != nil {
-			_o18 = _v.(int)
-		}
-		if _v := _f.Get(15); _v != nil {
-			_o19 = _v.(uintptr)
-		}
-		if _v := _f.Get(16); _v != nil {
-			_o20 = _v.(int)
-		}
-		if _v := _f.Get(17); _v != nil {
-			_o24 = _v.(uintptr)
-		}
-		if _v := _f.Get(18); _v != nil {
-			_o25 = _v.(int)
-		}
-		if _v := _f.Get(19); _v != nil {
-			_o28 = _v.(uintptr)
-		}
-		if _v := _f.Get(20); _v != nil {
-			_o29 = _v.(int)
-		}
-		if _v := _f.Get(21); _v != nil {
-			_o30 = _v.(uintptr)
-		}
-		if _v := _f.Get(22); _v != nil {
-			_o31 = _v.(int)
-		}
+		_o14 = _f.Get(12).(int)
+		_o17 = _f.Get(13).(uintptr)
+		_o18 = _f.Get(14).(int)
+		_o19 = _f.Get(15).(uintptr)
+		_o20 = _f.Get(16).(int)
+		_o24 = _f.Get(17).(uintptr)
+		_o25 = _f.Get(18).(int)
+		_o28 = _f.Get(19).(uintptr)
+		_o29 = _f.Get(20).(int)
+		_o30 = _f.Get(21).(uintptr)
+		_o31 = _f.Get(22).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -772,9 +686,7 @@ func RangeSliceIndexGenerator(_ int) {
 		if _v := _f.Get(0); _v != nil {
 			_o0 = _v.([]int)
 		}
-		if _v := _f.Get(1); _v != nil {
-			_o1 = _v.(int)
-		}
+		_o1 = _f.Get(1).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -811,15 +723,9 @@ func RangeArrayIndexValueGenerator(_ int) {
 	var _o1 int
 	var _o2 int
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			_o0 = _v.([3]int)
-		}
-		if _v := _f.Get(1); _v != nil {
-			_o1 = _v.(int)
-		}
-		if _v := _f.Get(2); _v != nil {
-			_o2 = _v.(int)
-		}
+		_o0 = _f.Get(0).([3]int)
+		_o1 = _f.Get(1).(int)
+		_o2 = _f.Get(2).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -871,9 +777,7 @@ func TypeSwitchingGenerator(_ int) {
 		if _v := _f.Get(0); _v != nil {
 			_o0 = _v.([]any)
 		}
-		if _v := _f.Get(1); _v != nil {
-			_o1 = _v.(int)
-		}
+		_o1 = _f.Get(1).(int)
 		if _v := _f.Get(2); _v != nil {
 			_o2 = _v.(any)
 		}
@@ -950,37 +854,17 @@ func LoopBreakAndContinue(_ int) {
 	var _o8 bool
 	var _o9 bool
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			_o0 = _v.(int)
-		}
-		if _v := _f.Get(1); _v != nil {
-			_o1 = _v.(int)
-		}
-		if _v := _f.Get(2); _v != nil {
+		_o0 = _f.Get(0).(int)
+		_o1 = _f.Get(1).(int)
 
-			_o2 = _v.(int)
-		}
-		if _v := _f.Get(3); _v != nil {
-			_o3 = _v.(int)
-		}
-		if _v := _f.Get(4); _v != nil {
-			_o4 = _v.(int)
-		}
-		if _v := _f.Get(5); _v != nil {
-			_o5 = _v.(bool)
-		}
-		if _v := _f.Get(6); _v != nil {
-			_o6 = _v.(bool)
-		}
-		if _v := _f.Get(7); _v != nil {
-			_o7 = _v.(int)
-		}
-		if _v := _f.Get(8); _v != nil {
-			_o8 = _v.(bool)
-		}
-		if _v := _f.Get(9); _v != nil {
-			_o9 = _v.(bool)
-		}
+		_o2 = _f.Get(2).(int)
+		_o3 = _f.Get(3).(int)
+		_o4 = _f.Get(4).(int)
+		_o5 = _f.Get(5).(bool)
+		_o6 = _f.Get(6).(bool)
+		_o7 = _f.Get(7).(int)
+		_o8 = _f.Get(8).(bool)
+		_o9 = _f.Get(9).(bool)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -1172,36 +1056,26 @@ func RangeOverMaps(n int) {
 	var _o28 int
 	var _o29 bool
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			n = _v.(int)
-		}
+		n = _f.Get(0).(int)
 		if _v := _f.Get(1); _v != nil {
 			_o0 = _v.(map[int]int)
 		}
 		if _v := _f.Get(2); _v != nil {
 			_o1 = _v.(map[int]int)
 		}
-		if _v := _f.Get(3); _v != nil {
-			_o2 = _v.(int)
-		}
+		_o2 = _f.Get(3).(int)
 		if _v := _f.Get(4); _v != nil {
 			_o3 = _v.(map[int]int)
 		}
-		if _v := _f.Get(5); _v != nil {
-			_o4 = _v.(int)
-		}
+		_o4 = _f.Get(5).(int)
 		if _v := _f.Get(6); _v != nil {
 			_o5 = _v.(map[int]int)
 		}
-		if _v := _f.Get(7); _v != nil {
-			_o6 = _v.(int)
-		}
+		_o6 = _f.Get(7).(int)
 		if _v := _f.Get(8); _v != nil {
 			_o7 = _v.(map[int]int)
 		}
-		if _v := _f.Get(9); _v != nil {
-			_o8 = _v.(int)
-		}
+		_o8 = _f.Get(9).(int)
 		if _v := _f.Get(10); _v != nil {
 			_o9 = _v.(map[int]int)
 		}
@@ -1211,16 +1085,10 @@ func RangeOverMaps(n int) {
 		if _v := _f.Get(12); _v != nil {
 			_o11 = _v.([]int)
 		}
-		if _v := _f.Get(13); _v != nil {
-			_o12 = _v.(int)
-		}
-		if _v := _f.Get(14); _v != nil {
+		_o12 = _f.Get(13).(int)
 
-			_o13 = _v.(int)
-		}
-		if _v := _f.Get(15); _v != nil {
-			_o14 = _v.(bool)
-		}
+		_o13 = _f.Get(14).(int)
+		_o14 = _f.Get(15).(bool)
 		if _v := _f.Get(16); _v != nil {
 			_o15 = _v.(map[int]int)
 		}
@@ -1230,27 +1098,17 @@ func RangeOverMaps(n int) {
 		if _v := _f.Get(18); _v != nil {
 			_o17 = _v.([]int)
 		}
-		if _v := _f.Get(19); _v != nil {
-			_o18 = _v.(int)
-		}
-		if _v := _f.Get(20); _v != nil {
+		_o18 = _f.Get(19).(int)
 
-			_o19 = _v.(int)
-		}
-		if _v := _f.Get(21); _v != nil {
-			_o20 = _v.(int)
-		}
-		if _v := _f.Get(22); _v != nil {
-			_o21 = _v.(bool)
-		}
+		_o19 = _f.Get(20).(int)
+		_o20 = _f.Get(21).(int)
+		_o21 = _f.Get(22).(bool)
 		if _v := _f.Get(23); _v != nil {
 
 			_o22 = _v.(map[int]struct {
 			})
 		}
-		if _v := _f.Get(24); _v != nil {
-			_o23 = _v.(int)
-		}
+		_o23 = _f.Get(24).(int)
 		if _v := _f.Get(25); _v != nil {
 			_o24 = _v.(map[int]struct {
 			})
@@ -1261,16 +1119,10 @@ func RangeOverMaps(n int) {
 		if _v := _f.Get(27); _v != nil {
 			_o26 = _v.([]int)
 		}
-		if _v := _f.Get(28); _v != nil {
-			_o27 = _v.(int)
-		}
-		if _v := _f.Get(29); _v != nil {
+		_o27 = _f.Get(28).(int)
 
-			_o28 = _v.(int)
-		}
-		if _v := _f.Get(30); _v != nil {
-			_o29 = _v.(bool)
-		}
+		_o28 = _f.Get(29).(int)
+		_o29 = _f.Get(30).(bool)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -1611,15 +1463,11 @@ func Range(n int, do func(int)) {
 	_f, _fp := _c.Push()
 	var _o0 int
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			n = _v.(int)
-		}
+		n = _f.Get(0).(int)
 		if _v := _f.Get(1); _v != nil {
 			do = _v.(func(int))
 		}
-		if _v := _f.Get(2); _v != nil {
-			_o0 = _v.(int)
-		}
+		_o0 = _f.Get(2).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -1655,9 +1503,7 @@ func RangeTripleFuncValue(n int) {
 	_f, _fp := _c.Push()
 	var _o0 func(int)
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			n = _v.(int)
-		}
+		n = _f.Get(0).(int)
 		if _v := _f.Get(1); _v != nil {
 			_o0 = _v.(func(int))
 		}
@@ -1691,21 +1537,13 @@ func Range10ClosureCapturingValues() {
 	var _o3 bool
 	var _o4 bool
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			_o0 = _v.(int)
-		}
-		if _v := _f.Get(1); _v != nil {
-			_o1 = _v.(int)
-		}
+		_o0 = _f.Get(0).(int)
+		_o1 = _f.Get(1).(int)
 		if _v := _f.Get(2); _v != nil {
 			_o2 = _v.(func() bool)
 		}
-		if _v := _f.Get(3); _v != nil {
-			_o3 = _v.(bool)
-		}
-		if _v := _f.Get(4); _v != nil {
-			_o4 = _v.(bool)
-		}
+		_o3 = _f.Get(3).(bool)
+		_o4 = _f.Get(4).(bool)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -1799,12 +1637,8 @@ func Range10ClosureCapturingPointers() {
 	var _o5 bool
 	var _o6 bool
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			_o0 = _v.(int)
-		}
-		if _v := _f.Get(1); _v != nil {
-			_o1 = _v.(int)
-		}
+		_o0 = _f.Get(0).(int)
+		_o1 = _f.Get(1).(int)
 		if _v := _f.Get(2); _v != nil {
 			_o2 = _v.(*int)
 		}
@@ -1814,12 +1648,8 @@ func Range10ClosureCapturingPointers() {
 		if _v := _f.Get(4); _v != nil {
 			_o4 = _v.(func() bool)
 		}
-		if _v := _f.Get(5); _v != nil {
-			_o5 = _v.(bool)
-		}
-		if _v := _f.Get(6); _v != nil {
-			_o6 = _v.(bool)
-		}
+		_o5 = _f.Get(5).(bool)
+		_o6 = _f.Get(6).(bool)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -1926,49 +1756,25 @@ func Range10ClosureHeterogenousCapture() {
 	var _o25 bool
 	var _o26 bool
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			_o13 = _v.(int8)
-		}
-		if _v := _f.Get(1); _v != nil {
-			_o14 = _v.(int16)
-		}
-		if _v := _f.Get(2); _v != nil {
-			_o15 = _v.(int32)
-		}
-		if _v := _f.Get(3); _v != nil {
-			_o16 = _v.(int64)
-		}
-		if _v := _f.Get(4); _v != nil {
-			_o17 = _v.(uint8)
-		}
-		if _v := _f.Get(5); _v != nil {
-			_o18 = _v.(uint16)
-		}
-		if _v := _f.Get(6); _v != nil {
-			_o19 = _v.(uint32)
-		}
-		if _v := _f.Get(7); _v != nil {
-			_o20 = _v.(uint64)
-		}
-		if _v := _f.Get(8); _v != nil {
-			_o21 = _v.(uintptr)
-		}
+		_o13 = _f.Get(0).(int8)
+		_o14 = _f.Get(1).(int16)
+		_o15 = _f.Get(2).(int32)
+		_o16 = _f.Get(3).(int64)
+		_o17 = _f.Get(4).(uint8)
+		_o18 = _f.Get(5).(uint16)
+		_o19 = _f.Get(6).(uint32)
+		_o20 = _f.Get(7).(uint64)
+		_o21 = _f.Get(8).(uintptr)
 		if _v := _f.Get(9); _v != nil {
 			_o22 = _v.(func() int)
 		}
-		if _v := _f.Get(10); _v != nil {
 
-			_o23 = _v.(int)
-		}
+		_o23 = _f.Get(10).(int)
 		if _v := _f.Get(11); _v != nil {
 			_o24 = _v.(func() bool)
 		}
-		if _v := _f.Get(12); _v != nil {
-			_o25 = _v.(bool)
-		}
-		if _v := _f.Get(13); _v != nil {
-			_o26 = _v.(bool)
-		}
+		_o25 = _f.Get(12).(bool)
+		_o26 = _f.Get(13).(bool)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -2058,45 +1864,19 @@ func Range10ClosureHeterogenousCapture() {
 			var _o11 bool
 			var _o12 int
 			if _f.IP > 0 {
-				if _v := _f.Get(0); _v != nil {
-					_o0 = _v.(int)
-				}
-				if _v := _f.Get(1); _v != nil {
-					_o1 = _v.(int)
-				}
-				if _v := _f.Get(2); _v != nil {
-					_o2 = _v.(bool)
-				}
-				if _v := _f.Get(3); _v != nil {
-					_o3 = _v.(bool)
-				}
-				if _v := _f.Get(4); _v != nil {
-					_o4 = _v.(bool)
-				}
-				if _v := _f.Get(5); _v != nil {
-					_o5 = _v.(bool)
-				}
-				if _v := _f.Get(6); _v != nil {
-					_o6 = _v.(bool)
-				}
-				if _v := _f.Get(7); _v != nil {
-					_o7 = _v.(bool)
-				}
-				if _v := _f.Get(8); _v != nil {
-					_o8 = _v.(bool)
-				}
-				if _v := _f.Get(9); _v != nil {
-					_o9 = _v.(bool)
-				}
-				if _v := _f.Get(10); _v != nil {
-					_o10 = _v.(bool)
-				}
-				if _v := _f.Get(11); _v != nil {
-					_o11 = _v.(bool)
-				}
-				if _v := _f.Get(12); _v != nil {
-					_o12 = _v.(int)
-				}
+				_o0 = _f.Get(0).(int)
+				_o1 = _f.Get(1).(int)
+				_o2 = _f.Get(2).(bool)
+				_o3 = _f.Get(3).(bool)
+				_o4 = _f.Get(4).(bool)
+				_o5 = _f.Get(5).(bool)
+				_o6 = _f.Get(6).(bool)
+				_o7 = _f.Get(7).(bool)
+				_o8 = _f.Get(8).(bool)
+				_o9 = _f.Get(9).(bool)
+				_o10 = _f.Get(10).(bool)
+				_o11 = _f.Get(11).(bool)
+				_o12 = _f.Get(12).(int)
 			}
 			defer func() {
 				if _c.Unwinding() {
@@ -2324,73 +2104,29 @@ func Range10Heterogenous() {
 	var _o20 bool
 	var _o21 bool
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			_o0 = _v.(int8)
-		}
-		if _v := _f.Get(1); _v != nil {
-			_o1 = _v.(int16)
-		}
-		if _v := _f.Get(2); _v != nil {
-			_o2 = _v.(int32)
-		}
-		if _v := _f.Get(3); _v != nil {
-			_o3 = _v.(int64)
-		}
-		if _v := _f.Get(4); _v != nil {
-			_o4 = _v.(uint8)
-		}
-		if _v := _f.Get(5); _v != nil {
-			_o5 = _v.(uint16)
-		}
-		if _v := _f.Get(6); _v != nil {
-			_o6 = _v.(uint32)
-		}
-		if _v := _f.Get(7); _v != nil {
-			_o7 = _v.(uint64)
-		}
-		if _v := _f.Get(8); _v != nil {
-			_o8 = _v.(uintptr)
-		}
-		if _v := _f.Get(9); _v != nil {
+		_o0 = _f.Get(0).(int8)
+		_o1 = _f.Get(1).(int16)
+		_o2 = _f.Get(2).(int32)
+		_o3 = _f.Get(3).(int64)
+		_o4 = _f.Get(4).(uint8)
+		_o5 = _f.Get(5).(uint16)
+		_o6 = _f.Get(6).(uint32)
+		_o7 = _f.Get(7).(uint64)
+		_o8 = _f.Get(8).(uintptr)
 
-			_o9 = _v.(int)
-		}
-		if _v := _f.Get(10); _v != nil {
-			_o10 = _v.(int)
-		}
-		if _v := _f.Get(11); _v != nil {
-			_o11 = _v.(int)
-		}
-		if _v := _f.Get(12); _v != nil {
-			_o12 = _v.(bool)
-		}
-		if _v := _f.Get(13); _v != nil {
-			_o13 = _v.(bool)
-		}
-		if _v := _f.Get(14); _v != nil {
-			_o14 = _v.(bool)
-		}
-		if _v := _f.Get(15); _v != nil {
-			_o15 = _v.(bool)
-		}
-		if _v := _f.Get(16); _v != nil {
-			_o16 = _v.(bool)
-		}
-		if _v := _f.Get(17); _v != nil {
-			_o17 = _v.(bool)
-		}
-		if _v := _f.Get(18); _v != nil {
-			_o18 = _v.(bool)
-		}
-		if _v := _f.Get(19); _v != nil {
-			_o19 = _v.(bool)
-		}
-		if _v := _f.Get(20); _v != nil {
-			_o20 = _v.(bool)
-		}
-		if _v := _f.Get(21); _v != nil {
-			_o21 = _v.(bool)
-		}
+		_o9 = _f.Get(9).(int)
+		_o10 = _f.Get(10).(int)
+		_o11 = _f.Get(11).(int)
+		_o12 = _f.Get(12).(bool)
+		_o13 = _f.Get(13).(bool)
+		_o14 = _f.Get(14).(bool)
+		_o15 = _f.Get(15).(bool)
+		_o16 = _f.Get(16).(bool)
+		_o17 = _f.Get(17).(bool)
+		_o18 = _f.Get(18).(bool)
+		_o19 = _f.Get(19).(bool)
+		_o20 = _f.Get(20).(bool)
+		_o21 = _f.Get(21).(bool)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -2638,68 +2374,36 @@ func Select(n int) {
 	var _o17 bool
 	var _o18 int
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			n = _v.(int)
-		}
-		if _v := _f.Get(1); _v != nil {
-			_o0 = _v.(int)
-		}
-		if _v := _f.Get(2); _v != nil {
-			_o1 = _v.(int)
-		}
-		if _v := _f.Get(3); _v != nil {
-			_o2 = _v.(bool)
-		}
-		if _v := _f.Get(4); _v != nil {
+		n = _f.Get(0).(int)
+		_o0 = _f.Get(1).(int)
+		_o1 = _f.Get(2).(int)
+		_o2 = _f.Get(3).(bool)
 
-			_o3 = _v.(int)
-		}
-		if _v := _f.Get(5); _v != nil {
-			_o4 = _v.(int)
-		}
+		_o3 = _f.Get(4).(int)
+		_o4 = _f.Get(5).(int)
 		if _v := _f.Get(6); _v != nil {
 			_o5 = _v.(<-chan time.Time)
 		}
 		if _v := _f.Get(7); _v != nil {
 			_o6 = _v.(<-chan time.Time)
 		}
-		if _v := _f.Get(8); _v != nil {
-			_o7 = _v.(int)
-		}
-		if _v := _f.Get(9); _v != nil {
-			_o8 = _v.(bool)
-		}
-		if _v := _f.Get(10); _v != nil {
-			_o9 = _v.(bool)
-		}
-		if _v := _f.Get(11); _v != nil {
-			_o10 = _v.(int)
-		}
+		_o7 = _f.Get(8).(int)
+		_o8 = _f.Get(9).(bool)
+		_o9 = _f.Get(10).(bool)
+		_o10 = _f.Get(11).(int)
 		if _v := _f.Get(12); _v != nil {
 			_o11 = _v.(<-chan time.Time)
 		}
-		if _v := _f.Get(13); _v != nil {
-			_o12 = _v.(int)
-		}
-		if _v := _f.Get(14); _v != nil {
-			_o13 = _v.(bool)
-		}
-		if _v := _f.Get(15); _v != nil {
-			_o14 = _v.(int)
-		}
+		_o12 = _f.Get(13).(int)
+		_o13 = _f.Get(14).(bool)
+		_o14 = _f.Get(15).(int)
 		if _v := _f.Get(16); _v != nil {
 			_o15 = _v.(<-chan time.Time)
 		}
-		if _v := _f.Get(17); _v != nil {
-			_o16 = _v.(int)
-		}
-		if _v := _f.Get(18); _v != nil {
-			_o17 = _v.(bool)
-		}
-		if _v := _f.Get(19); _v != nil {
+		_o16 = _f.Get(17).(int)
+		_o17 = _f.Get(18).(bool)
 
-			_o18 = _v.(int)
-		}
+		_o18 = _f.Get(19).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -2999,134 +2703,50 @@ func YieldingExpressionDesugaring() {
 	var _o41 int
 	var _o42 any
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			_o0 = _v.(int)
-		}
-		if _v := _f.Get(1); _v != nil {
-			_o1 = _v.(int)
-		}
-		if _v := _f.Get(2); _v != nil {
-			_o2 = _v.(int)
-		}
-		if _v := _f.Get(3); _v != nil {
-			_o3 = _v.(int)
-		}
-		if _v := _f.Get(4); _v != nil {
-			_o4 = _v.(bool)
-		}
-		if _v := _f.Get(5); _v != nil {
-			_o5 = _v.(int)
-		}
-		if _v := _f.Get(6); _v != nil {
-			_o6 = _v.(int)
-		}
-		if _v := _f.Get(7); _v != nil {
-			_o7 = _v.(int)
-		}
-		if _v := _f.Get(8); _v != nil {
-			_o8 = _v.(int)
-		}
-		if _v := _f.Get(9); _v != nil {
-			_o9 = _v.(int)
-		}
-		if _v := _f.Get(10); _v != nil {
-			_o10 = _v.(bool)
-		}
-		if _v := _f.Get(11); _v != nil {
-			_o11 = _v.(int)
-		}
-		if _v := _f.Get(12); _v != nil {
-			_o12 = _v.(int)
-		}
-		if _v := _f.Get(13); _v != nil {
-			_o13 = _v.(int)
-		}
-		if _v := _f.Get(14); _v != nil {
-			_o14 = _v.(int)
-		}
-		if _v := _f.Get(15); _v != nil {
-			_o15 = _v.(int)
-		}
-		if _v := _f.Get(16); _v != nil {
-			_o16 = _v.(bool)
-		}
-		if _v := _f.Get(17); _v != nil {
-			_o17 = _v.(int)
-		}
-		if _v := _f.Get(18); _v != nil {
+		_o0 = _f.Get(0).(int)
+		_o1 = _f.Get(1).(int)
+		_o2 = _f.Get(2).(int)
+		_o3 = _f.Get(3).(int)
+		_o4 = _f.Get(4).(bool)
+		_o5 = _f.Get(5).(int)
+		_o6 = _f.Get(6).(int)
+		_o7 = _f.Get(7).(int)
+		_o8 = _f.Get(8).(int)
+		_o9 = _f.Get(9).(int)
+		_o10 = _f.Get(10).(bool)
+		_o11 = _f.Get(11).(int)
+		_o12 = _f.Get(12).(int)
+		_o13 = _f.Get(13).(int)
+		_o14 = _f.Get(14).(int)
+		_o15 = _f.Get(15).(int)
+		_o16 = _f.Get(16).(bool)
+		_o17 = _f.Get(17).(int)
 
-			_o18 = _v.(int)
-		}
-		if _v := _f.Get(19); _v != nil {
-			_o19 = _v.(int)
-		}
-		if _v := _f.Get(20); _v != nil {
-			_o20 = _v.(int)
-		}
-		if _v := _f.Get(21); _v != nil {
-			_o21 = _v.(bool)
-		}
-		if _v := _f.Get(22); _v != nil {
-			_o22 = _v.(bool)
-		}
-		if _v := _f.Get(23); _v != nil {
-			_o23 = _v.(int)
-		}
-		if _v := _f.Get(24); _v != nil {
+		_o18 = _f.Get(18).(int)
+		_o19 = _f.Get(19).(int)
+		_o20 = _f.Get(20).(int)
+		_o21 = _f.Get(21).(bool)
+		_o22 = _f.Get(22).(bool)
+		_o23 = _f.Get(23).(int)
 
-			_o24 = _v.(int)
-		}
-		if _v := _f.Get(25); _v != nil {
-			_o25 = _v.(int)
-		}
-		if _v := _f.Get(26); _v != nil {
-			_o26 = _v.(int)
-		}
-		if _v := _f.Get(27); _v != nil {
-			_o27 = _v.(int)
-		}
-		if _v := _f.Get(28); _v != nil {
-			_o28 = _v.(bool)
-		}
-		if _v := _f.Get(29); _v != nil {
-			_o29 = _v.(int)
-		}
-		if _v := _f.Get(30); _v != nil {
-			_o30 = _v.(int)
-		}
-		if _v := _f.Get(31); _v != nil {
-			_o31 = _v.(bool)
-		}
-		if _v := _f.Get(32); _v != nil {
-			_o32 = _v.(int)
-		}
-		if _v := _f.Get(33); _v != nil {
-			_o33 = _v.(int)
-		}
-		if _v := _f.Get(34); _v != nil {
-			_o34 = _v.(int)
-		}
-		if _v := _f.Get(35); _v != nil {
-			_o35 = _v.(bool)
-		}
-		if _v := _f.Get(36); _v != nil {
-			_o36 = _v.(int)
-		}
-		if _v := _f.Get(37); _v != nil {
-			_o37 = _v.(int)
-		}
-		if _v := _f.Get(38); _v != nil {
-			_o38 = _v.(int)
-		}
-		if _v := _f.Get(39); _v != nil {
-			_o39 = _v.(bool)
-		}
-		if _v := _f.Get(40); _v != nil {
-			_o40 = _v.(int)
-		}
-		if _v := _f.Get(41); _v != nil {
-			_o41 = _v.(int)
-		}
+		_o24 = _f.Get(24).(int)
+		_o25 = _f.Get(25).(int)
+		_o26 = _f.Get(26).(int)
+		_o27 = _f.Get(27).(int)
+		_o28 = _f.Get(28).(bool)
+		_o29 = _f.Get(29).(int)
+		_o30 = _f.Get(30).(int)
+		_o31 = _f.Get(31).(bool)
+		_o32 = _f.Get(32).(int)
+		_o33 = _f.Get(33).(int)
+		_o34 = _f.Get(34).(int)
+		_o35 = _f.Get(35).(bool)
+		_o36 = _f.Get(36).(int)
+		_o37 = _f.Get(37).(int)
+		_o38 = _f.Get(38).(int)
+		_o39 = _f.Get(39).(bool)
+		_o40 = _f.Get(40).(int)
+		_o41 = _f.Get(41).(int)
 		if _v := _f.Get(42); _v != nil {
 			_o42 = _v.(any)
 		}
@@ -3462,9 +3082,7 @@ func a(v int) (_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			v = _v.(int)
-		}
+		v = _f.Get(0).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
@@ -3489,9 +3107,7 @@ func b(v int) (_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	_f, _fp := _c.Push()
 	if _f.IP > 0 {
-		if _v := _f.Get(0); _v != nil {
-			v = _v.(int)
-		}
+		v = _f.Get(0).(int)
 	}
 	defer func() {
 		if _c.Unwinding() {
