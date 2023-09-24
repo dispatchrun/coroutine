@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/go/packages"
 )
 
 func TestDesugar(t *testing.T) {
@@ -1204,7 +1205,8 @@ _l0:
 				}
 				return true
 			})
-			desugared := desugar(nil, body, info)
+			p := &packages.Package{TypesInfo: info}
+			desugared := desugar(p, body)
 			desugared = unnestBlocks(desugared)
 
 			expect := strings.TrimSpace(test.expect)

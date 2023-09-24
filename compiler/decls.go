@@ -6,6 +6,7 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/go/packages"
 )
 
 // extractDecls extracts type, constant and variable declarations
@@ -20,7 +21,7 @@ import (
 // Note that declarations are extracted from all nested scopes within the
 // function body, so there may be duplicate identifiers. Identifiers can be
 // disambiguated using (*types.Info).ObjectOf(ident).
-func extractDecls(p *types.Package, tree ast.Node, info *types.Info) (decls []*ast.GenDecl) {
+func extractDecls(p *packages.Package, tree ast.Node, info *types.Info) (decls []*ast.GenDecl) {
 	ast.Inspect(tree, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.FuncLit:

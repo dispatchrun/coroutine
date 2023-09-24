@@ -8,10 +8,11 @@ import (
 	"slices"
 	"strconv"
 
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
 )
 
-func generateFunctypes(pkg *ssa.Package, colors functionColors) *ast.File {
+func generateFunctypes(p *packages.Package, pkg *ssa.Package, colors functionColors) *ast.File {
 	var names = make([]string, 0, len(pkg.Members))
 	for name := range pkg.Members {
 		names = append(names, name)
@@ -22,11 +23,11 @@ func generateFunctypes(pkg *ssa.Package, colors functionColors) *ast.File {
 	for _, name := range names {
 		if fn, ok := pkg.Members[name].(*ssa.Function); ok {
 			name := pkg.Pkg.Path() + "." + fn.Name()
-			generateFunctypesInit(pkg, fn, &init, name, colors)
+			generateFunctypesInit(p, pkg, fn, &init, name, colors)
 		}
 	}
 
-	return &ast.File{
+	gen := &ast.File{
 		Name: ast.NewIdent(pkg.Pkg.Name()),
 		Decls: []ast.Decl{
 			&ast.GenDecl{
@@ -48,9 +49,13 @@ func generateFunctypes(pkg *ssa.Package, colors functionColors) *ast.File {
 			},
 		},
 	}
+
+	gen = addImports(p, gen)
+
+	return gen
 }
 
-func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockStmt, name string, colors functionColors) {
+func generateFunctypesInit(p *packages.Package, pkg *ssa.Package, fn *ssa.Function, init *ast.BlockStmt, name string, colors functionColors) {
 	if fn.TypeParams() != nil {
 		return // ignore non-instantiated generic functions
 	}
@@ -62,7 +67,7 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 				Sel: ast.NewIdent("RegisterFunc"),
 			},
 			Indices: []ast.Expr{
-				newFuncType(pkg.Pkg, fn.Signature),
+				newFuncType(p, fn.Signature),
 			},
 		}
 	} else {
@@ -76,7 +81,7 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 		for i, freeVar := range fn.FreeVars {
 			fields[i+1] = &ast.Field{
 				Names: []*ast.Ident{ast.NewIdent(freeVar.Name())},
-				Type:  typeExpr(pkg.Pkg, freeVar.Type()),
+				Type:  typeExpr(p, freeVar.Type()),
 			}
 		}
 
@@ -86,7 +91,7 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 				Sel: ast.NewIdent("RegisterClosure"),
 			},
 			Indices: []ast.Expr{
-				newFuncType(pkg.Pkg, fn.Signature),
+				newFuncType(p, fn.Signature),
 				&ast.StructType{
 					Fields: &ast.FieldList{
 						List: fields,
@@ -125,7 +130,7 @@ func generateFunctypesInit(pkg *ssa.Package, fn *ssa.Function, init *ast.BlockSt
 	for _, anonFunc := range anonFuncs {
 		index++
 		anonFuncName := anonFuncLinkName(name, index)
-		generateFunctypesInit(pkg, anonFunc, init, anonFuncName, colors)
+		generateFunctypesInit(p, pkg, anonFunc, init, anonFuncName, colors)
 	}
 }
 

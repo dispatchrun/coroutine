@@ -168,6 +168,12 @@ func TestCoroutineYield(t *testing.T) {
 				-15, 15, 150, // type switch
 			},
 		},
+
+		{
+			name:   "yield imported type time.Duration",
+			coro:   YieldingDurations,
+			yields: []int{100, 101, 102, 103, 104, 105, 106, 107, 108, 109},
+		},
 	}
 
 	// This emulates the installation of function type information by the
