@@ -9,6 +9,8 @@ func containsExpr(expr, contains constraint.Expr) bool {
 	switch x := expr.(type) {
 	case *constraint.AndExpr:
 		return containsExpr(x.X, contains) || containsExpr(x.Y, contains)
+	case *constraint.OrExpr:
+		return containsExpr(x.X, contains) && containsExpr(x.Y, contains)
 	default:
 		return reflect.DeepEqual(expr, contains)
 	}
