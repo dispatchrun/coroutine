@@ -266,6 +266,8 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 			continue
 		}
 
+		clearPos(gen)
+
 		generateFunctypes(p, gen, colorsByFunc)
 
 		// Find all the required imports for this file.
