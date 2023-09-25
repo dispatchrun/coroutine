@@ -1,4 +1,4 @@
-//go:build !durable
+//go:build durable
 
 package testdata
 

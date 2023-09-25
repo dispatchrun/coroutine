@@ -1,6 +1,8 @@
 package compiler
 
-import "go/ast"
+import (
+	"go/ast"
+)
 
 func appendCommentGroup(comments []*ast.Comment, group *ast.CommentGroup) []*ast.Comment {
 	if group != nil && len(group.List) > 0 {
@@ -18,4 +20,13 @@ func appendComment(comments []*ast.Comment, text string) []*ast.Comment {
 	return append(comments, &ast.Comment{
 		Text: text,
 	})
+}
+
+func commentGroupsOf(file *ast.File) []*ast.CommentGroup {
+	groups := make([]*ast.CommentGroup, 0, 1+len(file.Comments))
+	groups = append(groups, file.Comments...)
+	if file.Doc != nil {
+		groups = append(groups, file.Doc)
+	}
+	return groups
 }

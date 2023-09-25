@@ -240,14 +240,16 @@ func generateFunctypes(p *packages.Package, f *ast.File, colors map[ast.Node]*ty
 		})
 	}
 
-	astutil.AddNamedImport(nil, f, "_types", "github.com/stealthrocket/coroutine/types")
+	if len(init.List) > 0 {
+		astutil.AddNamedImport(nil, f, "_types", "github.com/stealthrocket/coroutine/types")
 
-	f.Decls = append(f.Decls,
-		&ast.FuncDecl{
-			Name: ast.NewIdent("init"),
-			Type: &ast.FuncType{Params: new(ast.FieldList)},
-			Body: init,
-		})
+		f.Decls = append(f.Decls,
+			&ast.FuncDecl{
+				Name: ast.NewIdent("init"),
+				Type: &ast.FuncType{Params: new(ast.FieldList)},
+				Body: init,
+			})
+	}
 }
 
 // This function computes the name that the linker gives to anonymous functions,
