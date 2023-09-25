@@ -371,10 +371,11 @@ func (scope *scope) compileFuncDecl(p *packages.Package, fn *ast.FuncDecl, color
 	// as the source function (and require that the caller use build tags
 	// to disambiguate function calls).
 	gen := &ast.FuncDecl{
+		Recv: fn.Recv,
 		Doc:  &ast.CommentGroup{},
 		Name: fn.Name,
 		Type: funcTypeWithNamedResults(fn.Type),
-		Body: scope.compileFuncBody(p, fn.Type, fn.Body, color),
+		Body: scope.compileFuncBody(p, fn.Type, fn.Body, fn.Recv, color),
 	}
 
 	// If the function declaration contains function literals, we have to
@@ -407,7 +408,7 @@ func (scope *scope) compileFuncLit(p *packages.Package, fn *ast.FuncLit, color *
 
 	gen := &ast.FuncLit{
 		Type: funcTypeWithNamedResults(fn.Type),
-		Body: scope.compileFuncBody(p, fn.Type, fn.Body, color),
+		Body: scope.compileFuncBody(p, fn.Type, fn.Body, nil, color),
 	}
 
 	if !isExpr(gen.Body) {
@@ -416,7 +417,7 @@ func (scope *scope) compileFuncLit(p *packages.Package, fn *ast.FuncLit, color *
 	return gen
 }
 
-func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, color *types.Signature) *ast.BlockStmt {
+func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, recv *ast.FieldList, color *types.Signature) *ast.BlockStmt {
 	var defers *ast.Ident
 
 	mayYield := findCalls(body, p.TypesInfo)
@@ -516,7 +517,7 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	// declarations to the function prologue. We downgrade inline var decls and
 	// assignments that use := to assignments that use =. Constant decls are
 	// hoisted and also have their value assigned in the function prologue.
-	decls, frameType, frameInit := extractDecls(p, typ, body, defers, p.TypesInfo)
+	decls, frameType, frameInit := extractDecls(p, typ, body, recv, defers, p.TypesInfo)
 	renameObjects(body, p.TypesInfo, decls, frameName, frameType, frameInit, scope)
 
 	for _, decl := range decls {
