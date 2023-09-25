@@ -22,7 +22,7 @@ import (
 // Note that declarations are extracted from all nested scopes within the
 // function body, so there may be duplicate identifiers. Identifiers can be
 // disambiguated using (*types.Info).ObjectOf(ident).
-func extractDecls(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, info *types.Info) (decls []*ast.GenDecl, frameType *ast.StructType, frameInit *ast.CompositeLit) {
+func extractDecls(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, defers *ast.Ident, info *types.Info) (decls []*ast.GenDecl, frameType *ast.StructType, frameInit *ast.CompositeLit) {
 	frameType = &ast.StructType{Fields: &ast.FieldList{}}
 	frameInit = &ast.CompositeLit{Type: frameType}
 
@@ -111,6 +111,13 @@ func extractDecls(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, i
 		}
 		return true
 	})
+
+	if defers != nil {
+		frameType.Fields.List = append(frameType.Fields.List, &ast.Field{
+			Names: []*ast.Ident{defers},
+			Type:  &ast.ArrayType{Elt: &ast.FuncType{Params: &ast.FieldList{}}},
+		})
+	}
 
 	return decls, frameType, frameInit
 }
@@ -262,12 +269,12 @@ func renameObjects(tree ast.Node, info *types.Info, decls []*ast.GenDecl, frameN
 		func(cursor *astutil.Cursor) bool {
 			switch n := cursor.Node().(type) {
 			case *ast.Ident:
-				obj := info.ObjectOf(n)
-
-				if selector, ok := selectors[obj]; ok {
-					cursor.Replace(selector)
-				} else if ident, ok := names[obj]; ok {
-					cursor.Replace(ident)
+				if obj := info.ObjectOf(n); obj != nil {
+					if selector, ok := selectors[obj]; ok {
+						cursor.Replace(selector)
+					} else if ident, ok := names[obj]; ok {
+						cursor.Replace(ident)
+					}
 				}
 			}
 			return true

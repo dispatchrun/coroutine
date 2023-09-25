@@ -96,6 +96,7 @@ func init() {
 	_types.RegisterFunc[func(i int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeTriple.func1")
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeTripleFuncValue")
 	_types.RegisterFunc[func(i int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeTripleFuncValue.func2")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeYieldAndDeferAssign")
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Select")
 	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.Shadowing")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.SomeFunctionThatShouldExistInTheCompiledFile")
@@ -103,6 +104,16 @@ func init() {
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.SquareGeneratorTwice")
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.SquareGeneratorTwiceLoop")
 	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.TypeSwitchingGenerator")
+	_types.RegisterFunc[func(assign *int, yield, value int)]("github.com/stealthrocket/coroutine/compiler/testdata.YieldAndDeferAssign")
+	_types.RegisterClosure[func(), struct {
+		F  uintptr
+		X0 *struct {
+			X0 *int
+			X1 int
+			X2 int
+			X3 []func()
+		}
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.YieldAndDeferAssign.func2")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingDurations")
 	_types.RegisterClosure[func(), struct {
 		F  uintptr

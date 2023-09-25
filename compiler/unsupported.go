@@ -14,8 +14,6 @@ func unsupported(decl ast.Node, info *types.Info) (err error) {
 		case ast.Stmt:
 			switch n := nn.(type) {
 			// Not yet supported:
-			case *ast.DeferStmt:
-				err = fmt.Errorf("not implemented: defer")
 			case *ast.GoStmt:
 				err = fmt.Errorf("not implemented: go")
 
@@ -63,6 +61,7 @@ func unsupported(decl ast.Node, info *types.Info) (err error) {
 			case *ast.CaseClause:
 			case *ast.CommClause:
 			case *ast.DeclStmt:
+			case *ast.DeferStmt:
 			case *ast.EmptyStmt:
 			case *ast.ExprStmt:
 			case *ast.IfStmt:

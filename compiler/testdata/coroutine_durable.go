@@ -3045,3 +3045,90 @@ func YieldingDurations() {
 		}
 	}
 }
+
+//go:noinline
+func YieldAndDeferAssign(assign *int, yield, value int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f, _fp := _c.Push()
+	var _f0 *struct {
+		X0 *int
+		X1 int
+		X2 int
+		X3 []func()
+	}
+	if _f.IP == 0 {
+		_f0 = &struct {
+			X0 *int
+			X1 int
+			X2 int
+			X3 []func()
+		}{X0: assign, X1: yield, X2: value}
+	} else {
+		_f0 = _f.Get(0).(*struct {
+			X0 *int
+			X1 int
+			X2 int
+			X3 []func()
+		})
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, _f0)
+			_c.Store(_fp, _f)
+		} else {
+			_c.Pop()
+			for _, f := range _f0.X3 {
+				defer f()
+			}
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		_f0.X3 = append(_f0.X3, func() {
+			*_f0.X0 = _f0.X2
+		})
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 3:
+		coroutine.Yield[int, any](_f0.X1)
+	}
+}
+
+//go:noinline
+func RangeYieldAndDeferAssign(n int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f, _fp := _c.Push()
+	var _f0 *struct {
+		X0 int
+		X1 int
+	}
+	if _f.IP == 0 {
+		_f0 = &struct {
+			X0 int
+			X1 int
+		}{X0: n}
+	} else {
+		_f0 = _f.Get(0).(*struct {
+			X0 int
+			X1 int
+		})
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, _f0)
+			_c.Store(_fp, _f)
+		} else {
+			_c.Pop()
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		_f0.X1 = 0
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 3:
+		for ; _f0.X1 < _f0.X0; _f.IP = 2 {
+			YieldAndDeferAssign(&_f0.X1, _f0.X1, _f0.X1+1)
+		}
+	}
+}

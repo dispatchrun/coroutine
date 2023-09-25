@@ -512,3 +512,16 @@ func YieldingDurations() {
 		f()
 	}
 }
+
+func YieldAndDeferAssign(assign *int, yield, value int) {
+	defer func() {
+		*assign = value
+	}()
+	coroutine.Yield[int, any](yield)
+}
+
+func RangeYieldAndDeferAssign(n int) {
+	for i := 0; i < n; {
+		YieldAndDeferAssign(&i, i, i+1)
+	}
+}

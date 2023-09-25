@@ -412,6 +412,8 @@ func (scope *scope) compileFuncLit(p *packages.Package, fn *ast.FuncLit, color *
 }
 
 func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, color *types.Signature) *ast.BlockStmt {
+	var defers *ast.Ident
+
 	mayYield := findCalls(body, p.TypesInfo)
 	markBranchStmt(body, mayYield)
 
@@ -424,6 +426,28 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 				if ok {
 					cursor.Replace(scope.compileFuncLit(p, n, color))
 				}
+				return false
+			case *ast.DeferStmt:
+				if defers == nil {
+					// This identifier is created to represent the local
+					// variable collecting defers but it gets rewritten to
+					// use a field on the stack frame so the list of defers
+					// can be captured by the coroutine.
+					defers = ast.NewIdent("_defers")
+					p.TypesInfo.Defs[defers] = types.NewVar(0, p.Types, defers.Name,
+						types.NewSlice(types.NewSignatureType(nil, nil, nil, nil, nil, false)),
+					)
+				}
+				cursor.Replace(&ast.AssignStmt{
+					Lhs: []ast.Expr{defers},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun:  ast.NewIdent("append"),
+							Args: []ast.Expr{defers, n.Call.Fun},
+						},
+					},
+				})
 			}
 			return true
 		},
@@ -487,7 +511,7 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	// declarations to the function prologue. We downgrade inline var decls and
 	// assignments that use := to assignments that use =. Constant decls are
 	// hoisted and also have their value assigned in the function prologue.
-	decls, frameType, frameInit := extractDecls(p, typ, body, p.TypesInfo)
+	decls, frameType, frameInit := extractDecls(p, typ, body, defers, p.TypesInfo)
 	renameObjects(body, p.TypesInfo, decls, frameName, frameType, frameInit, scope)
 
 	for _, decl := range decls {
@@ -531,6 +555,25 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 		}}},
 	})
 
+	popFrame := []ast.Stmt{
+		&ast.ExprStmt{X: &ast.CallExpr{Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Pop")}}},
+	}
+
+	if defers != nil {
+		popFrame = append(popFrame, &ast.RangeStmt{
+			Key:   ast.NewIdent("_"),
+			Value: ast.NewIdent("f"),
+			Tok:   token.DEFINE,
+			X: &ast.SelectorExpr{
+				X:   frameName,
+				Sel: frameType.Fields.List[len(frameType.Fields.List)-1].Names[0],
+			},
+			Body: &ast.BlockStmt{List: []ast.Stmt{
+				&ast.DeferStmt{Call: &ast.CallExpr{Fun: ast.NewIdent("f")}},
+			}},
+		})
+	}
+
 	gen.List = append(gen.List, &ast.DeferStmt{
 		Call: &ast.CallExpr{
 			Fun: &ast.FuncLit{
@@ -556,9 +599,7 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 									}},
 								},
 							},
-							Else: &ast.BlockStmt{List: []ast.Stmt{
-								&ast.ExprStmt{X: &ast.CallExpr{Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Pop")}}}},
-							},
+							Else: &ast.BlockStmt{List: popFrame},
 						},
 					},
 				},
