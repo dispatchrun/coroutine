@@ -19,33 +19,65 @@ func init() {
 	_types.RegisterFunc[func()]
 	_types.RegisterClosure[func() (_ bool), struct {
 		F  uintptr
-		X0 **int
-		X1 **int
+		X0 *struct {
+			X0 int
+			X1 int
+			X2 *int
+			X3 *int
+			X4 func() bool
+			X5 bool
+			X6 bool
+		}
 	}]
 	_types.RegisterFunc[func()]
 	_types.RegisterClosure[func() (_ bool), struct {
 		F  uintptr
-		X0 *int
-		X1 *int
+		X0 *struct {
+			X0 int
+			X1 int
+			X2 func() bool
+			X3 bool
+			X4 bool
+		}
 	}]
 	_types.RegisterFunc[func()]
 	_types.RegisterClosure[func() int, struct {
 		F  uintptr
-		X0 *uintptr
+		X0 *struct {
+			X0  int8
+			X1  int16
+			X2  int32
+			X3  int64
+			X4  uint8
+			X5  uint16
+			X6  uint32
+			X7  uint64
+			X8  uintptr
+			X9  func() int
+			X10 int
+			X11 func() bool
+			X12 bool
+			X13 bool
+		}
 	}]
 	_types.RegisterClosure[func() (_ bool), struct {
-		F   uintptr
-		X0  *int
-		X1  *int8
-		X2  *int16
-		X3  *int32
-		X4  *int64
-		X5  *uint8
-		X6  *uint16
-		X7  *uint32
-		X8  *uint64
-		X9  *uintptr
-		X10 *func() int
+		F  uintptr
+		X0 *struct {
+			X0  int8
+			X1  int16
+			X2  int32
+			X3  int64
+			X4  uint8
+			X5  uint16
+			X6  uint32
+			X7  uint64
+			X8  uintptr
+			X9  func() int
+			X10 int
+			X11 func() bool
+			X12 bool
+			X13 bool
+		}
 	}]
 	_types.RegisterFunc[func()]
 	_types.RegisterFunc[func(_ int)]
@@ -53,8 +85,11 @@ func init() {
 	_types.RegisterFunc[func(n int)]
 	_types.RegisterClosure[func(), struct {
 		F  uintptr
-		X0 int
-		X1 *int
+		X0 *struct {
+			X0 int
+			X1 int
+			X2 func()
+		}
 	}]
 	_types.RegisterFunc[func(_ int)]
 	_types.RegisterFunc[func(n int)]
@@ -71,7 +106,12 @@ func init() {
 	_types.RegisterFunc[func()]
 	_types.RegisterClosure[func(), struct {
 		F  uintptr
-		X0 **time.Duration
+		X0 *struct {
+			X0 *time.Duration
+			X1 time.Duration
+			X2 func()
+			X3 int
+		}
 	}]
 	_types.RegisterFunc[func()]
 	_types.RegisterFunc[func(v int) (_ int)]
