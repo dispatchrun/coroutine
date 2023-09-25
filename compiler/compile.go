@@ -33,8 +33,7 @@ const coroutinePackage = "github.com/stealthrocket/coroutine"
 // The path can be absolute, or relative to the current working directory.
 func Compile(path string, options ...Option) error {
 	c := &compiler{
-		outputFilename: "coroc_generated.go",
-		fset:           token.NewFileSet(),
+		fset: token.NewFileSet(),
 	}
 	for _, option := range options {
 		option(c)
@@ -45,13 +44,6 @@ func Compile(path string, options ...Option) error {
 // Option configures the compiler.
 type Option func(*compiler)
 
-// WithOutputFilename instructs the compiler to write generated code
-// to a file with the specified name within each package that contains
-// coroutines.
-func WithOutputFilename(outputFilename string) Option {
-	return func(c *compiler) { c.outputFilename = outputFilename }
-}
-
 // WithBuildTags instructs the compiler to attach the specified build
 // tags to generated files.
 func WithBuildTags(buildTags string) Option {
@@ -59,8 +51,7 @@ func WithBuildTags(buildTags string) Option {
 }
 
 type compiler struct {
-	outputFilename string
-	buildTags      string
+	buildTags string
 
 	fset *token.FileSet
 }
@@ -230,11 +221,6 @@ func (c *compiler) writeFile(path string, file *ast.File) error {
 func (c *compiler) compilePackage(p *packages.Package, colors functionColors) error {
 	log.Printf("compiling package %s", p.Name)
 
-	// Generate the coroutine AST.
-	gen := &ast.File{
-		Name: ast.NewIdent(p.Name),
-	}
-
 	colorsByFunc := map[ast.Node]*types.Signature{}
 	for fn, color := range colors {
 		decl := fn.Syntax()
@@ -247,7 +233,12 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 		colorsByFunc[decl] = color
 	}
 
-	for _, f := range p.Syntax {
+	for i, f := range p.Syntax {
+		// Generate the coroutine AST.
+		gen := &ast.File{
+			Name: ast.NewIdent(p.Name),
+		}
+
 		for _, anydecl := range f.Decls {
 			decl, ok := anydecl.(*ast.FuncDecl)
 			if !ok {
@@ -270,21 +261,25 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 			// local symbol counter when generating closure names.
 			gen.Decls = append(gen.Decls, scope.compileFuncDecl(p, decl, color))
 		}
-	}
 
-	// Find all the required imports for this file.
-	gen = addImports(p, gen)
+		if len(gen.Decls) == 0 {
+			continue
+		}
 
-	packageDir := filepath.Dir(p.GoFiles[0])
-	outputPath := filepath.Join(packageDir, c.outputFilename)
-	if err := c.writeFile(outputPath, gen); err != nil {
-		return err
-	}
+		generateFunctypes(p, gen, colorsByFunc)
 
-	functypesFile := generateFunctypes(p, gen, colorsByFunc)
-	functypesPath := filepath.Join(packageDir, "coroutine_functypes.go")
-	if err := c.writeFile(functypesPath, functypesFile); err != nil {
-		return err
+		// Find all the required imports for this file.
+		gen = addImports(p, gen)
+
+		outputPath, _ := strings.CutSuffix(p.GoFiles[i], ".go")
+		if c.buildTags != "" {
+			outputPath += "_" + strings.ReplaceAll(c.buildTags, ",", "_") + ".go"
+		} else {
+			outputPath += "_generated.go"
+		}
+		if err := c.writeFile(outputPath, gen); err != nil {
+			return err
+		}
 	}
 
 	return nil

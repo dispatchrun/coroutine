@@ -30,7 +30,6 @@ func main() {
 }
 
 func run() error {
-	outputFilename := flag.String("output", "", "")
 	buildTags := flag.String("tags", "", "")
 
 	flag.Usage = func() { println(usage[1:]) }
@@ -51,9 +50,6 @@ func run() error {
 	}
 
 	var options []compiler.Option
-	if *outputFilename != "" {
-		options = append(options, compiler.WithOutputFilename(*outputFilename))
-	}
 	if *buildTags != "" {
 		options = append(options, compiler.WithBuildTags(*buildTags))
 	}

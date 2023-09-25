@@ -6,16 +6,15 @@ package testdata
 
 import (
 	coroutine "github.com/stealthrocket/coroutine"
-	time "time"
 	unsafe "unsafe"
+	time "time"
 )
+import _types "github.com/stealthrocket/coroutine/types"
 
 func SomeFunctionThatShouldExistInTheCompiledFile() {
 }
-
 //go:noinline
 func Identity(n int) { coroutine.Yield[int, any](n) }
-
 //go:noinline
 func SquareGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -54,7 +53,6 @@ func SquareGenerator(n int) {
 		}
 	}
 }
-
 //go:noinline
 func SquareGeneratorTwice(n int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -88,7 +86,6 @@ func SquareGeneratorTwice(n int) {
 		SquareGenerator(_f0.X0)
 	}
 }
-
 //go:noinline
 func SquareGeneratorTwiceLoop(n int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -127,7 +124,6 @@ func SquareGeneratorTwiceLoop(n int) {
 		}
 	}
 }
-
 //go:noinline
 func EvenSquareGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -178,7 +174,6 @@ func EvenSquareGenerator(n int) {
 		}
 	}
 }
-
 //go:noinline
 func NestedLoops(n int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -241,7 +236,6 @@ func NestedLoops(n int) {
 		}
 	}
 }
-
 //go:noinline
 func FizzBuzzIfGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -305,7 +299,6 @@ func FizzBuzzIfGenerator(n int) {
 		}
 	}
 }
-
 //go:noinline
 func FizzBuzzSwitchGenerator(n int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -393,7 +386,6 @@ func FizzBuzzSwitchGenerator(n int) {
 		}
 	}
 }
-
 //go:noinline
 func Shadowing(_ int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -739,7 +731,6 @@ func Shadowing(_ int) {
 		coroutine.Yield[int, any](_f0.X22)
 	}
 }
-
 //go:noinline
 func RangeSliceIndexGenerator(_ int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -785,7 +776,6 @@ func RangeSliceIndexGenerator(_ int) {
 		}
 	}
 }
-
 //go:noinline
 func RangeArrayIndexValueGenerator(_ int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -845,7 +835,6 @@ func RangeArrayIndexValueGenerator(_ int) {
 		}
 	}
 }
-
 //go:noinline
 func TypeSwitchingGenerator(_ int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -923,7 +912,6 @@ func TypeSwitchingGenerator(_ int) {
 		}
 	}
 }
-
 //go:noinline
 func LoopBreakAndContinue(_ int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -1081,7 +1069,6 @@ func LoopBreakAndContinue(_ int) {
 		}
 	}
 }
-
 //go:noinline
 func RangeOverMaps(n int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -1419,7 +1406,6 @@ func RangeOverMaps(n int) {
 		}
 	}
 }
-
 //go:noinline
 func Range(n int, do func(int)) {
 	_c := coroutine.LoadContext[int, any]()
@@ -1461,15 +1447,13 @@ func Range(n int, do func(int)) {
 		}
 	}
 }
-
 //go:noinline
 func Double(n int) { coroutine.Yield[int, any](2 * n) }
-
 //go:noinline
 func RangeTriple(n int) {
-	Range(n, func(i int) { coroutine.Yield[int, any](3 * i) })
+	Range(n, func(i int) { coroutine.Yield[int, any](3 * i) },
+	)
 }
-
 //go:noinline
 func RangeTripleFuncValue(n int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -1507,7 +1491,6 @@ func RangeTripleFuncValue(n int) {
 		Range(_f0.X0, _f0.X1)
 	}
 }
-
 //go:noinline
 func RangeReverseClosureCaptureByValue(n int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -1560,7 +1543,6 @@ func RangeReverseClosureCaptureByValue(n int) {
 		}
 	}
 }
-
 //go:noinline
 func Range10ClosureCapturingValues() {
 	_c := coroutine.LoadContext[int, any]()
@@ -1673,7 +1655,6 @@ func Range10ClosureCapturingValues() {
 		}
 	}
 }
-
 //go:noinline
 func Range10ClosureCapturingPointers() {
 	_c := coroutine.LoadContext[int, any]()
@@ -1796,7 +1777,6 @@ func Range10ClosureCapturingPointers() {
 		}
 	}
 }
-
 //go:noinline
 func Range10ClosureHeterogenousCapture() {
 	_c := coroutine.LoadContext[int, any]()
@@ -2022,7 +2002,6 @@ func Range10ClosureHeterogenousCapture() {
 		}
 	}
 }
-
 //go:noinline
 func Range10Heterogenous() {
 	_c := coroutine.LoadContext[int, any]()
@@ -2137,7 +2116,6 @@ func Range10Heterogenous() {
 		}
 	}
 }
-
 //go:noinline
 func Select(n int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -2435,7 +2413,6 @@ func Select(n int) {
 		}
 	}
 }
-
 //go:noinline
 func YieldingExpressionDesugaring() {
 	_c := coroutine.LoadContext[int, any]()
@@ -2861,7 +2838,6 @@ func YieldingExpressionDesugaring() {
 		}
 	}
 }
-
 //go:noinline
 func a(v int) (_ int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -2896,7 +2872,6 @@ func a(v int) (_ int) {
 	}
 	return
 }
-
 //go:noinline
 func b(v int) (_ int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -2931,7 +2906,6 @@ func b(v int) (_ int) {
 	}
 	return
 }
-
 //go:noinline
 func YieldingDurations() {
 	_c := coroutine.LoadContext[int, any]()
@@ -3045,7 +3019,6 @@ func YieldingDurations() {
 		}
 	}
 }
-
 //go:noinline
 func YieldAndDeferAssign(assign *int, yield, value int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -3093,7 +3066,6 @@ func YieldAndDeferAssign(assign *int, yield, value int) {
 		coroutine.Yield[int, any](_f0.X1)
 	}
 }
-
 //go:noinline
 func RangeYieldAndDeferAssign(n int) {
 	_c := coroutine.LoadContext[int, any]()
@@ -3131,4 +3103,125 @@ func RangeYieldAndDeferAssign(n int) {
 			YieldAndDeferAssign(&_f0.X1, _f0.X1, _f0.X1+1)
 		}
 	}
+}
+func init() {
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Double")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.EvenSquareGenerator")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.FizzBuzzIfGenerator")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.FizzBuzzSwitchGenerator")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Identity")
+	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.LoopBreakAndContinue")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.NestedLoops")
+	_types.RegisterFunc[func(n int, do func(int))]("github.com/stealthrocket/coroutine/compiler/testdata.Range")
+	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureCapturingPointers")
+	_types.RegisterClosure[func() (_ bool), struct {
+		F  uintptr
+		X0 *struct {
+			X0 int
+			X1 int
+			X2 *int
+			X3 *int
+			X4 func() bool
+			X5 bool
+			X6 bool
+		}
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureCapturingPointers.func2")
+	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureCapturingValues")
+	_types.RegisterClosure[func() (_ bool), struct {
+		F  uintptr
+		X0 *struct {
+			X0 int
+			X1 int
+			X2 func() bool
+			X3 bool
+			X4 bool
+		}
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureCapturingValues.func2")
+	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureHeterogenousCapture")
+	_types.RegisterClosure[func() int, struct {
+		F  uintptr
+		X0 *struct {
+			X0  int8
+			X1  int16
+			X2  int32
+			X3  int64
+			X4  uint8
+			X5  uint16
+			X6  uint32
+			X7  uint64
+			X8  uintptr
+			X9  func() int
+			X10 int
+			X11 func() bool
+			X12 bool
+			X13 bool
+		}
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureHeterogenousCapture.func2")
+	_types.RegisterClosure[func() (_ bool), struct {
+		F  uintptr
+		X0 *struct {
+			X0  int8
+			X1  int16
+			X2  int32
+			X3  int64
+			X4  uint8
+			X5  uint16
+			X6  uint32
+			X7  uint64
+			X8  uintptr
+			X9  func() int
+			X10 int
+			X11 func() bool
+			X12 bool
+			X13 bool
+		}
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureHeterogenousCapture.func3")
+	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.Range10Heterogenous")
+	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeArrayIndexValueGenerator")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeOverMaps")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeReverseClosureCaptureByValue")
+	_types.RegisterClosure[func(), struct {
+		F  uintptr
+		X0 *struct {
+			X0 int
+			X1 int
+			X2 func()
+		}
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.RangeReverseClosureCaptureByValue.func2")
+	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeSliceIndexGenerator")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeTriple")
+	_types.RegisterFunc[func(i int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeTriple.func1")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeTripleFuncValue")
+	_types.RegisterFunc[func(i int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeTripleFuncValue.func2")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeYieldAndDeferAssign")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Select")
+	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.Shadowing")
+	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.SomeFunctionThatShouldExistInTheCompiledFile")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.SquareGenerator")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.SquareGeneratorTwice")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.SquareGeneratorTwiceLoop")
+	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.TypeSwitchingGenerator")
+	_types.RegisterFunc[func(assign *int, yield, value int)]("github.com/stealthrocket/coroutine/compiler/testdata.YieldAndDeferAssign")
+	_types.RegisterClosure[func(), struct {
+		F  uintptr
+		X0 *struct {
+			X0 *int
+			X1 int
+			X2 int
+			X3 []func()
+		}
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.YieldAndDeferAssign.func2")
+	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingDurations")
+	_types.RegisterClosure[func(), struct {
+		F  uintptr
+		X0 *struct {
+			X0 *time.Duration
+			X1 time.Duration
+			X2 func()
+			X3 int
+		}
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingDurations.func2")
+	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingExpressionDesugaring")
+	_types.RegisterFunc[func(v int) (_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.a")
+	_types.RegisterFunc[func(v int) (_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.b")
 }
