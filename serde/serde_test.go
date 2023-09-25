@@ -2,6 +2,7 @@ package serde_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"net/http"
@@ -26,6 +27,7 @@ func TestReflect(t *testing.T) {
 		intv := int(100)
 		intp := &intv
 		intpp := &intp
+		type ctxKey1 struct{}
 
 		cases := []any{
 			"foo",
@@ -63,6 +65,10 @@ func TestReflect(t *testing.T) {
 			func(int) int { return 42 },
 
 			[1]*int{intp},
+
+			context.Background(),
+			context.TODO(),
+			context.WithValue(context.Background(), ctxKey1{}, "hello"),
 		}
 
 		for _, x := range cases {

@@ -278,9 +278,9 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 			scan(s, et, ep)
 		}
 	case reflect.Interface:
-		x := *(*interface{})(p)
-		et := reflect.TypeOf(x)
+		et := reflect.TypeOf(r.Elem().Interface())
 		eptr := (*iface)(p).ptr
+
 		if eptr == nil {
 			return
 		}
