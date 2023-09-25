@@ -7,6 +7,7 @@ import (
 	"go/types"
 	"maps"
 	"slices"
+	"strconv"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
@@ -222,7 +223,17 @@ func generateFunctypes(p *packages.Package, f *ast.File, colors map[ast.Node]*ty
 			}
 		}
 
-		init.List = append(init.List, &ast.ExprStmt{X: register})
+		init.List = append(init.List, &ast.ExprStmt{
+			X: &ast.CallExpr{
+				Fun: register,
+				Args: []ast.Expr{
+					&ast.BasicLit{
+						Kind:  token.STRING,
+						Value: strconv.Quote(name),
+					},
+				},
+			},
+		})
 	}
 
 	gen := &ast.File{
