@@ -445,8 +445,7 @@ func serializeInterface(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		return
 	}
 
-	x := *(*interface{})(p)
-	et := reflect.TypeOf(x)
+	et := reflect.TypeOf(reflect.NewAt(t, p).Elem().Interface())
 	serializeType(s, et)
 
 	eptr := i.ptr
