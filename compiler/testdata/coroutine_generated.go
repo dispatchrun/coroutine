@@ -3083,6 +3083,49 @@ func RangeYieldAndDeferAssign(n int) {
 		}
 	}
 }
+
+type MethodGeneratorState struct {
+	i int
+}
+
+//go:noinline
+func (s *MethodGeneratorState) MethodGenerator(n int) {
+	_c := coroutine.LoadContext[int, any]()
+	_f, _fp := _c.Push()
+	var _f0 *struct {
+		X0 *MethodGeneratorState
+		X1 int
+	}
+	if _f.IP == 0 {
+		_f0 = &struct {
+			X0 *MethodGeneratorState
+			X1 int
+		}{X0: s, X1: n}
+	} else {
+		_f0 = _f.Get(0).(*struct {
+			X0 *MethodGeneratorState
+			X1 int
+		})
+	}
+	defer func() {
+		if _c.Unwinding() {
+			_f.Set(0, _f0)
+			_c.Store(_fp, _f)
+		} else {
+			_c.Pop()
+		}
+	}()
+	switch {
+	case _f.IP < 2:
+		_f0.X0.i = 0
+		_f.IP = 2
+		fallthrough
+	case _f.IP < 3:
+		for ; _f0.X0.i <= _f0.X1; _f0.X0.i, _f.IP = _f0.X0.i+1, 2 {
+			coroutine.Yield[int, any](_f0.X0.i)
+		}
+	}
+}
 func init() {
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Double")
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.EvenSquareGenerator")
@@ -3090,6 +3133,7 @@ func init() {
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.FizzBuzzSwitchGenerator")
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Identity")
 	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.LoopBreakAndContinue")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.MethodGenerator")
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.NestedLoops")
 	_types.RegisterFunc[func(n int, do func(int))]("github.com/stealthrocket/coroutine/compiler/testdata.Range")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureCapturingPointers")

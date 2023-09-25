@@ -22,9 +22,26 @@ import (
 // Note that declarations are extracted from all nested scopes within the
 // function body, so there may be duplicate identifiers. Identifiers can be
 // disambiguated using (*types.Info).ObjectOf(ident).
-func extractDecls(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, defers *ast.Ident, info *types.Info) (decls []*ast.GenDecl, frameType *ast.StructType, frameInit *ast.CompositeLit) {
+func extractDecls(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, recv *ast.FieldList, defers *ast.Ident, info *types.Info) (decls []*ast.GenDecl, frameType *ast.StructType, frameInit *ast.CompositeLit) {
 	frameType = &ast.StructType{Fields: &ast.FieldList{}}
 	frameInit = &ast.CompositeLit{Type: frameType}
+
+	if recv != nil {
+		for _, field := range recv.List {
+			for _, ident := range field.Names {
+				if ident.Name != "_" {
+					frameType.Fields.List = append(frameType.Fields.List, &ast.Field{
+						Names: []*ast.Ident{ident},
+						Type:  field.Type,
+					})
+					frameInit.Elts = append(frameInit.Elts, &ast.KeyValueExpr{
+						Key:   ident,
+						Value: ident,
+					})
+				}
+			}
+		}
+	}
 
 	if typ.Params != nil {
 		for _, field := range typ.Params.List {

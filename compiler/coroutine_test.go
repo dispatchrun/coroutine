@@ -186,6 +186,12 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   YieldingDurations,
 			yields: []int{100, 101, 102, 103, 104, 105, 106, 107, 108, 109},
 		},
+
+		{
+			name:   "methods",
+			coro:   func() { var s MethodGeneratorState; s.MethodGenerator(5) },
+			yields: []int{0, 1, 2, 3, 4, 5},
+		},
 	}
 
 	// This emulates the installation of function type information by the

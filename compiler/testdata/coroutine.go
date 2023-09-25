@@ -525,3 +525,11 @@ func RangeYieldAndDeferAssign(n int) {
 		YieldAndDeferAssign(&i, i, i+1)
 	}
 }
+
+type MethodGeneratorState struct{ i int }
+
+func (s *MethodGeneratorState) MethodGenerator(n int) {
+	for s.i = 0; s.i <= n; s.i++ {
+		coroutine.Yield[int, any](s.i)
+	}
+}
