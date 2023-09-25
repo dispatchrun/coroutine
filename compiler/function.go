@@ -51,11 +51,9 @@ func (s *funcscope) in(other *funcscope) bool {
 }
 
 type funcvar struct {
-	scope        *funcscope
-	name         *ast.Ident
-	typ          ast.Expr
-	addresstaken bool
-	assignments  int
+	scope *funcscope
+	name  *ast.Ident
+	typ   ast.Expr
 }
 
 func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *funcscope, colors map[ast.Node]*types.Signature, functypes map[string]functype) {
@@ -82,16 +80,6 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 		return v
 	}
 
-	observeUnaryExpr := func(unary *ast.UnaryExpr) {
-		if unary.Op == token.AND {
-			if a, ok := unary.X.(*ast.Ident); ok {
-				if v := observeIdent(a); v != nil {
-					v.addresstaken = true
-				}
-			}
-		}
-	}
-
 	signature := functionTypeOf(fn)
 	for _, fields := range []*ast.FieldList{signature.Params, signature.Results} {
 		if fields != nil {
@@ -103,17 +91,7 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 		}
 	}
 
-	assign := func(cursor *astutil.Cursor) bool {
-		if ident, ok := cursor.Node().(*ast.Ident); ok {
-			if v := observeIdent(ident); v != nil {
-				v.assignments++
-			}
-		}
-		return true
-	}
-
-	var pre func(*astutil.Cursor) bool
-	pre = func(cursor *astutil.Cursor) bool {
+	pre := func(cursor *astutil.Cursor) bool {
 		switch n := cursor.Node().(type) {
 		case *ast.Ident:
 			observeIdent(n)
@@ -137,27 +115,8 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 			})
 			return false
 
-		case *ast.AssignStmt:
-			// TODO: ignore self-assignments
-			if n.Tok != token.DEFINE {
-				for _, expr := range n.Lhs {
-					astutil.Apply(expr, assign, nil)
-				}
-				for _, expr := range n.Rhs {
-					astutil.Apply(expr, pre, nil)
-				}
-				return false
-			}
-
-		case *ast.IncDecStmt:
-			astutil.Apply(n.X, assign, nil)
-			return false
-
 		case *ast.BlockStmt:
 			scope = &funcscope{outer: scope, vars: map[string]*funcvar{}}
-
-		case *ast.UnaryExpr:
-			observeUnaryExpr(n)
 		}
 		return true
 	}
@@ -184,12 +143,16 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 		for i, freeVar := range freeVars {
 			fieldName := ast.NewIdent(fmt.Sprintf("X%d", i))
 			fieldType := freeVar.typ
-			fieldSize := p.TypesSizes.Sizeof(p.TypesInfo.Defs[freeVar.name].Type())
-			reassigned := freeVar.assignments > 1
 
-			if freeVar.addresstaken || reassigned || fieldSize > 128 {
-				fieldType = &ast.StarExpr{X: fieldType}
-			}
+			// The Go compiler uses a more advanced mechanism to determine if a
+			// free variable should be captured by pointer or by value: it looks
+			// at whether the variable is reassigned, its address taken, and if
+			// it is less than 128 bytes in size.
+			//
+			// We know that our closures will only capture pointers to stack
+			// frames which are never reassigned nor have their addresses taken,
+			// and pointers will be less than 128 bytes on all platforms, which
+			// means that the stack frame pointer is always captured by value.
 
 			fields[i+1] = &ast.Field{
 				Type:  fieldType,

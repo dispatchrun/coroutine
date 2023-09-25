@@ -263,10 +263,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 				return err
 			}
 
-			scope := &scope{
-				colors:      colorsByFunc,
-				objectIdent: 0,
-			}
+			scope := &scope{colors: colorsByFunc}
 			// If the function has a single expression it does not contain a
 			// deferred closure; it won't be added to the list of colored
 			// functions so generateFunctypes does not mistakenly increment the
@@ -346,7 +343,12 @@ type scope struct {
 	// we don't need globally unique identifiers for local variables.
 	//
 	// See decls.go for usage.
-	objectIdent int
+	objectIndex int
+	// Index used to generate unique frame identifiers with the scope of a
+	// function.
+	//
+	// Unique names are necessary to allow closures to reference
+	frameIndex int
 }
 
 func (scope *scope) compileFuncDecl(p *packages.Package, fn *ast.FuncDecl, color *types.Signature) *ast.FuncDecl {
@@ -458,6 +460,9 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 		},
 	})
 
+	frameName := ast.NewIdent(fmt.Sprintf("_f%d", scope.frameIndex))
+	scope.frameIndex++
+
 	// Handle declarations.
 	//
 	// Types, constants and variables can be defined within any scope in the
@@ -471,88 +476,50 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	// declarations to the function prologue. We downgrade inline var decls and
 	// assignments that use := to assignments that use =. Constant decls are
 	// hoisted and also have their value assigned in the function prologue.
-	decls := extractDecls(p.Types, body, p.TypesInfo)
-	renameObjects(body, p.TypesInfo, decls, scope)
+	decls, frameType, frameInit := extractDecls(p.Types, typ, body, p.TypesInfo)
+	renameObjects(body, p.TypesInfo, decls, frameName, frameType, frameInit, scope)
+
 	for _, decl := range decls {
 		gen.List = append(gen.List, &ast.DeclStmt{Decl: decl})
 	}
-	removeDecls(body)
 
-	// Collect params/results/variables that need to be saved/restored.
-	var saveAndRestoreNames []*ast.Ident
-	var saveAndRestoreTypes []types.Type
-	scanFuncTypeIdentifiers(typ, func(name *ast.Ident) {
-		saveAndRestoreNames = append(saveAndRestoreNames, name)
-		saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
-	})
-	scanDeclVarIdentifiers(decls, func(name *ast.Ident) {
-		saveAndRestoreNames = append(saveAndRestoreNames, name)
-		saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
-	})
-
-	// Restore state when rewinding the stack.
-	//
-	// As an optimization, only those variables still in scope for a
-	// particular f.IP need to be restored.
-	var restoreStmts []ast.Stmt
-	for i, name := range saveAndRestoreNames {
-		value := ast.NewIdent("_v")
-		restoreStmts = append(restoreStmts,
-			// Generate a guard in case a value of nil was stored when unwinding.
-			// TODO: the guard isn't needed in all cases (e.g. with primitive types
-			//  which can never be nil). Remove the guard unless necessary
-			&ast.IfStmt{
-				Init: &ast.AssignStmt{
-					Lhs: []ast.Expr{value},
-					Tok: token.DEFINE,
-					Rhs: []ast.Expr{
-						&ast.CallExpr{
-							Fun: &ast.SelectorExpr{
-								X:   frame,
-								Sel: ast.NewIdent("Get"),
-							},
-							Args: []ast.Expr{
-								&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
-							},
-						},
-					},
-				},
-				Cond: &ast.BinaryExpr{X: value, Op: token.NEQ, Y: ast.NewIdent("nil")},
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						&ast.AssignStmt{
-							Lhs: []ast.Expr{name},
-							Tok: token.ASSIGN,
-							Rhs: []ast.Expr{
-								&ast.TypeAssertExpr{X: value, Type: typeExpr(p.Types, saveAndRestoreTypes[i])},
-							},
-						},
+	gen.List = append(gen.List,
+		&ast.DeclStmt{
+			Decl: &ast.GenDecl{
+				Tok: token.VAR,
+				Specs: []ast.Spec{
+					&ast.ValueSpec{
+						Names: []*ast.Ident{frameName},
+						Type:  &ast.StarExpr{X: frameType},
 					},
 				},
 			},
-		)
-	}
+		},
+	)
+
 	gen.List = append(gen.List, &ast.IfStmt{
 		Cond: &ast.BinaryExpr{
 			X:  &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")},
-			Op: token.GTR, /* > */
+			Op: token.EQL, /* == */
 			Y:  &ast.BasicLit{Kind: token.INT, Value: "0"}},
-		Body: &ast.BlockStmt{List: restoreStmts},
+		Body: &ast.BlockStmt{List: []ast.Stmt{&ast.AssignStmt{
+			Tok: token.ASSIGN,
+			Lhs: []ast.Expr{frameName},
+			Rhs: []ast.Expr{&ast.UnaryExpr{Op: token.AND, X: frameInit}},
+		}}},
+		Else: &ast.BlockStmt{List: []ast.Stmt{&ast.AssignStmt{
+			Lhs: []ast.Expr{frameName},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{&ast.TypeAssertExpr{
+				X: &ast.CallExpr{
+					Fun:  &ast.SelectorExpr{X: frame, Sel: ast.NewIdent("Get")},
+					Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
+				},
+				Type: &ast.StarExpr{X: frameType},
+			}},
+		}}},
 	})
 
-	// Save state when unwinding the stack.
-	var saveStmts []ast.Stmt
-	for i, name := range saveAndRestoreNames {
-		saveStmts = append(saveStmts, &ast.ExprStmt{
-			X: &ast.CallExpr{
-				Fun: &ast.SelectorExpr{X: frame, Sel: ast.NewIdent("Set")},
-				Args: []ast.Expr{
-					&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
-					name,
-				},
-			},
-		})
-	}
 	gen.List = append(gen.List, &ast.DeferStmt{
 		Call: &ast.CallExpr{
 			Fun: &ast.FuncLit{
@@ -564,12 +531,19 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 								Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Unwinding")},
 							},
 							Body: &ast.BlockStmt{
-								List: append(saveStmts, &ast.ExprStmt{
-									X: &ast.CallExpr{
+								List: []ast.Stmt{
+									&ast.ExprStmt{X: &ast.CallExpr{
+										Fun: &ast.SelectorExpr{X: frame, Sel: ast.NewIdent("Set")},
+										Args: []ast.Expr{
+											&ast.BasicLit{Kind: token.INT, Value: "0"},
+											frameName,
+										},
+									}},
+									&ast.ExprStmt{X: &ast.CallExpr{
 										Fun:  &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Store")},
 										Args: []ast.Expr{fp, frame},
-									},
-								}),
+									}},
+								},
 							},
 							Else: &ast.BlockStmt{List: []ast.Stmt{
 								&ast.ExprStmt{X: &ast.CallExpr{Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Pop")}}}},
