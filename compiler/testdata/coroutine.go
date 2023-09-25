@@ -9,7 +9,7 @@ import (
 	"github.com/stealthrocket/coroutine"
 )
 
-//go:generate coroc --tags durable
+//go:generate coroc
 
 func SomeFunctionThatShouldExistInTheCompiledFile() {
 }
