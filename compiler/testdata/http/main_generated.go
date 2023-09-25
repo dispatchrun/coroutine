@@ -3,15 +3,13 @@
 package main
 
 import (
+	fmt "fmt"
 	http "net/http"
 	coroutine "github.com/stealthrocket/coroutine"
-	coroutine "github.com/stealthrocket/coroutine"
-	fmt "fmt"
-	_types "github.com/stealthrocket/coroutine/types"
 )
+import _types "github.com/stealthrocket/coroutine/types"
 
-type yieldingRoundTripper struct {
-}
+type yieldingRoundTripper struct{}
 //go:noinline
 func (*yieldingRoundTripper) RoundTrip(req *http.Request) (_ *http.Response, _ error) {
 	_c := coroutine.LoadContext[*http.Request, *http.Response]()
@@ -91,13 +89,18 @@ func work() {
 		fmt.Println(_f0.X0.StatusCode)
 	}
 }
+
 func main() {
 	http.DefaultTransport = &yieldingRoundTripper{}
+
 	c := coroutine.New[*http.Request, *http.Response](work)
+
 	for c.Next() {
 		req := c.Recv()
 		fmt.Println("Requesting", req.URL.String())
-		c.Send(&http.Response{StatusCode: 200})
+		c.Send(&http.Response{
+			StatusCode: 200,
+		})
 	}
 }
 func init() {
