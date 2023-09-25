@@ -186,18 +186,12 @@ func (c *compiler) compile(path string) error {
 }
 
 func (c *compiler) writeFile(path string, file *ast.File, changeBuildTags func(constraint.Expr) constraint.Expr) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
 	buildTags, err := parseBuildTags(file)
 	if err != nil {
 		return err
 	}
 	buildTags = changeBuildTags(buildTags)
-	stripBuildTagsOf(file)
+	stripBuildTagsOf(file, path)
 
 	// Comments are awkward to attach to the tree (they rely on token.Pos, which
 	// is coupled to a token.FileSet). Instead, just write out the raw strings.
@@ -207,6 +201,13 @@ func (c *compiler) writeFile(path string, file *ast.File, changeBuildTags func(c
 		b.WriteString(buildTags.String())
 		b.WriteString("\n\n")
 	}
+
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
 	if _, err := f.WriteString(b.String()); err != nil {
 		return err
 	}
