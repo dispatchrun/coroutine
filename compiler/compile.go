@@ -270,16 +270,11 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 				}
 
 				scope := &scope{colors: colorsByFunc}
-				// If the function has a single expression it does not contain a
-				// deferred closure; it won't be added to the list of colored
-				// functions so generateFunctypes does not mistakenly increment the
-				// local symbol counter when generating closure names.
 				gen.Decls = append(gen.Decls, scope.compileFuncDecl(p, decl, color))
 			}
 		}
 
 		clearPos(gen)
-
 		generateFunctypes(p, gen, colorsByFunc)
 
 		// Find all the required imports for this file.
