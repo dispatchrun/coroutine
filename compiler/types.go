@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"slices"
 	"strconv"
 
 	"golang.org/x/tools/go/packages"
@@ -108,24 +107,4 @@ func newFields(p *packages.Package, tuple *types.Tuple) []*ast.Field {
 		}
 	}
 	return fields
-}
-
-func funcTypeWithNamedResults(t *ast.FuncType) *ast.FuncType {
-	if t.Results == nil {
-		return t
-	}
-	funcType := *t
-	funcType.Results = &ast.FieldList{
-		List: slices.Clone(t.Results.List),
-	}
-	for i, f := range t.Results.List {
-		if len(f.Names) == 0 {
-			field := *f
-			field.Names = []*ast.Ident{
-				ast.NewIdent("_"),
-			}
-			funcType.Results.List[i] = &field
-		}
-	}
-	return &funcType
 }

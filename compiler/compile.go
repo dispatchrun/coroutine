@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -91,9 +92,10 @@ func (c *compiler) compile(path string) error {
 		Mode: packages.NeedName | packages.NeedModule |
 			packages.NeedImports | packages.NeedDeps |
 			packages.NeedFiles | packages.NeedSyntax |
-			packages.NeedTypes | packages.NeedTypesInfo,
+			packages.NeedTypes | packages.NeedTypesInfo | packages.NeedTypesSizes,
 		Fset: c.fset,
 		Dir:  absPath,
+		Env:  os.Environ(),
 	}
 	pkgs, err := packages.Load(conf, pattern)
 	if err != nil {
@@ -190,7 +192,7 @@ func (c *compiler) compile(path string) error {
 	}
 
 	for p, colors := range colorsByPkg {
-		if err := c.compilePackage(p, colors, prog); err != nil {
+		if err := c.compilePackage(p, colors); err != nil {
 			return err
 		}
 	}
@@ -225,7 +227,7 @@ func (c *compiler) writeFile(path string, file *ast.File) error {
 	return f.Close()
 }
 
-func (c *compiler) compilePackage(p *packages.Package, colors functionColors, prog *ssa.Program) error {
+func (c *compiler) compilePackage(p *packages.Package, colors functionColors) error {
 	log.Printf("compiling package %s", p.Name)
 
 	// Generate the coroutine AST.
@@ -233,8 +235,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 		Name: ast.NewIdent(p.Name),
 	}
 
-	ssaFnsByDecl := map[ast.Node]*ssa.Function{}
-	colorsByDecl := map[ast.Node]*types.Signature{}
+	colorsByFunc := map[ast.Node]*types.Signature{}
 	for fn, color := range colors {
 		decl := fn.Syntax()
 		switch decl.(type) {
@@ -243,8 +244,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 		default:
 			return fmt.Errorf("unsupported yield function %s (Syntax is %T, not *ast.FuncDecl or *ast.FuncLit)", fn, decl)
 		}
-		ssaFnsByDecl[decl] = fn
-		colorsByDecl[decl] = color
+		colorsByFunc[decl] = color
 	}
 
 	for _, f := range p.Syntax {
@@ -253,7 +253,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 			if !ok {
 				continue
 			}
-			color, ok := colorsByDecl[decl]
+			color, ok := colorsByFunc[decl]
 			if !ok {
 				gen.Decls = append(gen.Decls, decl)
 				continue
@@ -263,21 +263,12 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 				return err
 			}
 
-			scope := &scope{
-				colors:      colorsByDecl,
-				objectIdent: 0,
-			}
-
-			compiledFunction := scope.compileFuncDecl(p, decl, color)
-			if functionBodyIsExpr(compiledFunction.Body) {
-				// If the function has a single expression it does not contain
-				// a deferred closure so we drop it from the list of colored
-				// functions so generateFunctypes does not mistakenly increment
-				// the local symbol counter when generating closure names.
-				delete(colors, ssaFnsByDecl[decl])
-			}
-
-			gen.Decls = append(gen.Decls, compiledFunction)
+			scope := &scope{colors: colorsByFunc}
+			// If the function has a single expression it does not contain a
+			// deferred closure; it won't be added to the list of colored
+			// functions so generateFunctypes does not mistakenly increment the
+			// local symbol counter when generating closure names.
+			gen.Decls = append(gen.Decls, scope.compileFuncDecl(p, decl, color))
 		}
 	}
 
@@ -290,7 +281,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors, pr
 		return err
 	}
 
-	functypesFile := generateFunctypes(p, prog.Package(p.Types), colors)
+	functypesFile := generateFunctypes(p, gen, colorsByFunc)
 	functypesPath := filepath.Join(packageDir, "coroutine_functypes.go")
 	if err := c.writeFile(functypesPath, functypesFile); err != nil {
 		return err
@@ -358,78 +349,66 @@ type scope struct {
 	//
 	// The field is reset to zero after compiling function declarations because
 	// we don't need globally unique identifiers for local variables.
-	objectIdent int
-}
-
-func (scope *scope) newObjectIdent() *ast.Ident {
-	ident := scope.objectIdent
-	scope.objectIdent++
-	return ast.NewIdent(fmt.Sprintf("_o%d", ident))
+	//
+	// See decls.go for usage.
+	objectIndex int
+	// Index used to generate unique frame identifiers with the scope of a
+	// function.
+	//
+	// Unique names are necessary to allow closures to reference
+	frameIndex int
 }
 
 func (scope *scope) compileFuncDecl(p *packages.Package, fn *ast.FuncDecl, color *types.Signature) *ast.FuncDecl {
 	log.Printf("compiling function %s %s", p.Name, fn.Name)
+
 	// Generate the coroutine function. At this stage, use the same name
 	// as the source function (and require that the caller use build tags
 	// to disambiguate function calls).
 	gen := &ast.FuncDecl{
-		Doc:  fn.Doc,
+		Doc:  &ast.CommentGroup{},
 		Name: fn.Name,
 		Type: funcTypeWithNamedResults(fn.Type),
 		Body: scope.compileFuncBody(p, fn.Type, fn.Body, color),
 	}
 
-	if functionBodyIsExpr(gen.Body) {
-		// If the function declaration contains function literals, we have to
-		// add the //go:noinline copmiler directive to prevent inlining or the
-		// resulting symbol name generated by the linker wouldn't match the
-		// predictions made in generateFunctypes.
-		//
-		// When functions are inlined, the linker creates a unique name
-		// combining the symbol name of the calling function and the symbol name
-		// of the closure. Knowing which functions will be inlined is difficult
-		// considering the score-base mechansim that Go uses and alterations
-		// like PGO, therefore we take the simple approach of disabling inlining
-		// instead.
-		//
-		// Note that we only need to do this for single-expression functions as
-		// otherwise the presence of a defer statement to unwind the coroutine
-		// already prevents inlining.
-		hasFuncLit := false
+	// If the function declaration contains function literals, we have to
+	// add the //go:noinline copmiler directive to prevent inlining or the
+	// resulting symbol name generated by the linker wouldn't match the
+	// predictions made in generateFunctypes.
+	//
+	// When functions are inlined, the linker creates a unique name
+	// combining the symbol name of the calling function and the symbol name
+	// of the closure. Knowing which functions will be inlined is difficult
+	// considering the score-base mechansim that Go uses and alterations
+	// like PGO, therefore we take the simple approach of disabling inlining
+	// instead.
+	//
+	// Note that we only need to do this for single-expression functions as
+	// otherwise the presence of a defer statement to unwind the coroutine
+	// already prevents inlining, however, it's simpler to always add the
+	// compiler directive.
+	gen.Doc.List = appendCommentGroup(gen.Doc.List, fn.Doc)
+	gen.Doc.List = appendComment(gen.Doc.List, "//go:noinline\n")
 
-		ast.Inspect(fn, func(n ast.Node) bool {
-			switch n.(type) {
-			case *ast.FuncLit:
-				hasFuncLit = true
-			}
-			return !hasFuncLit
-		})
-
-		if hasFuncLit {
-			gen.Doc = new(ast.CommentGroup)
-			if fn.Doc != nil {
-				gen.Doc.List = append(gen.Doc.List, fn.Doc.List...)
-			}
-			if len(gen.Doc.List) > 0 {
-				gen.Doc.List = append(gen.Doc.List, &ast.Comment{
-					Text: "//\n",
-				})
-			}
-			gen.Doc.List = append(gen.Doc.List, &ast.Comment{
-				Text: "//go:noinline\n",
-			})
-		}
+	if !isExpr(gen.Body) {
+		scope.colors[gen] = color
 	}
-
 	return gen
 }
 
 func (scope *scope) compileFuncLit(p *packages.Package, fn *ast.FuncLit, color *types.Signature) *ast.FuncLit {
 	log.Printf("compiling function literal %s", p.Name)
-	return &ast.FuncLit{
+
+	gen := &ast.FuncLit{
 		Type: funcTypeWithNamedResults(fn.Type),
 		Body: scope.compileFuncBody(p, fn.Type, fn.Body, color),
 	}
+
+	if !isExpr(gen.Body) {
+		scope.colors[gen] = color
+	}
+	return gen
 }
 
 func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, color *types.Signature) *ast.BlockStmt {
@@ -451,7 +430,7 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 		nil,
 	).(*ast.BlockStmt)
 
-	if functionBodyIsExpr(body) {
+	if isExpr(body) {
 		return body
 	}
 
@@ -492,6 +471,9 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 		},
 	})
 
+	frameName := ast.NewIdent(fmt.Sprintf("_f%d", scope.frameIndex))
+	scope.frameIndex++
+
 	// Handle declarations.
 	//
 	// Types, constants and variables can be defined within any scope in the
@@ -505,120 +487,54 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	// declarations to the function prologue. We downgrade inline var decls and
 	// assignments that use := to assignments that use =. Constant decls are
 	// hoisted and also have their value assigned in the function prologue.
-	decls := extractDecls(p, body, p.TypesInfo)
-	renameObjects(body, p.TypesInfo, decls, scope)
+	decls, frameType, frameInit := extractDecls(p, typ, body, p.TypesInfo)
+	renameObjects(body, p.TypesInfo, decls, frameName, frameType, frameInit, scope)
+
 	for _, decl := range decls {
 		gen.List = append(gen.List, &ast.DeclStmt{Decl: decl})
 	}
-	removeDecls(body)
 
-	// Collect params/results/variables that need to be saved/restored.
-	var saveAndRestoreNames []*ast.Ident
-	var saveAndRestoreTypes []types.Type
-	scanFuncTypeIdentifiers(typ, func(name *ast.Ident) {
-		saveAndRestoreNames = append(saveAndRestoreNames, name)
-		saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
-	})
-	scanDeclVarIdentifiers(decls, func(name *ast.Ident) {
-		saveAndRestoreNames = append(saveAndRestoreNames, name)
-		saveAndRestoreTypes = append(saveAndRestoreTypes, p.TypesInfo.TypeOf(name))
-	})
-
-	// Restore state when rewinding the stack.
-	//
-	// As an optimization, only those variables still in scope for a
-	// particular f.IP need to be restored.
-	var restoreStmts []ast.Stmt
-	for i, name := range saveAndRestoreNames {
-		t := saveAndRestoreTypes[i]
-		var needNilGuard bool
-		switch t.Underlying().(type) {
-		case *types.Basic, *types.Struct, *types.Array:
-		default:
-			needNilGuard = true
-		}
-
-		value := ast.NewIdent("_v")
-		if needNilGuard {
-			restoreStmts = append(restoreStmts,
-				&ast.IfStmt{
-					Init: &ast.AssignStmt{
-						Lhs: []ast.Expr{value},
-						Tok: token.DEFINE,
-						Rhs: []ast.Expr{
-							&ast.CallExpr{
-								Fun: &ast.SelectorExpr{
-									X:   frame,
-									Sel: ast.NewIdent("Get"),
-								},
-								Args: []ast.Expr{
-									&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
-								},
-							},
-						},
-					},
-					Cond: &ast.BinaryExpr{X: value, Op: token.NEQ, Y: ast.NewIdent("nil")},
-					Body: &ast.BlockStmt{
-						List: []ast.Stmt{
-							&ast.AssignStmt{
-								Lhs: []ast.Expr{name},
-								Tok: token.ASSIGN,
-								Rhs: []ast.Expr{
-									&ast.TypeAssertExpr{X: value, Type: typeExpr(p, saveAndRestoreTypes[i])},
-								},
-							},
-						},
+	gen.List = append(gen.List,
+		&ast.DeclStmt{
+			Decl: &ast.GenDecl{
+				Tok: token.VAR,
+				Specs: []ast.Spec{
+					&ast.ValueSpec{
+						Names: []*ast.Ident{frameName},
+						Type:  &ast.StarExpr{X: frameType},
 					},
 				},
-			)
-		} else {
-			restoreStmts = append(restoreStmts,
-				&ast.AssignStmt{
-					Lhs: []ast.Expr{name},
-					Tok: token.ASSIGN,
-					Rhs: []ast.Expr{
-						&ast.TypeAssertExpr{
-							X: &ast.CallExpr{
-								Fun: &ast.SelectorExpr{
-									X:   frame,
-									Sel: ast.NewIdent("Get"),
-								},
-								Args: []ast.Expr{
-									&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
-								},
-							},
-							Type: typeExpr(p, t),
-						},
-					},
-				},
-			)
-		}
-	}
+			},
+		},
+	)
+
 	gen.List = append(gen.List, &ast.IfStmt{
 		Cond: &ast.BinaryExpr{
 			X:  &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")},
-			Op: token.GTR, /* > */
+			Op: token.EQL, /* == */
 			Y:  &ast.BasicLit{Kind: token.INT, Value: "0"}},
-		Body: &ast.BlockStmt{List: restoreStmts},
+		Body: &ast.BlockStmt{List: []ast.Stmt{&ast.AssignStmt{
+			Tok: token.ASSIGN,
+			Lhs: []ast.Expr{frameName},
+			Rhs: []ast.Expr{&ast.UnaryExpr{Op: token.AND, X: frameInit}},
+		}}},
+		Else: &ast.BlockStmt{List: []ast.Stmt{&ast.AssignStmt{
+			Lhs: []ast.Expr{frameName},
+			Tok: token.ASSIGN,
+			Rhs: []ast.Expr{&ast.TypeAssertExpr{
+				X: &ast.CallExpr{
+					Fun:  &ast.SelectorExpr{X: frame, Sel: ast.NewIdent("Get")},
+					Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
+				},
+				Type: &ast.StarExpr{X: frameType},
+			}},
+		}}},
 	})
 
-	// Save state when unwinding the stack.
-	var saveStmts []ast.Stmt
-	for i, name := range saveAndRestoreNames {
-		saveStmts = append(saveStmts, &ast.ExprStmt{
-			X: &ast.CallExpr{
-				Fun: &ast.SelectorExpr{X: frame, Sel: ast.NewIdent("Set")},
-				Args: []ast.Expr{
-					&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
-					name,
-				},
-			},
-		})
-	}
 	gen.List = append(gen.List, &ast.DeferStmt{
 		Call: &ast.CallExpr{
 			Fun: &ast.FuncLit{
-				Type: &ast.FuncType{},
+				Type: &ast.FuncType{Params: new(ast.FieldList)},
 				Body: &ast.BlockStmt{
 					List: []ast.Stmt{
 						&ast.IfStmt{
@@ -626,12 +542,19 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 								Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Unwinding")},
 							},
 							Body: &ast.BlockStmt{
-								List: append(saveStmts, &ast.ExprStmt{
-									X: &ast.CallExpr{
+								List: []ast.Stmt{
+									&ast.ExprStmt{X: &ast.CallExpr{
+										Fun: &ast.SelectorExpr{X: frame, Sel: ast.NewIdent("Set")},
+										Args: []ast.Expr{
+											&ast.BasicLit{Kind: token.INT, Value: "0"},
+											frameName,
+										},
+									}},
+									&ast.ExprStmt{X: &ast.CallExpr{
 										Fun:  &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Store")},
 										Args: []ast.Expr{fp, frame},
-									},
-								}),
+									}},
+								},
 							},
 							Else: &ast.BlockStmt{List: []ast.Stmt{
 								&ast.ExprStmt{X: &ast.CallExpr{Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Pop")}}}},
@@ -662,4 +585,37 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	}
 
 	return gen
+}
+
+// This function returns true if a function body is composed of at most one
+// expression.
+func isExpr(body *ast.BlockStmt) bool {
+	if len(body.List) == 0 {
+		return true
+	}
+	if len(body.List) == 1 {
+		if _, isExpr := body.List[0].(*ast.ExprStmt); isExpr {
+			return true
+		}
+	}
+	return false
+}
+
+func funcTypeWithNamedResults(t *ast.FuncType) *ast.FuncType {
+	if t.Results == nil {
+		return t
+	}
+	underscore := ast.NewIdent("_")
+	funcType := *t
+	funcType.Results = &ast.FieldList{
+		List: slices.Clone(t.Results.List),
+	}
+	for i, f := range t.Results.List {
+		if len(f.Names) == 0 {
+			field := *f
+			field.Names = []*ast.Ident{underscore}
+			funcType.Results.List[i] = &field
+		}
+	}
+	return &funcType
 }

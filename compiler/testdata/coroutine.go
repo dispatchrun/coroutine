@@ -282,6 +282,18 @@ func RangeTripleFuncValue(n int) {
 	Range(n, f)
 }
 
+func RangeReverseClosureCaptureByValue(n int) {
+	i := 0
+	f := func() {
+		coroutine.Yield[int, any](n - (i + 1))
+	}
+
+	for i < n {
+		f()
+		i++
+	}
+}
+
 func Range10ClosureCapturingValues() {
 	i := 0
 	n := 10
