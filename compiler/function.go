@@ -102,7 +102,11 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 					switch s := spec.(type) {
 					case *ast.ValueSpec:
 						for _, name := range s.Names {
-							scope.insert(name, s.Type)
+							typ := s.Type
+							if typ == nil {
+								typ = typeExpr(p, p.TypesInfo.TypeOf(name))
+							}
+							scope.insert(name, typ)
 						}
 					}
 				}
