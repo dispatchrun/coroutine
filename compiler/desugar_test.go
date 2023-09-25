@@ -1065,6 +1065,20 @@ _l0:
 }
 `,
 		},
+		{
+			name: "key value expr",
+			body: "Foo{Bar: a(b()), Baz: c(d())}",
+			// TODO: fix order of evaluation here
+			expect: `
+{
+	_v3 := d()
+	_v2 := b()
+	_v1 := c(_v3)
+	_v0 := a(_v2)
+	Foo{Bar: _v0, Baz: _v1}
+}
+`,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			expr, err := parser.ParseExpr("func() {\n" + test.body + "\n}()")

@@ -802,7 +802,13 @@ func (d *desugarer) decomposeExpression(expr ast.Expr, flags exprFlags) (ast.Exp
 
 		case *ast.CompositeLit:
 			for i, elt := range e.Elts {
-				e.Elts[i] = decompose(elt)
+				switch kv := elt.(type) {
+				case *ast.KeyValueExpr:
+					kv.Key = decompose(kv.Key)
+					kv.Value = decompose(kv.Value)
+				default:
+					e.Elts[i] = decompose(elt)
+				}
 			}
 			// skip e.Type (type expression)
 
