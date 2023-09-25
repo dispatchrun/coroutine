@@ -32,8 +32,15 @@ func main() {
 	for c.Next() {
 		req := c.Recv()
 		fmt.Println("Requesting", req.URL.String())
-		c.Send(&http.Response{
-			StatusCode: 200,
-		})
+		if req.URL.String() == "http://example.com" {
+			c.Send(&http.Response{
+				StatusCode: 301,
+				Header: http.Header{
+					"Location": []string{"https://example.com"},
+				},
+			})
+		} else {
+			c.Send(&http.Response{StatusCode: 200})
+		}
 	}
 }
