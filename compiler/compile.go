@@ -308,6 +308,7 @@ func addImports(p *packages.Package, gen *ast.File) *ast.File {
 			if pkg == "" {
 				break
 			}
+			pkg = strings.TrimPrefix(pkg, "vendor/")
 
 			if existing, ok := imports[ident.Name]; ok && existing != pkg {
 				fmt.Println("existing:", ident.Name, existing)

@@ -96,7 +96,6 @@ func scanDir(dst, src string, ops chan<- copyOperation) error {
 	}
 	for _, entry := range entries {
 		name := entry.Name()
-		fmt.Println(dst, src, name)
 		if entry.IsDir() {
 			dstChild := filepath.Join(dst, name)
 			srcChild := filepath.Join(src, name)

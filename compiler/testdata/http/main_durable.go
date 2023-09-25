@@ -5,9 +5,9 @@
 package main
 
 import (
+	http "net/http"
 	coroutine "github.com/stealthrocket/coroutine"
 	fmt "fmt"
-	http "net/http"
 )
 import _types "github.com/stealthrocket/coroutine/types"
 //go:noinline
