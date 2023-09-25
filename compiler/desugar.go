@@ -67,6 +67,10 @@ type desugarer struct {
 }
 
 func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.Ident) ast.Stmt {
+	if !d.mayYield(stmt) {
+		return stmt
+	}
+
 	switch s := stmt.(type) {
 	case nil:
 
@@ -133,13 +137,22 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 			d.addUserLabel(userLabel, forLabel)
 		}
 		body := &ast.BlockStmt{List: s.Body.List}
+		if d.mayYield(s.Body) {
+			d.nodesThatMayYield[body] = struct{}{}
+		}
 		if d.mayYield(s.Cond) {
 			cond := &ast.UnaryExpr{Op: token.NOT, X: s.Cond}
-			d.nodesThatMayYield[cond] = struct{}{}
-			body.List = append([]ast.Stmt{&ast.IfStmt{
+			branch := &ast.BranchStmt{Tok: token.BREAK}
+			guard := &ast.IfStmt{
 				Cond: cond,
-				Body: &ast.BlockStmt{List: []ast.Stmt{&ast.BranchStmt{Tok: token.BREAK}}},
-			}}, body.List...)
+				Body: &ast.BlockStmt{List: []ast.Stmt{branch}},
+			}
+			d.nodesThatMayYield[cond] = struct{}{}
+			d.nodesThatMayYield[branch] = struct{}{}
+			d.nodesThatMayYield[guard] = struct{}{}
+			d.nodesThatMayYield[guard.Body] = struct{}{}
+			d.nodesThatMayYield[body] = struct{}{}
+			body.List = append([]ast.Stmt{guard}, body.List...)
 			s.Cond = nil
 		}
 		stmt = &ast.LabeledStmt{
@@ -172,11 +185,13 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		}
 		if d.mayYield(s.Cond) {
 			cond := d.newVar(types.Typ[types.Bool])
-			prologue = append(prologue, &ast.AssignStmt{
+			assign := &ast.AssignStmt{
 				Lhs: []ast.Expr{cond},
 				Tok: token.DEFINE,
 				Rhs: []ast.Expr{s.Cond},
-			})
+			}
+			d.nodesThatMayYield[assign] = struct{}{}
+			prologue = append(prologue, assign)
 			s.Cond = cond
 		}
 		prologue = d.desugarList(prologue, nil, nil)
@@ -196,6 +211,9 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 	case *ast.RangeStmt:
 		x := d.newVar(d.info.TypeOf(s.X))
 		init := &ast.AssignStmt{Lhs: []ast.Expr{x}, Tok: token.DEFINE, Rhs: []ast.Expr{s.X}}
+		if d.mayYield(s.X) {
+			d.nodesThatMayYield[init] = struct{}{}
+		}
 		prologue := d.desugarList([]ast.Stmt{init}, nil, nil)
 
 		switch rangeElemType := d.info.TypeOf(s.X).(type) {
@@ -220,13 +238,17 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 					&ast.AssignStmt{Lhs: []ast.Expr{s.Value}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.IndexExpr{X: x, Index: i}}},
 				}, s.Body.List...)
 			}
+			forStmt := &ast.ForStmt{
+				Init: &ast.AssignStmt{Lhs: []ast.Expr{i}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
+				Post: &ast.IncDecStmt{X: i, Tok: token.INC},
+				Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: &ast.CallExpr{Fun: d.builtin("len"), Args: []ast.Expr{x}}},
+				Body: s.Body,
+			}
+			if d.mayYield(s.Body) {
+				d.nodesThatMayYield[forStmt] = struct{}{}
+			}
 			stmt = &ast.BlockStmt{
-				List: append(prologue, d.desugar(&ast.ForStmt{
-					Init: &ast.AssignStmt{Lhs: []ast.Expr{i}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
-					Post: &ast.IncDecStmt{X: i, Tok: token.INC},
-					Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: &ast.CallExpr{Fun: d.builtin("len"), Args: []ast.Expr{x}}},
-					Body: s.Body,
-				}, breakTo, continueTo, userLabel)),
+				List: append(prologue, d.desugar(forStmt, breakTo, continueTo, userLabel)),
 			}
 
 		case *types.Map:
@@ -234,13 +256,17 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 			if (s.Key == nil || isUnderscore(s.Key)) && (s.Value == nil || isUnderscore(s.Value)) {
 				// Rewrite `for range m {}` => `{ _x := m; for _i := 0; _i < len(_x); _i++ {} }`
 				i := d.newVar(types.Typ[types.Int])
+				forStmt := &ast.ForStmt{
+					Init: &ast.AssignStmt{Lhs: []ast.Expr{i}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
+					Post: &ast.IncDecStmt{X: i, Tok: token.INC},
+					Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: &ast.CallExpr{Fun: d.builtin("len"), Args: []ast.Expr{x}}},
+					Body: s.Body,
+				}
+				if d.mayYield(s.Body) {
+					d.nodesThatMayYield[forStmt] = struct{}{}
+				}
 				stmt = &ast.BlockStmt{
-					List: append(prologue, d.desugar(&ast.ForStmt{
-						Init: &ast.AssignStmt{Lhs: []ast.Expr{i}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
-						Post: &ast.IncDecStmt{X: i, Tok: token.INC},
-						Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: &ast.CallExpr{Fun: d.builtin("len"), Args: []ast.Expr{x}}},
-						Body: s.Body,
-					}, breakTo, continueTo, userLabel)),
+					List: append(prologue, d.desugar(forStmt, breakTo, continueTo, userLabel)),
 				}
 			} else {
 				// Since map iteration order is not deterministic, we split the
@@ -299,24 +325,29 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 					mapValue = ast.NewIdent("_")
 				}
 				ok := d.newVar(types.Typ[types.Bool])
-				iterKeys := d.desugar(&ast.RangeStmt{
+				guard := &ast.IfStmt{
+					Init: &ast.AssignStmt{
+						Lhs: []ast.Expr{mapValue, ok},
+						Tok: token.DEFINE,
+						Rhs: []ast.Expr{&ast.IndexExpr{X: x, Index: mapKey}},
+					},
+					Cond: ok,
+					Body: s.Body,
+				}
+				rangeLoop := &ast.RangeStmt{
 					Value: mapKey,
 					Tok:   token.DEFINE,
 					X:     keys,
 					Body: &ast.BlockStmt{
-						List: []ast.Stmt{
-							&ast.IfStmt{
-								Init: &ast.AssignStmt{
-									Lhs: []ast.Expr{mapValue, ok},
-									Tok: token.DEFINE,
-									Rhs: []ast.Expr{&ast.IndexExpr{X: x, Index: mapKey}},
-								},
-								Cond: ok,
-								Body: s.Body,
-							},
-						},
+						List: []ast.Stmt{guard},
 					},
-				}, breakTo, continueTo, userLabel)
+				}
+				if d.mayYield(s.Body) {
+					d.nodesThatMayYield[guard] = struct{}{}
+					d.nodesThatMayYield[rangeLoop.Body] = struct{}{}
+					d.nodesThatMayYield[rangeLoop] = struct{}{}
+				}
+				iterKeys := d.desugar(rangeLoop, breakTo, continueTo, userLabel)
 
 				stmt = &ast.BlockStmt{List: append(prologue, collectKeys, iterKeys)}
 			}
@@ -344,19 +375,38 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		}
 		rawSelect := &ast.SelectStmt{Body: &ast.BlockStmt{List: make([]ast.Stmt, len(s.Body.List))}}
 		switchBody := &ast.BlockStmt{List: make([]ast.Stmt, len(s.Body.List))}
+		switchStmt := &ast.SwitchStmt{Tag: selection, Body: switchBody}
 
 		for i, c := range s.Body.List {
 			cc := c.(*ast.CommClause)
 			caseComm := cc.Comm
-			caseBody := cc.Body
+			id := &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i + 1)}
+			switchBody.List[i] = &ast.CaseClause{
+				List: []ast.Expr{id},
+				Body: cc.Body,
+			}
+			for _, n := range cc.Body {
+				if d.mayYield(n) {
+					d.nodesThatMayYield[switchBody.List[i]] = struct{}{}
+					d.nodesThatMayYield[switchBody] = struct{}{}
+					d.nodesThatMayYield[switchStmt] = struct{}{}
+					break
+				}
+			}
 			switch m := caseComm.(type) {
 			case nil:
 			case *ast.SendStmt:
 				tmpChan := d.newVar(d.info.TypeOf(m.Chan))
 				tmpValue := d.newVar(d.info.TypeOf(m.Value))
-				prologue = append(prologue,
-					&ast.AssignStmt{Lhs: []ast.Expr{tmpChan}, Tok: token.DEFINE, Rhs: []ast.Expr{m.Chan}},
-					&ast.AssignStmt{Lhs: []ast.Expr{tmpValue}, Tok: token.DEFINE, Rhs: []ast.Expr{m.Value}})
+				assignChan := &ast.AssignStmt{Lhs: []ast.Expr{tmpChan}, Tok: token.DEFINE, Rhs: []ast.Expr{m.Chan}}
+				assignValue := &ast.AssignStmt{Lhs: []ast.Expr{tmpValue}, Tok: token.DEFINE, Rhs: []ast.Expr{m.Value}}
+				if d.mayYield(m.Chan) {
+					d.nodesThatMayYield[assignChan] = struct{}{}
+				}
+				if d.mayYield(assignValue) {
+					d.nodesThatMayYield[assignValue] = struct{}{}
+				}
+				prologue = append(prologue, assignChan, assignValue)
 				m.Chan = tmpChan
 				m.Value = tmpValue
 			case *ast.ExprStmt:
@@ -365,8 +415,11 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 					panic("unexpected select case")
 				}
 				tmpRecv := d.newVar(d.info.TypeOf(recv.X))
-				prologue = append(prologue,
-					&ast.AssignStmt{Lhs: []ast.Expr{tmpRecv}, Tok: token.DEFINE, Rhs: []ast.Expr{recv.X}})
+				assignRecv := &ast.AssignStmt{Lhs: []ast.Expr{tmpRecv}, Tok: token.DEFINE, Rhs: []ast.Expr{recv.X}}
+				if d.mayYield(assignRecv) {
+					d.nodesThatMayYield[assignRecv] = struct{}{}
+				}
+				prologue = append(prologue, assignRecv)
 				recv.X = tmpRecv
 			case *ast.AssignStmt:
 				if len(m.Rhs) != 1 {
@@ -377,8 +430,11 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 					panic("unexpected select case")
 				}
 				tmpRecv := d.newVar(d.info.TypeOf(recv.X))
-				prologue = append(prologue,
-					&ast.AssignStmt{Lhs: []ast.Expr{tmpRecv}, Tok: token.DEFINE, Rhs: []ast.Expr{recv.X}})
+				assignRecv := &ast.AssignStmt{Lhs: []ast.Expr{tmpRecv}, Tok: token.DEFINE, Rhs: []ast.Expr{recv.X}}
+				if d.mayYield(assignRecv) {
+					d.nodesThatMayYield[assignRecv] = struct{}{}
+				}
+				prologue = append(prologue, assignRecv)
 				recv.X = tmpRecv
 				caseBodyAssigns := make([]ast.Stmt, len(m.Lhs))
 				for j, lhs := range m.Lhs {
@@ -396,18 +452,21 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 						}})
 
 					caseBodyAssigns[j] = &ast.AssignStmt{Lhs: []ast.Expr{lhs}, Tok: m.Tok, Rhs: []ast.Expr{tmpLhs}}
+					if d.mayYield(lhs) {
+						d.nodesThatMayYield[caseBodyAssigns[j]] = struct{}{}
+						d.nodesThatMayYield[switchBody.List[i]] = struct{}{}
+						d.nodesThatMayYield[switchBody] = struct{}{}
+						d.nodesThatMayYield[switchStmt] = struct{}{}
+					}
 					m.Lhs[j] = tmpLhs
 				}
-				caseBody = append(caseBodyAssigns, caseBody...)
+				switchBodyCase := switchBody.List[i].(*ast.CaseClause)
+				switchBodyCase.Body = append(caseBodyAssigns, switchBodyCase.Body...)
 				m.Tok = token.ASSIGN
 			default:
 				panic(fmt.Sprintf("unexpected select case %T", m))
 			}
-			id := &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i + 1)}
-			switchBody.List[i] = &ast.CaseClause{
-				List: []ast.Expr{id},
-				Body: caseBody,
-			}
+
 			rawSelect.Body.List[i] = &ast.CommClause{
 				Comm: caseComm,
 				Body: []ast.Stmt{
@@ -423,7 +482,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		stmt = &ast.BlockStmt{
 			List: append(prologue,
 				rawSelect,
-				d.desugar(&ast.SwitchStmt{Tag: selection, Body: switchBody}, breakTo, continueTo, userLabel),
+				d.desugar(switchStmt, breakTo, continueTo, userLabel),
 			),
 		}
 
@@ -441,19 +500,33 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		var tag ast.Expr
 		if s.Tag != nil {
 			tag = d.newVar(d.info.TypeOf(s.Tag))
-			prologue = append(prologue, &ast.AssignStmt{
+			assign := &ast.AssignStmt{
 				Lhs: []ast.Expr{tag},
 				Tok: token.DEFINE,
 				Rhs: []ast.Expr{s.Tag},
-			})
+			}
+			if d.mayYield(s.Tag) {
+				d.nodesThatMayYield[assign] = struct{}{}
+			}
+			prologue = append(prologue, assign)
 		}
 		var defaultCaseBody ast.Stmt
 		var head ast.Stmt
 		var tail *ast.IfStmt
 		for _, caseStmt := range s.Body.List {
 			c := caseStmt.(*ast.CaseClause)
+			bodyMayYield := false
+			for _, n := range c.Body {
+				if d.mayYield(n) {
+					bodyMayYield = true
+					break
+				}
+			}
 			if len(c.List) == 0 {
 				defaultCaseBody = &ast.BlockStmt{List: c.Body}
+				if bodyMayYield {
+					d.nodesThatMayYield[defaultCaseBody] = struct{}{}
+				}
 				continue
 			}
 			list := make([]ast.Expr, len(c.List))
@@ -484,6 +557,14 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 				Init: &ast.AssignStmt{Lhs: []ast.Expr{tmp}, Tok: token.DEFINE, Rhs: []ast.Expr{orExpr}},
 				Cond: tmp,
 				Body: &ast.BlockStmt{List: c.Body},
+			}
+			if d.mayYield(orExpr) {
+				d.nodesThatMayYield[ifStmt.Init] = struct{}{}
+				d.nodesThatMayYield[ifStmt] = struct{}{}
+			}
+			if bodyMayYield {
+				d.nodesThatMayYield[ifStmt.Body] = struct{}{}
+				d.nodesThatMayYield[ifStmt] = struct{}{}
 			}
 			if head == nil {
 				head = ifStmt
@@ -877,4 +958,39 @@ func findCalls(tree ast.Node, info *types.Info) map[ast.Node]struct{} {
 	})
 
 	return mayYield
+}
+
+// markBranchStmt marks nodes in a tree that are of type
+// ast.BranchStmt and that have an ancestor in the specified set.
+// When marking nodes, all ancestors are also marked.
+func markBranchStmt(tree ast.Node, set map[ast.Node]struct{}) {
+	var stack []ast.Node
+	ast.Inspect(tree, func(node ast.Node) bool {
+		if node != nil {
+			stack = append(stack, node)
+			if _, ok := node.(*ast.BranchStmt); ok {
+				closestAncestor := -1
+			findAncestor:
+				for i := len(stack) - 1; i >= 0; i-- {
+					n := stack[i]
+					switch n.(type) {
+					case *ast.FuncDecl, *ast.FuncLit:
+						break findAncestor
+					}
+					if _, ok := set[n]; ok {
+						closestAncestor = i
+						break
+					}
+				}
+				if closestAncestor >= 0 {
+					for i := closestAncestor; i < len(stack); i++ {
+						set[stack[i]] = struct{}{}
+					}
+				}
+			}
+		} else {
+			stack = stack[:len(stack)-1]
+		}
+		return true
+	})
 }

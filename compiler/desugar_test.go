@@ -686,16 +686,8 @@ default:
 	default:
 		_v0 = 1
 	}
-	{
-		_v1 := _v0
-		switch {
-		default:
-			{
-				_v2 := _v1 == 1
-				if _v2 {
-				}
-			}
-		}
+	switch _v0 {
+	case 1:
 	}
 }
 `,
