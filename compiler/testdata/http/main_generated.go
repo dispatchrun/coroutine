@@ -5,14 +5,15 @@ package main
 import (
 	http "net/http"
 	coroutine "github.com/stealthrocket/coroutine"
+	coroutine "github.com/stealthrocket/coroutine"
 	fmt "fmt"
+	_types "github.com/stealthrocket/coroutine/types"
 )
-import _types "github.com/stealthrocket/coroutine/types"
 
 type yieldingRoundTripper struct {
 }
 //go:noinline
-func RoundTrip(req *http.Request) (_ *http.Response, _ error) {
+func (*yieldingRoundTripper) RoundTrip(req *http.Request) (_ *http.Response, _ error) {
 	_c := coroutine.LoadContext[*http.Request, *http.Response]()
 	_f, _fp := _c.Push()
 	var _f0 *struct {
