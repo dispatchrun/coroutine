@@ -3,15 +3,15 @@
 package main
 
 import (
-	fmt "fmt"
 	http "net/http"
 	coroutine "github.com/stealthrocket/coroutine"
+	fmt "fmt"
 )
 import _types "github.com/stealthrocket/coroutine/types"
 
 type yieldingRoundTripper struct{}
 //go:noinline
-func (*yieldingRoundTripper) RoundTrip(req *http.Request) (_ *http.Response, _ error) {
+func (*yieldingRoundTripper) RoundTrip(_fn0 *http.Request) (_ *http.Response, _ error) {
 	_c := coroutine.LoadContext[*http.Request, *http.Response]()
 	_f, _fp := _c.Push()
 	var _f0 *struct {
@@ -22,7 +22,7 @@ func (*yieldingRoundTripper) RoundTrip(req *http.Request) (_ *http.Response, _ e
 		_f0 = &struct {
 			X0 *http.Request
 			X1 *http.Response
-		}{X0: req}
+		}{X0: _fn0}
 	} else {
 		_f0 = _f.Get(0).(*struct {
 			X0 *http.Request
@@ -104,7 +104,7 @@ func main() {
 	}
 }
 func init() {
-	_types.RegisterFunc[func(req *http.Request) (_ *http.Response, _ error)]("github.com/stealthrocket/coroutine/compiler/testdata/http.RoundTrip")
+	_types.RegisterFunc[func(_fn0 *http.Request) (_ *http.Response, _ error)]("github.com/stealthrocket/coroutine/compiler/testdata/http.RoundTrip")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata/http.main")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata/http.work")
 }

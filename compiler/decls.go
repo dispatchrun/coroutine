@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strconv"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
@@ -316,4 +317,44 @@ func renameObjects(tree ast.Node, info *types.Info, decls []*ast.GenDecl, frameN
 		},
 		nil,
 	)
+}
+
+func renameFuncRecvParamsResults(typ *ast.FuncType, recv *ast.FieldList, body *ast.BlockStmt, info *types.Info) {
+	names := map[types.Object]*ast.Ident{}
+
+	fieldLists := []*ast.FieldList{recv, typ.Params, typ.Results}
+	for _, fieldList := range fieldLists {
+		if fieldList == nil {
+			continue
+		}
+		for _, field := range fieldList.List {
+			for _, name := range field.Names {
+				if name.Name == "_" {
+					continue
+				}
+				obj := info.ObjectOf(name)
+				newIdent := ast.NewIdent("_fn" + strconv.Itoa(len(names)))
+				names[obj] = newIdent
+				info.Defs[newIdent] = obj
+			}
+		}
+	}
+
+	decl := &ast.FuncDecl{
+		Recv: recv,
+		Type: typ,
+		Body: body,
+	}
+
+	astutil.Apply(decl, func(cursor *astutil.Cursor) bool {
+		switch n := cursor.Node().(type) {
+		case *ast.Ident:
+			if obj := info.ObjectOf(n); obj != nil {
+				if ident, ok := names[obj]; ok {
+					cursor.Replace(ident)
+				}
+			}
+		}
+		return true
+	}, nil)
 }

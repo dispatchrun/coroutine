@@ -372,12 +372,13 @@ func (scope *scope) compileFuncDecl(p *packages.Package, fn *ast.FuncDecl, color
 	// Generate the coroutine function. At this stage, use the same name
 	// as the source function (and require that the caller use build tags
 	// to disambiguate function calls).
+	fnType := funcTypeWithNamedResults(fn.Type)
 	gen := &ast.FuncDecl{
 		Recv: fn.Recv,
 		Doc:  &ast.CommentGroup{},
 		Name: fn.Name,
-		Type: funcTypeWithNamedResults(fn.Type),
-		Body: scope.compileFuncBody(p, fn.Type, fn.Body, fn.Recv, color),
+		Type: fnType,
+		Body: scope.compileFuncBody(p, fnType, fn.Body, fn.Recv, color),
 	}
 
 	// If the function declaration contains function literals, we have to
@@ -508,6 +509,8 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 
 	frameName := ast.NewIdent(fmt.Sprintf("_f%d", scope.frameIndex))
 	scope.frameIndex++
+
+	renameFuncRecvParamsResults(typ, recv, body, p.TypesInfo)
 
 	// Handle declarations.
 	//
