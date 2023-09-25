@@ -890,12 +890,8 @@ func LoopBreakAndContinue(_ int) {
 			for ; _o0 < 10; _o0, _f.IP = _o0+1, 2 {
 				switch {
 				case _f.IP < 4:
-					switch {
-					case _f.IP < 3:
+					{
 						_o1 = _o0 % 2
-						_f.IP = 3
-						fallthrough
-					case _f.IP < 4:
 						if _o1 == 0 {
 							continue _l0
 						}
@@ -940,63 +936,35 @@ func LoopBreakAndContinue(_ int) {
 							_f.IP = 9
 							fallthrough
 						case _f.IP < 18:
-							switch {
-							case _f.IP < 10:
+							{
 								_o4 = _o3
-								_f.IP = 10
-								fallthrough
-							case _f.IP < 18:
 								switch {
 								default:
-									switch {
-									case _f.IP < 11:
+									{
 										_o5 = _o4 ==
 											0
-										_f.IP = 11
-										fallthrough
-									case _f.IP < 18:
 										if _o5 {
 											continue _l2
 										} else {
-											switch {
-											case _f.IP < 13:
-												_o6 = _o4 ==
+											_o6 = _o4 ==
 
-													1
-												_f.IP = 13
-												fallthrough
-											case _f.IP < 18:
-												if _o6 {
+												1
+											if _o6 {
+												{
+													_o7 = _o2
 													switch {
-													case _f.IP < 14:
-														_o7 = _o2
-														_f.IP = 14
-														fallthrough
-													case _f.IP < 18:
-														switch {
-														default:
-															switch {
-															case _f.IP < 15:
-																_o8 = _o7 ==
-																	0
-																_f.IP = 15
-																fallthrough
-															case _f.IP < 18:
-																if _o8 {
-																	continue _l1
-																} else {
-																	switch {
-																	case _f.IP < 17:
-																		_o9 = _o7 ==
+													default:
+														{
+															_o8 = _o7 ==
+																0
+															if _o8 {
+																continue _l1
+															} else {
+																_o9 = _o7 ==
 
-																			1
-																		_f.IP = 17
-																		fallthrough
-																	case _f.IP < 18:
-																		if _o9 {
-																			break _l1
-																		}
-																	}
+																	1
+																if _o9 {
+																	break _l1
 																}
 															}
 														}
@@ -1187,12 +1155,8 @@ func RangeOverMaps(n int) {
 			_f.IP = 10
 			fallthrough
 		case _f.IP < 12:
-			switch {
-			case _f.IP < 11:
+			{
 				_o4 = make([]int, 0, len(_o3))
-				_f.IP = 11
-				fallthrough
-			case _f.IP < 12:
 				for _v4 := range _o3 {
 					_o4 = append(_o4, _v4)
 				}
@@ -1243,12 +1207,8 @@ func RangeOverMaps(n int) {
 			_f.IP = 18
 			fallthrough
 		case _f.IP < 20:
-			switch {
-			case _f.IP < 19:
+			{
 				_o10 = make([]int, 0, len(_o9))
-				_f.IP = 19
-				fallthrough
-			case _f.IP < 20:
 				for _v10 := range _o9 {
 					_o10 = append(_o10, _v10)
 				}
@@ -1305,7 +1265,7 @@ func RangeOverMaps(n int) {
 		_f.IP = 27
 		fallthrough
 	case _f.IP < 28:
-		for _o17 = 0; _o17 < n; _o17, _f.IP = _o17+1, 27 {
+		for _o17 = 0; _o17 < n; _o17++ {
 			_o16[_o17] = struct{}{}
 		}
 		_f.IP = 28
@@ -1321,12 +1281,8 @@ func RangeOverMaps(n int) {
 			_f.IP = 30
 			fallthrough
 		case _f.IP < 32:
-			switch {
-			case _f.IP < 31:
+			{
 				_o19 = make([]int, 0, len(_o18))
-				_f.IP = 31
-				fallthrough
-			case _f.IP < 32:
 				for _v16 := range _o18 {
 					_o19 = append(_o19, _v16)
 				}
@@ -1719,44 +1675,16 @@ func Range10ClosureHeterogenousCapture() {
 	}()
 	switch {
 	case _f.IP < 11:
-		switch {
-		case _f.IP < 2:
+		{
 			_o12 = 0
-			_f.IP = 2
-			fallthrough
-		case _f.IP < 3:
 			_o13 = 1
-			_f.IP = 3
-			fallthrough
-		case _f.IP < 4:
 			_o14 = 2
-			_f.IP = 4
-			fallthrough
-		case _f.IP < 5:
 			_o15 = 3
-			_f.IP = 5
-			fallthrough
-		case _f.IP < 6:
 			_o16 = 4
-			_f.IP = 6
-			fallthrough
-		case _f.IP < 7:
 			_o17 = 5
-			_f.IP = 7
-			fallthrough
-		case _f.IP < 8:
 			_o18 = 6
-			_f.IP = 8
-			fallthrough
-		case _f.IP < 9:
 			_o19 = 7
-			_f.IP = 9
-			fallthrough
-		case _f.IP < 10:
 			_o20 = 8
-			_f.IP = 10
-			fallthrough
-		case _f.IP < 11:
 			_o21 = func() int { return int(_o20) + 1 }
 		}
 		_f.IP = 11
@@ -1948,40 +1876,15 @@ func Range10Heterogenous() {
 	}()
 	switch {
 	case _f.IP < 10:
-		switch {
-		case _f.IP < 2:
+		{
 			_o0 = 0
-			_f.IP = 2
-			fallthrough
-		case _f.IP < 3:
 			_o1 = 1
-			_f.IP = 3
-			fallthrough
-		case _f.IP < 4:
 			_o2 = 2
-			_f.IP = 4
-			fallthrough
-		case _f.IP < 5:
 			_o3 = 3
-			_f.IP = 5
-			fallthrough
-		case _f.IP < 6:
 			_o4 = 4
-			_f.IP = 6
-			fallthrough
-		case _f.IP < 7:
 			_o5 = 5
-			_f.IP = 7
-			fallthrough
-		case _f.IP < 8:
 			_o6 = 6
-			_f.IP = 8
-			fallthrough
-		case _f.IP < 9:
 			_o7 = 7
-			_f.IP = 9
-			fallthrough
-		case _f.IP < 10:
 			_o8 = 8
 		}
 		_f.IP = 10

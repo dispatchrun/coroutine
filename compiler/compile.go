@@ -644,7 +644,8 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	})
 
 	spans := trackDispatchSpans(body)
-	compiledBody := compileDispatch(body, spans).(*ast.BlockStmt)
+	mayYield = findCalls(body, p.TypesInfo)
+	compiledBody := compileDispatch(body, spans, mayYield).(*ast.BlockStmt)
 	gen.List = append(gen.List, compiledBody.List...)
 
 	// If the function returns one or more values, it must end with a return statement;
