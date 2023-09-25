@@ -433,7 +433,10 @@ func (scope *scope) compileFuncLit(p *packages.Package, fn *ast.FuncLit, color *
 }
 
 func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, color *types.Signature) *ast.BlockStmt {
-	body = desugar(p, body).(*ast.BlockStmt)
+	mayYield := findCalls(body, p.TypesInfo)
+	markBranchStmt(body, mayYield)
+
+	body = desugar(p, body, mayYield).(*ast.BlockStmt)
 	body = astutil.Apply(body,
 		func(cursor *astutil.Cursor) bool {
 			switch n := cursor.Node().(type) {
@@ -527,41 +530,69 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	// particular f.IP need to be restored.
 	var restoreStmts []ast.Stmt
 	for i, name := range saveAndRestoreNames {
+		t := saveAndRestoreTypes[i]
+		var needNilGuard bool
+		switch t.Underlying().(type) {
+		case *types.Basic, *types.Struct, *types.Array:
+		default:
+			needNilGuard = true
+		}
+
 		value := ast.NewIdent("_v")
-		restoreStmts = append(restoreStmts,
-			// Generate a guard in case a value of nil was stored when unwinding.
-			// TODO: the guard isn't needed in all cases (e.g. with primitive types
-			//  which can never be nil). Remove the guard unless necessary
-			&ast.IfStmt{
-				Init: &ast.AssignStmt{
-					Lhs: []ast.Expr{value},
-					Tok: token.DEFINE,
+		if needNilGuard {
+			restoreStmts = append(restoreStmts,
+				&ast.IfStmt{
+					Init: &ast.AssignStmt{
+						Lhs: []ast.Expr{value},
+						Tok: token.DEFINE,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   frame,
+									Sel: ast.NewIdent("Get"),
+								},
+								Args: []ast.Expr{
+									&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
+								},
+							},
+						},
+					},
+					Cond: &ast.BinaryExpr{X: value, Op: token.NEQ, Y: ast.NewIdent("nil")},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.AssignStmt{
+								Lhs: []ast.Expr{name},
+								Tok: token.ASSIGN,
+								Rhs: []ast.Expr{
+									&ast.TypeAssertExpr{X: value, Type: typeExpr(p, saveAndRestoreTypes[i])},
+								},
+							},
+						},
+					},
+				},
+			)
+		} else {
+			restoreStmts = append(restoreStmts,
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{name},
+					Tok: token.ASSIGN,
 					Rhs: []ast.Expr{
-						&ast.CallExpr{
-							Fun: &ast.SelectorExpr{
-								X:   frame,
-								Sel: ast.NewIdent("Get"),
+						&ast.TypeAssertExpr{
+							X: &ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   frame,
+									Sel: ast.NewIdent("Get"),
+								},
+								Args: []ast.Expr{
+									&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
+								},
 							},
-							Args: []ast.Expr{
-								&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(i)},
-							},
+							Type: typeExpr(p, t),
 						},
 					},
 				},
-				Cond: &ast.BinaryExpr{X: value, Op: token.NEQ, Y: ast.NewIdent("nil")},
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						&ast.AssignStmt{
-							Lhs: []ast.Expr{name},
-							Tok: token.ASSIGN,
-							Rhs: []ast.Expr{
-								&ast.TypeAssertExpr{X: value, Type: typeExpr(p, saveAndRestoreTypes[i])},
-							},
-						},
-					},
-				},
-			},
-		)
+			)
+		}
 	}
 	gen.List = append(gen.List, &ast.IfStmt{
 		Cond: &ast.BinaryExpr{
@@ -613,7 +644,8 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	})
 
 	spans := trackDispatchSpans(body)
-	compiledBody := compileDispatch(body, spans).(*ast.BlockStmt)
+	mayYield = findCalls(body, p.TypesInfo)
+	compiledBody := compileDispatch(body, spans, mayYield).(*ast.BlockStmt)
 	gen.List = append(gen.List, compiledBody.List...)
 
 	// If the function returns one or more values, it must end with a return statement;

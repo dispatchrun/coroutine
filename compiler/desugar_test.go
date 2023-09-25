@@ -90,14 +90,16 @@ func TestDesugar(t *testing.T) {
 _l0:
 	for ; ; i++ {
 		{
-			_v0 := !(i < 10)
+			_v1 := i < 10
+			_v0 := !_v1
 			if _v0 {
 				break _l0
 			}
 		}
 		result += i
 	}
-}`,
+}
+`,
 		},
 		{
 			name: "labeled for",
@@ -108,7 +110,8 @@ _l0:
 _l0:
 	for ; ; i++ {
 		{
-			_v0 := !(i < 10)
+			_v1 := i < 10
+			_v0 := !_v1
 			if _v0 {
 				break _l0
 			}
@@ -118,8 +121,9 @@ _l0:
 		_l1:
 			for ; ; j++ {
 				{
-					_v1 := !(j < 10)
-					if _v1 {
+					_v3 := j < 10
+					_v2 := !_v3
+					if _v2 {
 						break _l1
 					}
 				}
@@ -127,7 +131,8 @@ _l0:
 			}
 		}
 	}
-}`,
+}
+`,
 		},
 		{
 			name: "labeled for break and continue handling",
@@ -178,14 +183,7 @@ _l0:
 	_v0 := []int{0, 1, 2}
 	{
 		_v1 := 0
-	_l0:
-		for ; ; _v1++ {
-			{
-				_v2 := !(_v1 < len(_v0))
-				if _v2 {
-					break _l0
-				}
-			}
+		for ; _v1 < len(_v0); _v1++ {
 			foo
 		}
 	}
@@ -204,14 +202,7 @@ _l0:
 	_v0 := []int{0, 1, 2}
 	{
 		_v1 := 0
-	_l0:
-		for ; ; _v1++ {
-			{
-				_v2 := !(_v1 < len(_v0))
-				if _v2 {
-					break _l0
-				}
-			}
+		for ; _v1 < len(_v0); _v1++ {
 			foo
 		}
 	}
@@ -230,14 +221,7 @@ _l0:
 	_v0 := []int{0, 1, 2}
 	{
 		_v1 := 0
-	_l0:
-		for ; ; _v1++ {
-			{
-				_v2 := !(_v1 < len(_v0))
-				if _v2 {
-					break _l0
-				}
-			}
+		for ; _v1 < len(_v0); _v1++ {
 			foo
 		}
 	}
@@ -256,14 +240,7 @@ _l0:
 	_v0 := []int{0, 1, 2}
 	{
 		i := 0
-	_l0:
-		for ; ; i++ {
-			{
-				_v1 := !(i < len(_v0))
-				if _v1 {
-					break _l0
-				}
-			}
+		for ; i < len(_v0); i++ {
 			foo
 		}
 	}
@@ -282,14 +259,7 @@ _l0:
 	_v0 := []int{0, 1, 2}
 	{
 		i := 0
-	_l0:
-		for ; ; i++ {
-			{
-				_v1 := !(i < len(_v0))
-				if _v1 {
-					break _l0
-				}
-			}
+		for ; i < len(_v0); i++ {
 			foo
 		}
 	}
@@ -308,14 +278,7 @@ _l0:
 	_v0 := []int{0, 1, 2}
 	{
 		i := 0
-	_l0:
-		for ; ; i++ {
-			{
-				_v1 := !(i < len(_v0))
-				if _v1 {
-					break _l0
-				}
-			}
+		for ; i < len(_v0); i++ {
 			v := _v0[i]
 		}
 	}
@@ -334,14 +297,7 @@ _l0:
 	_v0 := []int{0, 1, 2}
 	{
 		_v1 := 0
-	_l0:
-		for ; ; _v1++ {
-			{
-				_v2 := !(_v1 < len(_v0))
-				if _v2 {
-					break _l0
-				}
-			}
+		for ; _v1 < len(_v0); _v1++ {
 			v := _v0[_v1]
 		}
 	}
@@ -360,14 +316,7 @@ _l0:
 	_v0 := [3]int{0, 1, 2}
 	{
 		i := 0
-	_l0:
-		for ; ; i++ {
-			{
-				_v1 := !(i < len(_v0))
-				if _v1 {
-					break _l0
-				}
-			}
+		for ; i < len(_v0); i++ {
 			v := _v0[i]
 		}
 	}
@@ -386,14 +335,7 @@ _l0:
 	_v0 := map[int]int{}
 	{
 		_v1 := 0
-	_l0:
-		for ; ; _v1++ {
-			{
-				_v2 := !(_v1 < len(_v0))
-				if _v2 {
-					break _l0
-				}
-			}
+		for ; _v1 < len(_v0); _v1++ {
 			foo
 		}
 	}
@@ -412,14 +354,7 @@ _l0:
 	_v0 := map[int]int{}
 	{
 		_v1 := 0
-	_l0:
-		for ; ; _v1++ {
-			{
-				_v2 := !(_v1 < len(_v0))
-				if _v2 {
-					break _l0
-				}
-			}
+		for ; _v1 < len(_v0); _v1++ {
 			foo
 		}
 	}
@@ -446,14 +381,7 @@ _l0:
 		_v4 := _v1
 		{
 			_v5 := 0
-		_l0:
-			for ; ; _v5++ {
-				{
-					_v6 := !(_v5 < len(_v4))
-					if _v6 {
-						break _l0
-					}
-				}
+			for ; _v5 < len(_v4); _v5++ {
 				i := _v4[_v5]
 				{
 					_, _v3 := _v0[i]
@@ -487,14 +415,7 @@ _l0:
 		_v4 := _v1
 		{
 			_v5 := 0
-		_l0:
-			for ; ; _v5++ {
-				{
-					_v6 := !(_v5 < len(_v4))
-					if _v6 {
-						break _l0
-					}
-				}
+			for ; _v5 < len(_v4); _v5++ {
 				i := _v4[_v5]
 				{
 					_, _v3 := _v0[i]
@@ -528,14 +449,7 @@ _l0:
 		_v4 := _v1
 		{
 			_v5 := 0
-		_l0:
-			for ; ; _v5++ {
-				{
-					_v6 := !(_v5 < len(_v4))
-					if _v6 {
-						break _l0
-					}
-				}
+			for ; _v5 < len(_v4); _v5++ {
 				i := _v4[_v5]
 				{
 					v, _v3 := _v0[i]
@@ -569,14 +483,7 @@ _l0:
 		_v5 := _v1
 		{
 			_v6 := 0
-		_l0:
-			for ; ; _v6++ {
-				{
-					_v7 := !(_v6 < len(_v5))
-					if _v7 {
-						break _l0
-					}
-				}
+			for ; _v6 < len(_v5); _v6++ {
 				_v3 := _v5[_v6]
 				{
 					v, _v4 := _v0[_v3]
@@ -779,16 +686,8 @@ default:
 	default:
 		_v0 = 1
 	}
-	{
-		_v1 := _v0
-		switch {
-		default:
-			{
-				_v2 := _v1 == 1
-				if _v2 {
-				}
-			}
-		}
+	switch _v0 {
+	case 1:
 	}
 }
 `,
@@ -917,14 +816,11 @@ case bool, string:
 }
 `,
 			expect: `
-{
-	_v0 := a
-	switch _v0.(type) {
-	case int:
-		foo
-	case bool, string:
-		bar
-	}
+switch a.(type) {
+case int:
+	foo
+case bool, string:
+	bar
 }
 `,
 		},
@@ -941,8 +837,7 @@ case bool:
 			expect: `
 {
 	a := 1
-	_v0 := a
-	switch b := _v0.(type) {
+	switch b := a.(type) {
 	case int:
 		foo
 	case bool:
@@ -1030,9 +925,8 @@ _l0:
 							_v4 := _v2 == 2
 							if _v4 {
 								{
-									_v5 := a
 								_l2:
-									switch _v5.(type) {
+									switch a.(type) {
 									case int:
 										break _l2
 										break _l1
@@ -1073,7 +967,8 @@ _l0:
 			body: "a(b(c(d(e(1 + 2)))))",
 			expect: `
 {
-	_v3 := e(1 + 2)
+	_v4 := 1 + 2
+	_v3 := e(_v4)
 	_v2 := d(_v3)
 	_v1 := c(_v2)
 	_v0 := b(_v1)
@@ -1186,7 +1081,14 @@ _l0:
 			if test.info != nil {
 				test.info(body.List, info)
 			}
+			// We're testing worst case desugaring, so mark all nodes
+			// as possibly yielding.
+			mayYield := map[ast.Node]struct{}{}
+
 			ast.Inspect(body, func(node ast.Node) bool {
+				if node != nil {
+					mayYield[node] = struct{}{}
+				}
 				if ident, ok := node.(*ast.Ident); ok {
 					if obj, ok := test.defs[ident.Name]; ok {
 						info.Defs[ident] = obj
@@ -1205,8 +1107,9 @@ _l0:
 				}
 				return true
 			})
+
 			p := &packages.Package{TypesInfo: info}
-			desugared := desugar(p, body)
+			desugared := desugar(p, body, mayYield)
 			desugared = unnestBlocks(desugared)
 
 			expect := strings.TrimSpace(test.expect)
