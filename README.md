@@ -190,16 +190,18 @@ import (
     "github.com/stealthrocket/coroutine"
 )
 
+func work() {
+    for i := 0; i < 3; i++ {
+        coroutine.Yield[int, any](i)
+    }
+}
+
 func main() {
     var state string
     flag.StringVar(&state, "state", "coroutine.state", "Location of the coroutine state file")
     flag.Parse()
 
-    coro := coroutine.New[int, any](func() {
-        for i := 0; i < 3; i++ {
-            coroutine.Yield[int, any](i)
-        }
-    })
+    coro := coroutine.New[int, any](work)
 
     if coroutine.Durable {
         b, err := os.ReadFile(state)
