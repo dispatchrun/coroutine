@@ -469,8 +469,6 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 
 	gen := new(ast.BlockStmt)
 	ctx := ast.NewIdent("_c")
-	frame := ast.NewIdent("_f")
-	fp := ast.NewIdent("_fp")
 
 	yieldTypeExpr := make([]ast.Expr, 2)
 	yieldTypeExpr[0] = typeExpr(p, color.Params().At(0).Type())
@@ -496,17 +494,6 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 		},
 	})
 
-	// _f, _fp := _c.Push()
-	gen.List = append(gen.List, &ast.AssignStmt{
-		Lhs: []ast.Expr{frame, fp},
-		Tok: token.DEFINE,
-		Rhs: []ast.Expr{
-			&ast.CallExpr{
-				Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Push")},
-			},
-		},
-	})
-
 	frameName := ast.NewIdent(fmt.Sprintf("_f%d", scope.frameIndex))
 	scope.frameIndex++
 
@@ -528,64 +515,68 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	decls, frameType, frameInit := extractDecls(p, typ, body, recv, defers, p.TypesInfo)
 	renameObjects(body, p.TypesInfo, decls, frameName, frameType, frameInit, scope)
 
+	// var _f{n} F = coroutine.Push[F](&_c.Stack)
+	gen.List = append(gen.List, &ast.DeclStmt{Decl: &ast.GenDecl{
+		Tok: token.VAR,
+		Specs: []ast.Spec{&ast.ValueSpec{
+			Names: []*ast.Ident{frameName},
+			Type:  &ast.StarExpr{X: frameType},
+			Values: []ast.Expr{&ast.CallExpr{
+				Fun: &ast.IndexListExpr{
+					X:       &ast.SelectorExpr{X: coroutineIdent, Sel: ast.NewIdent("Push")},
+					Indices: []ast.Expr{frameType},
+				},
+				Args: []ast.Expr{&ast.UnaryExpr{
+					Op: token.AND,
+					X:  &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Stack")},
+				}},
+			}},
+		}},
+	}})
+
 	for _, decl := range decls {
 		gen.List = append(gen.List, &ast.DeclStmt{Decl: decl})
 	}
 
-	gen.List = append(gen.List,
-		&ast.DeclStmt{
-			Decl: &ast.GenDecl{
-				Tok: token.VAR,
-				Specs: []ast.Spec{
-					&ast.ValueSpec{
-						Names: []*ast.Ident{frameName},
-						Type:  &ast.StarExpr{X: frameType},
-					},
-				},
-			},
-		},
-	)
-
 	gen.List = append(gen.List, &ast.IfStmt{
 		Cond: &ast.BinaryExpr{
-			X:  &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")},
+			X:  &ast.SelectorExpr{X: frameName, Sel: ast.NewIdent("IP")},
 			Op: token.EQL, /* == */
 			Y:  &ast.BasicLit{Kind: token.INT, Value: "0"}},
 		Body: &ast.BlockStmt{List: []ast.Stmt{&ast.AssignStmt{
 			Tok: token.ASSIGN,
-			Lhs: []ast.Expr{frameName},
-			Rhs: []ast.Expr{&ast.UnaryExpr{Op: token.AND, X: frameInit}},
-		}}},
-		Else: &ast.BlockStmt{List: []ast.Stmt{&ast.AssignStmt{
-			Lhs: []ast.Expr{frameName},
-			Tok: token.ASSIGN,
-			Rhs: []ast.Expr{&ast.TypeAssertExpr{
-				X: &ast.CallExpr{
-					Fun:  &ast.SelectorExpr{X: frame, Sel: ast.NewIdent("Get")},
-					Args: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}},
-				},
-				Type: &ast.StarExpr{X: frameType},
-			}},
+			Lhs: []ast.Expr{&ast.StarExpr{X: frameName}},
+			Rhs: []ast.Expr{frameInit},
 		}}},
 	})
 
-	popFrame := []ast.Stmt{
-		&ast.ExprStmt{X: &ast.CallExpr{Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Pop")}}},
+	popExpr := &ast.CallExpr{
+		Fun: &ast.SelectorExpr{X: coroutineIdent, Sel: ast.NewIdent("Pop")},
+		Args: []ast.Expr{&ast.UnaryExpr{
+			Op: token.AND,
+			X:  &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Stack")},
+		}},
 	}
 
-	if defers != nil {
-		popFrame = append(popFrame, &ast.RangeStmt{
-			Key:   ast.NewIdent("_"),
-			Value: ast.NewIdent("f"),
-			Tok:   token.DEFINE,
-			X: &ast.SelectorExpr{
-				X:   frameName,
-				Sel: frameType.Fields.List[len(frameType.Fields.List)-1].Names[0],
+	var popFrame []ast.Stmt
+	if defers == nil {
+		popFrame = []ast.Stmt{&ast.ExprStmt{X: popExpr}}
+	} else {
+		popFrame = []ast.Stmt{
+			&ast.DeferStmt{Call: popExpr},
+			&ast.RangeStmt{
+				Key:   ast.NewIdent("_"),
+				Value: ast.NewIdent("f"),
+				Tok:   token.DEFINE,
+				X: &ast.SelectorExpr{
+					X:   frameName,
+					Sel: frameType.Fields.List[len(frameType.Fields.List)-1].Names[0],
+				},
+				Body: &ast.BlockStmt{List: []ast.Stmt{
+					&ast.DeferStmt{Call: &ast.CallExpr{Fun: ast.NewIdent("f")}},
+				}},
 			},
-			Body: &ast.BlockStmt{List: []ast.Stmt{
-				&ast.DeferStmt{Call: &ast.CallExpr{Fun: ast.NewIdent("f")}},
-			}},
-		})
+		}
 	}
 
 	gen.List = append(gen.List, &ast.DeferStmt{
@@ -595,25 +586,10 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 				Body: &ast.BlockStmt{
 					List: []ast.Stmt{
 						&ast.IfStmt{
-							Cond: &ast.CallExpr{
+							Cond: &ast.UnaryExpr{Op: token.NOT, X: &ast.CallExpr{
 								Fun: &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Unwinding")},
-							},
-							Body: &ast.BlockStmt{
-								List: []ast.Stmt{
-									&ast.ExprStmt{X: &ast.CallExpr{
-										Fun: &ast.SelectorExpr{X: frame, Sel: ast.NewIdent("Set")},
-										Args: []ast.Expr{
-											&ast.BasicLit{Kind: token.INT, Value: "0"},
-											frameName,
-										},
-									}},
-									&ast.ExprStmt{X: &ast.CallExpr{
-										Fun:  &ast.SelectorExpr{X: ctx, Sel: ast.NewIdent("Store")},
-										Args: []ast.Expr{fp, frame},
-									}},
-								},
-							},
-							Else: &ast.BlockStmt{List: popFrame},
+							}},
+							Body: &ast.BlockStmt{List: popFrame},
 						},
 					},
 				},
@@ -623,7 +599,7 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 
 	spans := trackDispatchSpans(body)
 	mayYield = findCalls(body, p.TypesInfo)
-	compiledBody := compileDispatch(body, spans, mayYield).(*ast.BlockStmt)
+	compiledBody := compileDispatch(body, frameName, spans, mayYield).(*ast.BlockStmt)
 	gen.List = append(gen.List, compiledBody.List...)
 
 	// If the function returns one or more values, it must end with a return statement;

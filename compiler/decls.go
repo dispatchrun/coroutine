@@ -24,7 +24,12 @@ import (
 // function body, so there may be duplicate identifiers. Identifiers can be
 // disambiguated using (*types.Info).ObjectOf(ident).
 func extractDecls(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, recv *ast.FieldList, defers *ast.Ident, info *types.Info) (decls []*ast.GenDecl, frameType *ast.StructType, frameInit *ast.CompositeLit) {
-	frameType = &ast.StructType{Fields: &ast.FieldList{}}
+	IP := &ast.Field{
+		Names: []*ast.Ident{ast.NewIdent("IP")},
+		Type:  ast.NewIdent("int"),
+	}
+
+	frameType = &ast.StructType{Fields: &ast.FieldList{List: []*ast.Field{IP}}}
 	frameInit = &ast.CompositeLit{Type: frameType}
 
 	if recv != nil {
@@ -184,7 +189,7 @@ func renameObjects(tree ast.Node, info *types.Info, decls []*ast.GenDecl, frameN
 	}
 
 	index := 0
-	for i, field := range frameType.Fields.List {
+	for i, field := range frameType.Fields.List[1:] {
 		fieldNames := make([]*ast.Ident, len(field.Names))
 
 		for j, ident := range field.Names {
@@ -206,7 +211,7 @@ func renameObjects(tree ast.Node, info *types.Info, decls []*ast.GenDecl, frameN
 			}
 		}
 
-		frameType.Fields.List[i] = &ast.Field{
+		frameType.Fields.List[i+1] = &ast.Field{
 			Names: fieldNames,
 			Type:  field.Type,
 		}
