@@ -69,6 +69,9 @@ func TestReflect(t *testing.T) {
 			context.Background(),
 			context.TODO(),
 			context.WithValue(context.Background(), ctxKey1{}, "hello"),
+
+			"",
+			struct{}{},
 		}
 
 		for _, x := range cases {
@@ -96,6 +99,26 @@ func TestReflect(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestEmptyStructs(t *testing.T) {
+	assertRoundTrip(t, struct{}{})
+
+	type X struct {
+		first struct{}
+		last  int
+	}
+
+	assertRoundTrip(t, X{})
+	assertRoundTrip(t, X{first: struct{}{}, last: 42})
+
+	type Y struct {
+		first int
+		last  struct{}
+	}
+
+	assertRoundTrip(t, Y{})
+	assertRoundTrip(t, Y{first: 42, last: struct{}{}})
 }
 
 func TestInt257(t *testing.T) {
