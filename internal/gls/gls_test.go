@@ -1,4 +1,4 @@
-package coroutine
+package gls
 
 import "testing"
 
@@ -7,15 +7,15 @@ func TestGLS(t *testing.T) {
 
 	f := func(n int) {
 		defer close(c)
-		storeContext(getg(), n)
+		Context().Store(n)
 
 		load := func() int {
-			v, _ := loadContext(getg()).(int)
+			v, _ := Context().Load().(int)
 			return v
 		}
 
 		c <- load()
-		clearContext(getg())
+		Context().Clear()
 		c <- load()
 	}
 
@@ -43,27 +43,24 @@ func BenchmarkGLS(b *testing.B) {
 
 	b.Run("loadContext", func(b *testing.B) {
 		b.RunParallel(func(pb *testing.PB) {
-			g := getg()
 			for pb.Next() {
-				_ = loadContext(g)
+				_ = Context().Load()
 			}
 		})
 	})
 
 	b.Run("storeContext", func(b *testing.B) {
 		b.RunParallel(func(pb *testing.PB) {
-			g := getg()
 			for pb.Next() {
-				storeContext(g, 42)
+				Context().Store(42)
 			}
 		})
 	})
 
 	b.Run("clearContext", func(b *testing.B) {
 		b.RunParallel(func(pb *testing.PB) {
-			g := getg()
 			for pb.Next() {
-				clearContext(g)
+				Context().Clear()
 			}
 		})
 	})
