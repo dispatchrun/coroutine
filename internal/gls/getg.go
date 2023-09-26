@@ -1,4 +1,4 @@
-package coroutine
+package gls
 
 // getg is like the compiler intrisinc runtime.getg which retrieves the current
 // goroutine object.

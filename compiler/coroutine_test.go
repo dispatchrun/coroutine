@@ -226,7 +226,21 @@ func TestCoroutineYield(t *testing.T) {
 
 				// If supported, serialize => deserialize the context
 				// before resuming.
-				assertSerializable(t, g)
+				c := g.Context()
+				b, err := c.Marshal()
+				if err != nil {
+					if err == coroutine.ErrNotDurable {
+						continue
+					}
+					t.Fatal(err)
+				}
+				var reconstructed coroutine.Context[int, any]
+				if n, err := reconstructed.Unmarshal(b); err != nil {
+					t.Fatal(err)
+				} else if n != len(b) {
+					t.Fatal("invalid number of bytes read when reconstructing context")
+				}
+				*c = reconstructed
 			}
 			if yield < len(test.yields) {
 				t.Errorf("coroutine did not yield the correct number of times: got %d, expect %d", yield, len(test.yields))

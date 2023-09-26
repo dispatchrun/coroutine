@@ -282,7 +282,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 		gen = addImports(p, gen)
 
 		outputPath := strings.TrimSuffix(p.GoFiles[i], ".go")
-		outputPath += "_generated.go"
+		outputPath += "_durable.go"
 
 		if err := c.writeFile(outputPath, gen, func(expr constraint.Expr) constraint.Expr {
 			return withBuildTag(expr, buildTag)
