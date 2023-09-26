@@ -230,8 +230,8 @@ program, attempting to resume a state on a different version is not supported.
 
 ### Scheduling
 
-Pausing, marshaling, unmarshaling, and resuming durable coroutines is work for a
-scheduler which is not included in this package. The `coroutine` project only
+Pausing, marshaling, unmarshalling, and resuming durable coroutines is work for
+a scheduler which is not included in this package. The `coroutine` project only
 provides the building blocks needed to create those types of systems.
 
 ### Language Support
