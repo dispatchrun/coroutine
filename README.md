@@ -207,7 +207,7 @@ func main() {
                 log.Fatal(err)
             }
         } else {
-            if err := coro.Context().Unmarshal(b); err != nil {
+            if _, err := coro.Context().Unmarshal(b); err != nil {
                 log.Fatal(err)
             }
         }
