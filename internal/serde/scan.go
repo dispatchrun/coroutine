@@ -305,6 +305,10 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	case reflect.String:
 		str := *(*string)(p)
 		sp := unsafe.StringData(str)
+		if sp == nil {
+			// empty strings are represented as nil pointers.
+			return
+		}
 		xt := reflect.ArrayOf(len(str), byteT)
 		s.containers.add(xt, unsafe.Pointer(sp))
 	case reflect.Map:

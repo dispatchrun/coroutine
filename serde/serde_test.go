@@ -69,6 +69,8 @@ func TestReflect(t *testing.T) {
 			context.Background(),
 			context.TODO(),
 			context.WithValue(context.Background(), ctxKey1{}, "hello"),
+
+			"",
 		}
 
 		for _, x := range cases {
