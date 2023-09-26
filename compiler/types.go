@@ -52,23 +52,33 @@ func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
 	case *types.Signature:
 		return newFuncType(p, t)
 	case *types.Named:
-		if t.TypeParams() != nil || t.TypeArgs() != nil {
-			panic("not implemented: generic types")
-		}
 		obj := t.Obj()
 		name := ast.NewIdent(obj.Name())
 		pkg := obj.Pkg()
+
+		var namedExpr ast.Expr
 		if pkg == nil || p.Types == pkg {
-			return name
+			namedExpr = name
+		} else {
+			// Update the package's type map to track that this package is
+			// imported with this identifier. We do not attempt to reuse
+			// identifiers at the moment.
+			pkgident := ast.NewIdent(pkg.Name())
+			p.TypesInfo.Uses[pkgident] = types.NewPkgName(pkgident.NamePos, p.Types, pkgident.Name, pkg)
+			namedExpr = &ast.SelectorExpr{X: pkgident, Sel: name}
 		}
+		if typeArgs := t.TypeArgs(); typeArgs != nil {
+			indices := make([]ast.Expr, typeArgs.Len())
+			for i := range indices {
+				indices[i] = typeExpr(p, typeArgs.At(i))
+			}
+			namedExpr = &ast.IndexListExpr{
+				X:       namedExpr,
+				Indices: indices,
+			}
+		}
+		return namedExpr
 
-		// Update the package's type map to track that this package is
-		// imported with this identifier. We do not attempt to reuse
-		// identifiers at the moment.
-		pkgident := ast.NewIdent(pkg.Name())
-		p.TypesInfo.Uses[pkgident] = types.NewPkgName(pkgident.NamePos, p.Types, pkgident.Name, pkg)
-
-		return &ast.SelectorExpr{X: pkgident, Sel: name}
 	case *types.Chan:
 		c := &ast.ChanType{
 			Value: typeExpr(p, t.Elem()),
