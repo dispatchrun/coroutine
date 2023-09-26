@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 
+	"github.com/stealthrocket/coroutine/internal/gls"
 	"github.com/stealthrocket/coroutine/internal/serde"
 )
 
@@ -27,11 +28,12 @@ func (c Coroutine[R, S]) Next() (hasNext bool) {
 		return false
 	}
 
-	g := getg()
-	storeContext(g, c.ctx)
+	g := gls.Context()
+
+	g.Store(c.ctx)
 
 	defer func() {
-		clearContext(g)
+		g.Clear()
 
 		switch err := recover(); err {
 		case nil:

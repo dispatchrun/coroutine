@@ -1,4 +1,4 @@
-package coroutine
+package gls
 
 import "sync"
 
@@ -23,26 +23,38 @@ import "sync"
 // simple memory loads.
 var (
 	gmutex sync.RWMutex
-	gstate map[uintptr]any
+	gstate map[G]any
 )
 
-func loadContext(g uintptr) any {
+// G is a reference to a goroutine, and provides a way
+// to load, store and clear a goroutine local context.
+type G uintptr
+
+// Context retrieves the goroutine local storage for contexts.
+func Context() G {
+	return G(getg())
+}
+
+// Load loads the goroutine local context.
+func (g G) Load() any {
 	gmutex.RLock()
 	v := gstate[g]
 	gmutex.RUnlock()
 	return v
 }
 
-func storeContext(g uintptr, c any) {
+// Store stores the goroutine local context.
+func (g G) Store(c any) {
 	gmutex.Lock()
 	if gstate == nil {
-		gstate = make(map[uintptr]any)
+		gstate = make(map[G]any)
 	}
 	gstate[g] = c
 	gmutex.Unlock()
 }
 
-func clearContext(g uintptr) {
+// Clear clears the goroutine local context.
+func (g G) Clear() {
 	gmutex.Lock()
 	delete(gstate, g)
 	gmutex.Unlock()

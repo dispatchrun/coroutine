@@ -2,7 +2,11 @@
 
 package coroutine
 
-import "runtime"
+import (
+	"runtime"
+
+	"github.com/stealthrocket/coroutine/internal/gls"
+)
 
 // New creates a new coroutine which executes f as entry point.
 func New[R, S any](f func()) Coroutine[R, S] {
@@ -13,13 +17,13 @@ func New[R, S any](f func()) Coroutine[R, S] {
 	}
 
 	go func() {
-		g := getg()
-		storeContext(g, c)
+		g := gls.Context()
+		g.Store(c)
 
 		defer func() {
 			c.done = true
 			close(c.next)
-			clearContext(g)
+			g.Clear()
 		}()
 
 		<-c.next
