@@ -128,7 +128,7 @@ storage medium and later reloaded to restart computation where it was left off.
 
 To install the `coroc` compiler:
 ```
-go install github.com/stealthrocket/coroutine/compiler/cmd/coroc
+go install github.com/stealthrocket/coroutine/compiler/cmd/coroc@latest
 ```
 
 Then to compile a package:
