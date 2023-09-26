@@ -91,10 +91,15 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 		}
 	}
 
-	pre := func(cursor *astutil.Cursor) bool {
-		switch n := cursor.Node().(type) {
+	var inspect func(ast.Node) bool
+	inspect = func(node ast.Node) bool {
+		switch n := node.(type) {
 		case *ast.Ident:
 			observeIdent(n)
+
+		case *ast.SelectorExpr:
+			ast.Inspect(n.X, inspect)
+			return false
 
 		case *ast.GenDecl:
 			if n.Tok == token.VAR {
@@ -110,6 +115,7 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 						}
 					}
 				}
+				return false
 			}
 
 		case *ast.FuncLit:
@@ -125,15 +131,18 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 		return true
 	}
 
-	post := func(cursor *astutil.Cursor) bool {
-		switch cursor.Node().(type) {
-		case *ast.BlockStmt:
-			scope = scope.outer
-		}
-		return true
-	}
-
-	astutil.Apply(functionBodyOf(fn), pre, post)
+	astutil.Apply(functionBodyOf(fn),
+		func(cursor *astutil.Cursor) bool {
+			return inspect(cursor.Node())
+		},
+		func(cursor *astutil.Cursor) bool {
+			switch cursor.Node().(type) {
+			case *ast.BlockStmt:
+				scope = scope.outer
+			}
+			return true
+		},
+	)
 
 	functype := functype{
 		signature: signature,

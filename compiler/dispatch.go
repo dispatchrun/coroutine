@@ -68,7 +68,7 @@ func trackDispatchSpans0(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan,
 // to the correct location in the code, even when there are arbitrary
 // levels of branches and loops. To do this, we generate a switch inside
 // each block, using the information from trackDispatchSpans.
-func compileDispatch(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan, mayYield map[ast.Node]struct{}) ast.Stmt {
+func compileDispatch(stmt ast.Stmt, frame *ast.Ident, dispatchSpans map[ast.Stmt]dispatchSpan, mayYield map[ast.Node]struct{}) ast.Stmt {
 	if _, ok := mayYield[stmt]; !ok {
 		return stmt
 	}
@@ -77,19 +77,21 @@ func compileDispatch(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan, may
 	case *ast.BlockStmt:
 		switch {
 		case len(s.List) == 1:
-			child := compileDispatch(s.List[0], dispatchSpans, mayYield)
+			child := compileDispatch(s.List[0], frame, dispatchSpans, mayYield)
 			s.List[0] = unnestBlocks(child)
 		case len(s.List) > 1:
-			stmt = &ast.BlockStmt{List: []ast.Stmt{compileDispatch0(s.List, dispatchSpans, mayYield)}}
+			stmt = &ast.BlockStmt{
+				List: []ast.Stmt{compileDispatch0(s.List, frame, dispatchSpans, mayYield)},
+			}
 		}
 	case *ast.IfStmt:
-		s.Body = compileDispatch(s.Body, dispatchSpans, mayYield).(*ast.BlockStmt)
+		s.Body = compileDispatch(s.Body, frame, dispatchSpans, mayYield).(*ast.BlockStmt)
 		if s.Else != nil {
-			s.Else = compileDispatch(s.Else, dispatchSpans, mayYield)
+			s.Else = compileDispatch(s.Else, frame, dispatchSpans, mayYield)
 		}
 	case *ast.ForStmt:
 		forSpan := dispatchSpans[s]
-		s.Body = compileDispatch(s.Body, dispatchSpans, mayYield).(*ast.BlockStmt)
+		s.Body = compileDispatch(s.Body, frame, dispatchSpans, mayYield).(*ast.BlockStmt)
 
 		// Hijack the loop's post iteration statement to inject an IP reset.
 		if s.Post == nil {
@@ -147,54 +149,54 @@ func compileDispatch(stmt ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan, may
 			}
 			assign.Tok = token.ASSIGN
 		}
-		assign.Lhs = append(assign.Lhs, &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")})
+		assign.Lhs = append(assign.Lhs, &ast.SelectorExpr{X: frame, Sel: ast.NewIdent("IP")})
 		assign.Rhs = append(assign.Rhs, &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(forSpan.start)})
 
 	case *ast.SwitchStmt:
 		for i, child := range s.Body.List {
-			s.Body.List[i] = compileDispatch(child, dispatchSpans, mayYield)
+			s.Body.List[i] = compileDispatch(child, frame, dispatchSpans, mayYield)
 		}
 	case *ast.TypeSwitchStmt:
 		for i, child := range s.Body.List {
-			s.Body.List[i] = compileDispatch(child, dispatchSpans, mayYield)
+			s.Body.List[i] = compileDispatch(child, frame, dispatchSpans, mayYield)
 		}
 	case *ast.SelectStmt:
 		for i, child := range s.Body.List {
-			s.Body.List[i] = compileDispatch(child, dispatchSpans, mayYield)
+			s.Body.List[i] = compileDispatch(child, frame, dispatchSpans, mayYield)
 		}
 	case *ast.CaseClause:
 		switch {
 		case len(s.Body) == 1:
-			child := compileDispatch(s.Body[0], dispatchSpans, mayYield)
+			child := compileDispatch(s.Body[0], frame, dispatchSpans, mayYield)
 			s.Body[0] = unnestBlocks(child)
 		case len(s.Body) > 1:
-			s.Body = []ast.Stmt{compileDispatch0(s.Body, dispatchSpans, mayYield)}
+			s.Body = []ast.Stmt{compileDispatch0(s.Body, frame, dispatchSpans, mayYield)}
 		}
 	case *ast.CommClause:
 		switch {
 		case len(s.Body) == 1:
-			child := compileDispatch(s.Body[0], dispatchSpans, mayYield)
+			child := compileDispatch(s.Body[0], frame, dispatchSpans, mayYield)
 			s.Body[0] = unnestBlocks(child)
 		case len(s.Body) > 1:
-			s.Body = []ast.Stmt{compileDispatch0(s.Body, dispatchSpans, mayYield)}
+			s.Body = []ast.Stmt{compileDispatch0(s.Body, frame, dispatchSpans, mayYield)}
 		}
 	case *ast.LabeledStmt:
-		s.Stmt = compileDispatch(s.Stmt, dispatchSpans, mayYield)
+		s.Stmt = compileDispatch(s.Stmt, frame, dispatchSpans, mayYield)
 	}
 	return stmt
 }
 
-func compileDispatch0(stmts []ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan, mayYield map[ast.Node]struct{}) ast.Stmt {
+func compileDispatch0(stmts []ast.Stmt, frame *ast.Ident, dispatchSpans map[ast.Stmt]dispatchSpan, mayYield map[ast.Node]struct{}) ast.Stmt {
 	var cases []ast.Stmt
 	for i, child := range stmts {
 		childSpan := dispatchSpans[child]
-		compiledChild := compileDispatch(child, dispatchSpans, mayYield)
+		compiledChild := compileDispatch(child, frame, dispatchSpans, mayYield)
 		compiledChild = unnestBlocks(compiledChild)
 		caseBody := []ast.Stmt{compiledChild}
 		if i < len(stmts)-1 {
 			caseBody = append(caseBody,
 				&ast.AssignStmt{
-					Lhs: []ast.Expr{&ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")}},
+					Lhs: []ast.Expr{&ast.SelectorExpr{X: frame, Sel: ast.NewIdent("IP")}},
 					Tok: token.ASSIGN,
 					Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(childSpan.end)}},
 				},
@@ -203,7 +205,7 @@ func compileDispatch0(stmts []ast.Stmt, dispatchSpans map[ast.Stmt]dispatchSpan,
 		cases = append(cases, &ast.CaseClause{
 			List: []ast.Expr{
 				&ast.BinaryExpr{
-					X:  &ast.SelectorExpr{X: ast.NewIdent("_f"), Sel: ast.NewIdent("IP")},
+					X:  &ast.SelectorExpr{X: frame, Sel: ast.NewIdent("IP")},
 					Op: token.LSS, /* < */
 					Y:  &ast.BasicLit{Kind: token.INT, Value: strconv.Itoa(childSpan.end)}},
 			},
