@@ -124,12 +124,37 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		}
 
 	case *ast.DeferStmt:
-		// TODO:
-		// -----
-		// defer D(42)
-		// ...
-		// arg := 42
-		// defer func() { D(arg) }()
+		var prologue []ast.Stmt
+		for i, arg := range s.Call.Args {
+			tmp := d.newVar(d.info.TypeOf(arg))
+			assign := &ast.AssignStmt{Lhs: []ast.Expr{tmp}, Tok: token.DEFINE, Rhs: []ast.Expr{arg}}
+			if d.mayYield(arg) {
+				d.nodesThatMayYield[assign] = struct{}{}
+			}
+			prologue = append(prologue, assign)
+			s.Call.Args[i] = tmp
+		}
+		prologue = d.desugarList(prologue, nil, nil)
+		fn := s.Call.Fun
+		if _, ok := fn.(*ast.FuncLit); !ok || len(s.Call.Args) > 0 {
+			s.Call.Fun = &ast.FuncLit{
+				Type: &ast.FuncType{},
+				Body: &ast.BlockStmt{List: []ast.Stmt{
+					&ast.ExprStmt{
+						X: &ast.CallExpr{
+							Fun:  s.Call.Fun,
+							Args: s.Call.Args,
+						},
+					},
+				}},
+			}
+			s.Call.Args = nil
+		}
+		if len(prologue) == 0 {
+			stmt = s
+		} else {
+			stmt = &ast.BlockStmt{List: append(prologue, s)}
+		}
 
 	case *ast.EmptyStmt:
 

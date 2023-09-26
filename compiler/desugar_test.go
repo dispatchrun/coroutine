@@ -1079,6 +1079,63 @@ _l0:
 }
 `,
 		},
+		{
+			name: "defer with func literal",
+			body: "defer func() { foo() }()",
+			expect: `
+defer func() {
+	foo()
+}()
+`,
+		},
+		{
+			name: "defer with func literal args",
+			body: "defer func() { foo() }(a, b, c)",
+			expect: `
+{
+	_v0 := a
+	_v1 := b
+	_v2 := c
+	defer func() {
+		func() {
+			foo()
+		}(_v0, _v1, _v2)
+	}()
+}
+`,
+		},
+		{
+			name: "defer with func literal and internal args",
+			body: "defer func() { foo(a, b, c) }()",
+			expect: `
+defer func() {
+	foo(a, b, c)
+}()
+`,
+		},
+		{
+			name: "defer without func literal",
+			body: "defer foo()",
+			expect: `
+defer func() {
+	foo()
+}()
+`,
+		},
+		{
+			name: "defer without func literal args",
+			body: "defer foo(a(b()), c)",
+			expect: `
+{
+	_v2 := b()
+	_v0 := a(_v2)
+	_v1 := c
+	defer func() {
+		foo(_v0, _v1)
+	}()
+}
+`,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			expr, err := parser.ParseExpr("func() {\n" + test.body + "\n}()")
