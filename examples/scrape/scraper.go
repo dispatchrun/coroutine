@@ -53,9 +53,7 @@ func (s *Scraper) scrape(url string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		res.Body.Close()
-	}()
+	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
