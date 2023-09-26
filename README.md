@@ -68,9 +68,10 @@ from the current yield point. `Stop` only marks the coroutine as interrupted, it
 is still necessary for the program to call `Next` in order to drive the code to
 completion, running deferred function calls, and returning from the entry point.
 
-Note that yielding from a coroutine after it was stopped is a fatal error;
-therefore, it is not advised to yield from defers as it would result in a crash
-if the defer was executed after stopping the coroutine.
+> **Note**
+> yielding from a coroutine after it was stopped is a fatal error;
+> therefore, it is not advised to yield from defers as it would result in
+> a crash if the defer was executed after stopping the coroutine.
 
 Often times, the simplest construct to drive coroutine executions is to use the
 `Run` function:
@@ -111,11 +112,12 @@ applied computations from the values received from the sub-routines.
 
 ## Durable Coroutines
 
-⚠️  **This section documents highly experimental capabilities of the coroutine
-package, changes will likely be made, use at your own risks!**
-
 _Coroutines are functions that can be suspended and resumed. Durable coroutines
 are functions that can be suspended, serialized and resumed in another process._
+
+> **Warning**
+> This section documents highly experimental capabilities of the coroutine
+> package, changes will likely be made, use at your own risks!
 
 The project contains a source-to-source Go compiler named `coroc` which compiles
 **volatile** coroutines into **durable** versions where the state captured by a
@@ -220,13 +222,38 @@ func main() {
     }
 
     if coro.Next() {
-        println(coro.Recv())
+        println("yield:", coro.Recv())
     }
 }
 ```
 
-⚠️  At this time, the state of a coroutine is bound to a specific version of the
-program, attempting to resume a state on a different version is not supported.
+When building in volatile mode (the default), the program runs a single step of
+the coroutine and loses its state, each run of the application starts back at
+the beginning:
+```
+$ go build
+$ ./main
+yield: 0
+$ ./main
+yield: 0
+$ ./main
+yield: 0
+```
+However, when building in durable mode, the program saves the coroutine state
+and restores it for each run, it keeps making progress across executions:
+```
+$ go generate && GOROOT=$PWD/vendor/goroot go build -tags durable
+$ ./main
+yield: 0
+$ ./main
+yield: 1
+$ ./main
+yield: 2
+```
+
+> **Warning**
+> At this time, the state of a coroutine is bound to a specific version of the
+> program, attempting to resume a state on a different version is not supported.
 
 ### Scheduling
 
