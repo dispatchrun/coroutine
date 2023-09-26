@@ -107,7 +107,7 @@ local scheduler for a sub-part of the code.
 
 Another useful property of coroutines is that, just like functions, they can be
 composed. A parent coroutine can create more coroutines for which it can drive
-execution in a sub context of the program, and yield values to its caller that
+execution in a subcontext of the program, and yield values to its caller that
 applied computations from the values received from the sub-routines.
 
 ## Durable Coroutines
