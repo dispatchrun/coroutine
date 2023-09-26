@@ -10,7 +10,7 @@ This project contains a durable coroutine compiler and runtime library for Go.
 
 The `coroutine` package can be used as a simple library to create coroutines in
 a Go program, allowing the function passed as entry point to the coroutine to
-be paused by at yield points and later resumed by the caller.
+be paused at yield points and later resumed by the caller.
 
 When pausing, the coroutine yields a value that is received by the caller, and
 on resumption the caller can send back a value that the coroutine obtains as
