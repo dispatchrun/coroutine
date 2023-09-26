@@ -8,6 +8,10 @@ import (
 	"github.com/stealthrocket/coroutine/internal/gls"
 )
 
+// Durable is a constant which takes the values true or false depending on
+// whether the program is built with the "durable" tag.
+const Durable = false
+
 // New creates a new coroutine which executes f as entry point.
 func New[R, S any](f func()) Coroutine[R, S] {
 	c := &Context[R, S]{
