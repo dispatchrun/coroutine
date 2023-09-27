@@ -426,7 +426,7 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	mayYield := findCalls(body, p.TypesInfo)
 	markBranchStmt(body, mayYield)
 
-	body = desugar(p, body, mayYield).(*ast.BlockStmt)
+	body = desugar(p, body, mayYield, color, scope.colors).(*ast.BlockStmt)
 	body = astutil.Apply(body,
 		func(cursor *astutil.Cursor) bool {
 			switch n := cursor.Node().(type) {

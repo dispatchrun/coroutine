@@ -1180,7 +1180,7 @@ defer func() {
 			})
 
 			p := &packages.Package{TypesInfo: info}
-			desugared := desugar(p, body, mayYield)
+			desugared := desugar(p, body, mayYield, nil, nil)
 			desugared = unnestBlocks(desugared)
 
 			expect := strings.TrimSpace(test.expect)

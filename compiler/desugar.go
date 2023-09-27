@@ -40,8 +40,14 @@ import (
 // types.Info. If this gets unruly in the future, desugaring should be
 // performed after parsing AST's but before type checking so that this is
 // done automatically by the type checker.
-func desugar(p *packages.Package, stmt ast.Stmt, mayYield map[ast.Node]struct{}) ast.Stmt {
-	d := desugarer{pkg: p, info: p.TypesInfo, nodesThatMayYield: mayYield}
+func desugar(p *packages.Package, stmt ast.Stmt, mayYield map[ast.Node]struct{}, parentColor *types.Signature, colors map[ast.Node]*types.Signature) ast.Stmt {
+	d := desugarer{
+		pkg:               p,
+		info:              p.TypesInfo,
+		nodesThatMayYield: mayYield,
+		parentColor:       parentColor,
+		colors:            colors,
+	}
 	stmt = d.desugar(stmt, nil, nil, nil)
 
 	// Unused labels cause a compile error (label X defined and not used)
@@ -62,6 +68,8 @@ type desugarer struct {
 	vars              int
 	labels            int
 	nodesThatMayYield map[ast.Node]struct{}
+	parentColor       *types.Signature
+	colors            map[ast.Node]*types.Signature
 	unusedLabels      map[*ast.Ident]struct{}
 	userLabels        map[types.Object]*ast.Ident
 }
@@ -136,17 +144,27 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		}
 		prologue = d.desugarList(prologue, nil, nil)
 		fn := s.Call.Fun
-		if _, ok := fn.(*ast.FuncLit); !ok || len(s.Call.Args) > 0 {
+		_, isLiteral := fn.(*ast.FuncLit)
+		if !isLiteral || len(s.Call.Args) > 0 {
 			s.Call.Fun = &ast.FuncLit{
 				Type: &ast.FuncType{},
 				Body: &ast.BlockStmt{List: []ast.Stmt{
 					&ast.ExprStmt{
 						X: &ast.CallExpr{
-							Fun:  s.Call.Fun,
+							Fun:  fn,
 							Args: s.Call.Args,
 						},
 					},
 				}},
+			}
+			if d.colors != nil {
+				if isLiteral {
+					if color, ok := d.colors[fn]; ok {
+						d.colors[s.Call.Fun] = color
+					}
+				} else if d.mayYield(fn) {
+					d.colors[s.Call.Fun] = d.parentColor
+				}
 			}
 			s.Call.Args = nil
 		}

@@ -174,10 +174,12 @@ func TestCoroutineYield(t *testing.T) {
 			name: "yielding expression desugaring",
 			coro: func() { YieldingExpressionDesugaring() },
 			yields: []int{
+				-222, 222, // defer part 1
 				-1, 1, -2, 2, -3, 3, -4, 4, -5, 5, 50, // if
 				-6, 6, -8, 8, 70, -8, 8, 70, -8, 8, // for
 				-9, 9, -10, 10, -11, 11, -12, 12, -13, 13, // switch
 				-15, 15, 150, // type switch
+				333, 222, -111, 111, 111, // defer part 2
 			},
 		},
 

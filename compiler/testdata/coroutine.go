@@ -452,6 +452,16 @@ func Select(n int) {
 }
 
 func YieldingExpressionDesugaring() {
+	x := 111
+	defer func(x int) {
+		coroutine.Yield[int, any](a(b(x)))
+	}(x)
+	x = 222
+	defer coroutine.Yield[int, any](a(b(x)))
+	x = 333
+	defer coroutine.Yield[int, any](x)
+	x = 444
+
 	if x := a(b(1)); x == a(b(2)) {
 	} else if y := a(b(3)); y == a(b(4))-1 {
 		coroutine.Yield[int, any](a(b(5)) * 10)

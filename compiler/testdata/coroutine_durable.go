@@ -2366,235 +2366,353 @@ func Select(_fn0 int) {
 //go:noinline
 func YieldingExpressionDesugaring() {
 	_c := coroutine.LoadContext[int, any]()
-	var _f0 *struct {
+	var _f1 *struct {
 		IP  int
 		X0  int
 		X1  int
 		X2  int
 		X3  int
-		X4  bool
+		X4  int
 		X5  int
 		X6  int
 		X7  int
 		X8  int
-		X9  int
-		X10 bool
+		X9  bool
+		X10 int
 		X11 int
 		X12 int
 		X13 int
 		X14 int
-		X15 int
-		X16 bool
+		X15 bool
+		X16 int
 		X17 int
 		X18 int
 		X19 int
 		X20 int
 		X21 bool
-		X22 bool
+		X22 int
 		X23 int
 		X24 int
 		X25 int
-		X26 int
-		X27 int
-		X28 bool
+		X26 bool
+		X27 bool
+		X28 int
 		X29 int
 		X30 int
-		X31 bool
+		X31 int
 		X32 int
-		X33 int
+		X33 bool
 		X34 int
-		X35 bool
-		X36 int
+		X35 int
+		X36 bool
 		X37 int
 		X38 int
-		X39 bool
-		X40 int
+		X39 int
+		X40 bool
 		X41 int
-		X42 any
+		X42 int
+		X43 int
+		X44 bool
+		X45 int
+		X46 int
+		X47 any
+		X48 []func()
 	} = coroutine.Push[struct {
 		IP  int
 		X0  int
 		X1  int
 		X2  int
 		X3  int
-		X4  bool
+		X4  int
 		X5  int
 		X6  int
 		X7  int
 		X8  int
-		X9  int
-		X10 bool
+		X9  bool
+		X10 int
 		X11 int
 		X12 int
 		X13 int
 		X14 int
-		X15 int
-		X16 bool
+		X15 bool
+		X16 int
 		X17 int
 		X18 int
 		X19 int
 		X20 int
 		X21 bool
-		X22 bool
+		X22 int
 		X23 int
 		X24 int
 		X25 int
-		X26 int
-		X27 int
-		X28 bool
+		X26 bool
+		X27 bool
+		X28 int
 		X29 int
 		X30 int
-		X31 bool
+		X31 int
 		X32 int
-		X33 int
+		X33 bool
 		X34 int
-		X35 bool
-		X36 int
+		X35 int
+		X36 bool
 		X37 int
 		X38 int
-		X39 bool
-		X40 int
+		X39 int
+		X40 bool
 		X41 int
-		X42 any
+		X42 int
+		X43 int
+		X44 bool
+		X45 int
+		X46 int
+		X47 any
+		X48 []func()
 	}](&_c.Stack)
-	if _f0.IP == 0 {
-		*_f0 = struct {
+	if _f1.IP == 0 {
+		*_f1 = struct {
 			IP  int
 			X0  int
 			X1  int
 			X2  int
 			X3  int
-			X4  bool
+			X4  int
 			X5  int
 			X6  int
 			X7  int
 			X8  int
-			X9  int
-			X10 bool
+			X9  bool
+			X10 int
 			X11 int
 			X12 int
 			X13 int
 			X14 int
-			X15 int
-			X16 bool
+			X15 bool
+			X16 int
 			X17 int
 			X18 int
 			X19 int
 			X20 int
 			X21 bool
-			X22 bool
+			X22 int
 			X23 int
 			X24 int
 			X25 int
-			X26 int
-			X27 int
-			X28 bool
+			X26 bool
+			X27 bool
+			X28 int
 			X29 int
 			X30 int
-			X31 bool
+			X31 int
 			X32 int
-			X33 int
+			X33 bool
 			X34 int
-			X35 bool
-			X36 int
+			X35 int
+			X36 bool
 			X37 int
 			X38 int
-			X39 bool
-			X40 int
+			X39 int
+			X40 bool
 			X41 int
-			X42 any
+			X42 int
+			X43 int
+			X44 bool
+			X45 int
+			X46 int
+			X47 any
+			X48 []func()
 		}{}
 	}
 	defer func() {
 		if !_c.Unwinding() {
-			coroutine.Pop(&_c.Stack)
+			defer coroutine.Pop(&_c.Stack)
+			for _, f := range _f1.X48 {
+				defer f()
+			}
 		}
 	}()
 	switch {
-	case _f0.IP < 21:
+	case _f1.IP < 2:
+		_f1.X0 = 111
+		_f1.IP = 2
+		fallthrough
+	case _f1.IP < 4:
 		switch {
-		case _f0.IP < 2:
-			_f0.X0 = b(1)
-			_f0.IP = 2
+		case _f1.IP < 3:
+			_f1.X1 = _f1.X0
+			_f1.IP = 3
 			fallthrough
-		case _f0.IP < 3:
-			_f0.X1 = a(_f0.X0)
-			_f0.IP = 3
+		case _f1.IP < 4:
+			_f1.X48 = append(_f1.X48, func() {
+				func(_fn0 int) {
+					_c := coroutine.LoadContext[int, any]()
+					var _f0 *struct {
+						IP int
+						X0 int
+						X1 int
+						X2 int
+					} = coroutine.Push[struct {
+						IP int
+						X0 int
+						X1 int
+						X2 int
+					}](&_c.Stack)
+					if _f0.IP == 0 {
+						*_f0 = struct {
+							IP int
+							X0 int
+							X1 int
+							X2 int
+						}{X0: _fn0}
+					}
+					defer func() {
+						if !_c.Unwinding() {
+							coroutine.Pop(&_c.Stack)
+						}
+					}()
+					switch {
+					case _f0.IP < 2:
+						_f0.X1 = b(_f0.X0)
+						_f0.IP = 2
+						fallthrough
+					case _f0.IP < 3:
+						_f0.X2 = a(_f0.X1)
+						_f0.IP = 3
+						fallthrough
+					case _f0.IP < 4:
+						coroutine.Yield[int, any](_f0.X2)
+					}
+				}(_f1.X1)
+			})
+		}
+		_f1.IP = 4
+		fallthrough
+	case _f1.IP < 5:
+		_f1.X0 = 222
+		_f1.IP = 5
+		fallthrough
+	case _f1.IP < 8:
+		switch {
+		case _f1.IP < 6:
+			_f1.X2 = b(_f1.X0)
+			_f1.IP = 6
 			fallthrough
-		case _f0.IP < 4:
-			_f0.X2 = b(2)
-			_f0.IP = 4
+		case _f1.IP < 7:
+			_f1.X3 = a(_f1.X2)
+			_f1.IP = 7
 			fallthrough
-		case _f0.IP < 5:
-			_f0.X3 = a(_f0.X2)
-			_f0.IP = 5
+		case _f1.IP < 8:
+			_f1.X48 = append(_f1.X48, func() {
+				coroutine.Yield[int, any](_f1.X3)
+			})
+		}
+		_f1.IP = 8
+		fallthrough
+	case _f1.IP < 9:
+		_f1.X0 = 333
+		_f1.IP = 9
+		fallthrough
+	case _f1.IP < 11:
+		switch {
+		case _f1.IP < 10:
+			_f1.X4 = _f1.X0
+			_f1.IP = 10
 			fallthrough
-		case _f0.IP < 6:
-			_f0.X4 = _f0.X1 == _f0.X3
-			_f0.IP = 6
+		case _f1.IP < 11:
+			_f1.X48 = append(_f1.X48, func() {
+				coroutine.Yield[int, any](_f1.X4)
+			})
+		}
+		_f1.IP = 11
+		fallthrough
+	case _f1.IP < 12:
+		_f1.X0 = 444
+		_f1.IP = 12
+		fallthrough
+	case _f1.IP < 32:
+		switch {
+		case _f1.IP < 13:
+			_f1.X5 = b(1)
+			_f1.IP = 13
 			fallthrough
-		case _f0.IP < 21:
-			if _f0.X4 {
+		case _f1.IP < 14:
+			_f1.X6 = a(_f1.X5)
+			_f1.IP = 14
+			fallthrough
+		case _f1.IP < 15:
+			_f1.X7 = b(2)
+			_f1.IP = 15
+			fallthrough
+		case _f1.IP < 16:
+			_f1.X8 = a(_f1.X7)
+			_f1.IP = 16
+			fallthrough
+		case _f1.IP < 17:
+			_f1.X9 = _f1.X6 == _f1.X8
+			_f1.IP = 17
+			fallthrough
+		case _f1.IP < 32:
+			if _f1.X9 {
 			} else {
 				switch {
-				case _f0.IP < 8:
-					_f0.X5 = b(3)
-					_f0.IP = 8
+				case _f1.IP < 19:
+					_f1.X10 = b(3)
+					_f1.IP = 19
 					fallthrough
-				case _f0.IP < 9:
-					_f0.X6 = a(_f0.X5)
-					_f0.IP = 9
+				case _f1.IP < 20:
+					_f1.X11 = a(_f1.X10)
+					_f1.IP = 20
 					fallthrough
-				case _f0.IP < 10:
-					_f0.X7 = b(4)
-					_f0.IP = 10
+				case _f1.IP < 21:
+					_f1.X12 = b(4)
+					_f1.IP = 21
 					fallthrough
-				case _f0.IP < 11:
-					_f0.X8 = a(_f0.X7)
-					_f0.IP = 11
+				case _f1.IP < 22:
+					_f1.X13 = a(_f1.X12)
+					_f1.IP = 22
 					fallthrough
-				case _f0.IP < 12:
-					_f0.X9 = _f0.X8 - 1
-					_f0.IP = 12
+				case _f1.IP < 23:
+					_f1.X14 = _f1.X13 - 1
+					_f1.IP = 23
 					fallthrough
-				case _f0.IP < 13:
-					_f0.X10 = _f0.X6 == _f0.X9
-					_f0.IP = 13
+				case _f1.IP < 24:
+					_f1.X15 = _f1.X11 == _f1.X14
+					_f1.IP = 24
 					fallthrough
-				case _f0.IP < 21:
-					if _f0.X10 {
+				case _f1.IP < 32:
+					if _f1.X15 {
 						switch {
-						case _f0.IP < 14:
-							_f0.X11 = b(5)
-							_f0.IP = 14
+						case _f1.IP < 25:
+							_f1.X16 = b(5)
+							_f1.IP = 25
 							fallthrough
-						case _f0.IP < 15:
-							_f0.X12 = a(_f0.X11)
-							_f0.IP = 15
+						case _f1.IP < 26:
+							_f1.X17 = a(_f1.X16)
+							_f1.IP = 26
 							fallthrough
-						case _f0.IP < 16:
-							_f0.X13 = _f0.X12 * 10
-							_f0.IP = 16
+						case _f1.IP < 27:
+							_f1.X18 = _f1.X17 * 10
+							_f1.IP = 27
 							fallthrough
-						case _f0.IP < 17:
-							coroutine.Yield[int, any](_f0.X13)
+						case _f1.IP < 28:
+							coroutine.Yield[int, any](_f1.X18)
 						}
 					} else {
 						switch {
-						case _f0.IP < 18:
-							_f0.X14 = b(100)
-							_f0.IP = 18
+						case _f1.IP < 29:
+							_f1.X19 = b(100)
+							_f1.IP = 29
 							fallthrough
-						case _f0.IP < 19:
-							_f0.X15 = a(_f0.X14)
-							_f0.IP = 19
+						case _f1.IP < 30:
+							_f1.X20 = a(_f1.X19)
+							_f1.IP = 30
 							fallthrough
-						case _f0.IP < 20:
-							_f0.X16 = _f0.X15 == 100
-							_f0.IP = 20
+						case _f1.IP < 31:
+							_f1.X21 = _f1.X20 == 100
+							_f1.IP = 31
 							fallthrough
-						case _f0.IP < 21:
-							if _f0.X16 {
+						case _f1.IP < 32:
+							if _f1.X21 {
 								panic("unreachable")
 							}
 						}
@@ -2602,148 +2720,148 @@ func YieldingExpressionDesugaring() {
 				}
 			}
 		}
-		_f0.IP = 21
+		_f1.IP = 32
 		fallthrough
-	case _f0.IP < 29:
+	case _f1.IP < 40:
 		switch {
-		case _f0.IP < 22:
-			_f0.X17 = b(6)
-			_f0.IP = 22
+		case _f1.IP < 33:
+			_f1.X22 = b(6)
+			_f1.IP = 33
 			fallthrough
-		case _f0.IP < 23:
-			_f0.X18 = a(_f0.X17)
-			_f0.IP = 23
+		case _f1.IP < 34:
+			_f1.X23 = a(_f1.X22)
+			_f1.IP = 34
 			fallthrough
-		case _f0.IP < 29:
+		case _f1.IP < 40:
 		_l0:
-			for ; ; _f0.X18, _f0.IP = _f0.X18+1, 23 {
+			for ; ; _f1.X23, _f1.IP = _f1.X23+1, 34 {
 				switch {
-				case _f0.IP < 28:
+				case _f1.IP < 39:
 					switch {
-					case _f0.IP < 24:
-						_f0.X19 = b(8)
-						_f0.IP = 24
+					case _f1.IP < 35:
+						_f1.X24 = b(8)
+						_f1.IP = 35
 						fallthrough
-					case _f0.IP < 25:
-						_f0.X20 = a(_f0.X19)
-						_f0.IP = 25
+					case _f1.IP < 36:
+						_f1.X25 = a(_f1.X24)
+						_f1.IP = 36
 						fallthrough
-					case _f0.IP < 26:
-						_f0.X21 = _f0.X18 < _f0.X20
-						_f0.IP = 26
+					case _f1.IP < 37:
+						_f1.X26 = _f1.X23 < _f1.X25
+						_f1.IP = 37
 						fallthrough
-					case _f0.IP < 27:
-						_f0.X22 = !_f0.X21
-						_f0.IP = 27
+					case _f1.IP < 38:
+						_f1.X27 = !_f1.X26
+						_f1.IP = 38
 						fallthrough
-					case _f0.IP < 28:
-						if _f0.X22 {
+					case _f1.IP < 39:
+						if _f1.X27 {
 							break _l0
 						}
 					}
-					_f0.IP = 28
+					_f1.IP = 39
 					fallthrough
-				case _f0.IP < 29:
+				case _f1.IP < 40:
 					coroutine.Yield[int, any](70)
 				}
 			}
 		}
-		_f0.IP = 29
+		_f1.IP = 40
 		fallthrough
-	case _f0.IP < 51:
+	case _f1.IP < 62:
 		switch {
-		case _f0.IP < 30:
-			_f0.X23 = b(9)
-			_f0.IP = 30
+		case _f1.IP < 41:
+			_f1.X28 = b(9)
+			_f1.IP = 41
 			fallthrough
-		case _f0.IP < 31:
-			_f0.X24 = a(_f0.X23)
-			_f0.IP = 31
+		case _f1.IP < 42:
+			_f1.X29 = a(_f1.X28)
+			_f1.IP = 42
 			fallthrough
-		case _f0.IP < 32:
-			_f0.X25 = _f0.X24
-			_f0.IP = 32
+		case _f1.IP < 43:
+			_f1.X30 = _f1.X29
+			_f1.IP = 43
 			fallthrough
-		case _f0.IP < 51:
+		case _f1.IP < 62:
 			switch {
 			default:
 				switch {
-				case _f0.IP < 33:
-					_f0.X26 = b(10)
-					_f0.IP = 33
+				case _f1.IP < 44:
+					_f1.X31 = b(10)
+					_f1.IP = 44
 					fallthrough
-				case _f0.IP < 34:
-					_f0.X27 = a(_f0.X26)
-					_f0.IP = 34
+				case _f1.IP < 45:
+					_f1.X32 = a(_f1.X31)
+					_f1.IP = 45
 					fallthrough
-				case _f0.IP < 35:
-					_f0.X28 = _f0.X25 == _f0.X27
-					_f0.IP = 35
+				case _f1.IP < 46:
+					_f1.X33 = _f1.X30 == _f1.X32
+					_f1.IP = 46
 					fallthrough
-				case _f0.IP < 51:
-					if _f0.X28 {
+				case _f1.IP < 62:
+					if _f1.X33 {
 						panic("unreachable")
 					} else {
 						switch {
-						case _f0.IP < 37:
-							_f0.X29 = b(11)
-							_f0.IP = 37
+						case _f1.IP < 48:
+							_f1.X34 = b(11)
+							_f1.IP = 48
 							fallthrough
-						case _f0.IP < 38:
-							_f0.X30 = a(_f0.X29)
-							_f0.IP = 38
+						case _f1.IP < 49:
+							_f1.X35 = a(_f1.X34)
+							_f1.IP = 49
 							fallthrough
-						case _f0.IP < 39:
-							_f0.X31 = _f0.X25 == _f0.X30
-							_f0.IP = 39
+						case _f1.IP < 50:
+							_f1.X36 = _f1.X30 == _f1.X35
+							_f1.IP = 50
 							fallthrough
-						case _f0.IP < 51:
-							if _f0.X31 {
+						case _f1.IP < 62:
+							if _f1.X36 {
 								panic("unreachable")
 							} else {
 								switch {
-								case _f0.IP < 41:
-									_f0.X32 = b(12)
-									_f0.IP = 41
+								case _f1.IP < 52:
+									_f1.X37 = b(12)
+									_f1.IP = 52
 									fallthrough
-								case _f0.IP < 42:
-									_f0.X33 = a(_f0.X32)
-									_f0.IP = 42
+								case _f1.IP < 53:
+									_f1.X38 = a(_f1.X37)
+									_f1.IP = 53
 									fallthrough
-								case _f0.IP < 43:
-									_f0.X34 = _f0.X33 - 3
-									_f0.IP = 43
+								case _f1.IP < 54:
+									_f1.X39 = _f1.X38 - 3
+									_f1.IP = 54
 									fallthrough
-								case _f0.IP < 44:
-									_f0.X35 = _f0.X25 == _f0.X34
-									_f0.IP = 44
+								case _f1.IP < 55:
+									_f1.X40 = _f1.X30 == _f1.X39
+									_f1.IP = 55
 									fallthrough
-								case _f0.IP < 51:
-									if _f0.X35 {
+								case _f1.IP < 62:
+									if _f1.X40 {
 										switch {
-										case _f0.IP < 45:
-											_f0.X36 = b(13)
-											_f0.IP = 45
+										case _f1.IP < 56:
+											_f1.X41 = b(13)
+											_f1.IP = 56
 											fallthrough
-										case _f0.IP < 46:
-											a(_f0.X36)
+										case _f1.IP < 57:
+											a(_f1.X41)
 										}
 									} else {
 										switch {
-										case _f0.IP < 47:
-											_f0.X37 = b(14)
-											_f0.IP = 47
+										case _f1.IP < 58:
+											_f1.X42 = b(14)
+											_f1.IP = 58
 											fallthrough
-										case _f0.IP < 48:
-											_f0.X38 = a(_f0.X37)
-											_f0.IP = 48
+										case _f1.IP < 59:
+											_f1.X43 = a(_f1.X42)
+											_f1.IP = 59
 											fallthrough
-										case _f0.IP < 49:
-											_f0.X39 = _f0.X25 == _f0.X38
-											_f0.IP = 49
+										case _f1.IP < 60:
+											_f1.X44 = _f1.X30 == _f1.X43
+											_f1.IP = 60
 											fallthrough
-										case _f0.IP < 51:
-											if _f0.X39 {
+										case _f1.IP < 62:
+											if _f1.X44 {
 												panic("unreachable")
 											} else {
 												panic("unreachable")
@@ -2757,24 +2875,24 @@ func YieldingExpressionDesugaring() {
 				}
 			}
 		}
-		_f0.IP = 51
+		_f1.IP = 62
 		fallthrough
-	case _f0.IP < 57:
+	case _f1.IP < 68:
 		switch {
-		case _f0.IP < 52:
-			_f0.X40 = b(15)
-			_f0.IP = 52
+		case _f1.IP < 63:
+			_f1.X45 = b(15)
+			_f1.IP = 63
 			fallthrough
-		case _f0.IP < 53:
-			_f0.X41 = a(_f0.X40)
-			_f0.IP = 53
+		case _f1.IP < 64:
+			_f1.X46 = a(_f1.X45)
+			_f1.IP = 64
 			fallthrough
-		case _f0.IP < 54:
-			_f0.X42 = any(_f0.X41)
-			_f0.IP = 54
+		case _f1.IP < 65:
+			_f1.X47 = any(_f1.X46)
+			_f1.IP = 65
 			fallthrough
-		case _f0.IP < 57:
-			switch x := _f0.X42.(type) {
+		case _f1.IP < 68:
+			switch x := _f1.X47.(type) {
 			case bool:
 				panic("unreachable")
 			case int:
@@ -3203,6 +3321,171 @@ func init() {
 		}
 	}]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingDurations.func2")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingExpressionDesugaring")
+	_types.RegisterClosure[func(), struct {
+		F  uintptr
+		X0 *struct {
+			IP  int
+			X0  int
+			X1  int
+			X2  int
+			X3  int
+			X4  int
+			X5  int
+			X6  int
+			X7  int
+			X8  int
+			X9  bool
+			X10 int
+			X11 int
+			X12 int
+			X13 int
+			X14 int
+			X15 bool
+			X16 int
+			X17 int
+			X18 int
+			X19 int
+			X20 int
+			X21 bool
+			X22 int
+			X23 int
+			X24 int
+			X25 int
+			X26 bool
+			X27 bool
+			X28 int
+			X29 int
+			X30 int
+			X31 int
+			X32 int
+			X33 bool
+			X34 int
+			X35 int
+			X36 bool
+			X37 int
+			X38 int
+			X39 int
+			X40 bool
+			X41 int
+			X42 int
+			X43 int
+			X44 bool
+			X45 int
+			X46 int
+			X47 any
+			X48 []func()
+		}
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingExpressionDesugaring.func2")
+	_types.RegisterClosure[func(), struct {
+		F  uintptr
+		X0 *struct {
+			IP  int
+			X0  int
+			X1  int
+			X2  int
+			X3  int
+			X4  int
+			X5  int
+			X6  int
+			X7  int
+			X8  int
+			X9  bool
+			X10 int
+			X11 int
+			X12 int
+			X13 int
+			X14 int
+			X15 bool
+			X16 int
+			X17 int
+			X18 int
+			X19 int
+			X20 int
+			X21 bool
+			X22 int
+			X23 int
+			X24 int
+			X25 int
+			X26 bool
+			X27 bool
+			X28 int
+			X29 int
+			X30 int
+			X31 int
+			X32 int
+			X33 bool
+			X34 int
+			X35 int
+			X36 bool
+			X37 int
+			X38 int
+			X39 int
+			X40 bool
+			X41 int
+			X42 int
+			X43 int
+			X44 bool
+			X45 int
+			X46 int
+			X47 any
+			X48 []func()
+		}
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingExpressionDesugaring.func3")
+	_types.RegisterClosure[func(), struct {
+		F  uintptr
+		X0 *struct {
+			IP  int
+			X0  int
+			X1  int
+			X2  int
+			X3  int
+			X4  int
+			X5  int
+			X6  int
+			X7  int
+			X8  int
+			X9  bool
+			X10 int
+			X11 int
+			X12 int
+			X13 int
+			X14 int
+			X15 bool
+			X16 int
+			X17 int
+			X18 int
+			X19 int
+			X20 int
+			X21 bool
+			X22 int
+			X23 int
+			X24 int
+			X25 int
+			X26 bool
+			X27 bool
+			X28 int
+			X29 int
+			X30 int
+			X31 int
+			X32 int
+			X33 bool
+			X34 int
+			X35 int
+			X36 bool
+			X37 int
+			X38 int
+			X39 int
+			X40 bool
+			X41 int
+			X42 int
+			X43 int
+			X44 bool
+			X45 int
+			X46 int
+			X47 any
+			X48 []func()
+		}
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingExpressionDesugaring.func4")
 	_types.RegisterFunc[func(_fn0 int) (_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.a")
 	_types.RegisterFunc[func(_fn0 int) (_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.b")
 }
