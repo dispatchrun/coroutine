@@ -1,4 +1,4 @@
-package serde
+package types
 
 import (
 	"encoding/binary"
@@ -6,8 +6,6 @@ import (
 	"math"
 	"reflect"
 	"unsafe"
-
-	"github.com/stealthrocket/coroutine/types"
 )
 
 func serializeType(s *Serializer, t reflect.Type) {
@@ -394,7 +392,7 @@ func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		panic("cannot serialize nil function values yet")
 	}
 
-	fn := types.FuncByAddr(*(*uintptr)(p))
+	fn := FuncByAddr(*(*uintptr)(p))
 	SerializeString(s, &fn.Name)
 
 	if fn.Closure != nil {
@@ -409,7 +407,7 @@ func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	var name string
 	DeserializeString(d, &name)
 
-	fn := types.FuncByName(name)
+	fn := FuncByName(name)
 	if fn == nil {
 		panic(name + ": function symbol not found in the program")
 	}
@@ -433,7 +431,7 @@ func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 
 		*(*unsafe.Pointer)(p) = closure
 	} else {
-		*(**types.Func)(p) = fn
+		*(**Func)(p) = fn
 	}
 }
 

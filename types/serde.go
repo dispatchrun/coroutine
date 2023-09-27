@@ -1,4 +1,4 @@
-package serde
+package types
 
 // serde.go contains the reflection based serialization and deserialization
 // procedures. It does not do any type memoization, as eventually codegen should
@@ -149,6 +149,7 @@ func deserializeVarint(d *Deserializer) int {
 	return int(l)
 }
 
+// Serialize a value. See [RegisterSerde].
 func SerializeT[T any](s *Serializer, x T) {
 	var p unsafe.Pointer
 	r := reflect.ValueOf(x)
@@ -163,6 +164,7 @@ func SerializeT[T any](s *Serializer, x T) {
 	SerializeAny(s, t, p)
 }
 
+// Deserialize a value to the provided non-nil pointer. See [RegisterSerde].
 func DeserializeTo[T any](d *Deserializer, x *T) {
 	r := reflect.ValueOf(x)
 	t := r.Type().Elem()
