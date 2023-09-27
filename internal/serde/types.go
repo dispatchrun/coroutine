@@ -252,5 +252,5 @@ func boolint(x bool) int {
 }
 
 func named(t reflect.Type) bool {
-	return t.PkgPath() != ""
+	return t.Name() != ""
 }
