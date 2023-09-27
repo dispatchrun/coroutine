@@ -132,7 +132,7 @@ challenging as all functions on the call stack up to the yield point must be
 _coroutine-aware_, and participate in passing the yield point through the call
 stack. Sometimes, those changes are made even more difficult by the control flow
 traversing code paths that the programmer does not have control over (e.g., the
-Go standard library or other dependencies). Such changes can, leak deep into the
+Go standard library or other dependencies). Such changes can leak deep into the
 code base, as functions or type signatures may have to be changed, breaking
 interface implementations that can sometimes only be detected at runtime.
 
