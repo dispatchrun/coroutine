@@ -15,14 +15,7 @@ import (
 // sID is the unique sID of a pointer or type in the serialized format.
 type sID int64
 
-// Serialize x at the end of b, returning it.
-//
-// To serialize interfaces, the global type register needs to be fed with
-// possible types they can contain. If using coroc, it automatically generates
-// init functions to register types likely to be used in the program. If not,
-// use [RegisterType] to manually add a type to the register. Because
-// [Serialize] starts with an interface, at least the type of the provided value
-// needs to be registered.
+// Serialize x.
 //
 // The output of Serialize can be reconstructed back to a Go value using
 // [Deserialize].

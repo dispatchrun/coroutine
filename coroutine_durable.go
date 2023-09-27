@@ -73,17 +73,11 @@ type serializedCoroutine struct {
 
 // Marshal returns a serialized Context.
 func (c *Context[R, S]) Marshal() ([]byte, error) {
-	return c.MarshalAppend(nil)
-}
-
-// MarshalAppend appends a serialized Context to the provided buffer.
-func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
-	s := serde.Serialize(&serializedCoroutine{
+	return serde.Serialize(&serializedCoroutine{
 		entry:  c.entry,
 		stack:  c.Stack,
 		resume: c.resume,
-	})
-	return append(b, s...), nil
+	}), nil
 }
 
 // Unmarshal deserializes a Context from the provided buffer, returning
