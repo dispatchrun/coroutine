@@ -1,4 +1,4 @@
-package serde
+package types
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	RegisterSerde[time.Time](serializeTime, deserializeTime)
+	Register[time.Time](serializeTime, deserializeTime)
 }
 
 func serializeTime(s *Serializer, x *time.Time) error {

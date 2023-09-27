@@ -4,7 +4,7 @@ package coroutine
 
 import (
 	"github.com/stealthrocket/coroutine/internal/gls"
-	"github.com/stealthrocket/coroutine/internal/serde"
+	"github.com/stealthrocket/coroutine/types"
 )
 
 // Durable is a constant which takes the values true or false depending on
@@ -73,17 +73,11 @@ type serializedCoroutine struct {
 
 // Marshal returns a serialized Context.
 func (c *Context[R, S]) Marshal() ([]byte, error) {
-	return c.MarshalAppend(nil)
-}
-
-// MarshalAppend appends a serialized Context to the provided buffer.
-func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
-	s := serde.Serialize(&serializedCoroutine{
+	return types.Serialize(&serializedCoroutine{
 		entry:  c.entry,
 		stack:  c.Stack,
 		resume: c.resume,
-	})
-	return append(b, s...), nil
+	}), nil
 }
 
 // Unmarshal deserializes a Context from the provided buffer, returning
@@ -91,7 +85,7 @@ func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
 // context.
 func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
 	start := len(b)
-	v, b := serde.Deserialize(b)
+	v, b := types.Deserialize(b)
 	s := v.(*serializedCoroutine)
 	c.entry = s.entry
 	c.Stack = s.stack

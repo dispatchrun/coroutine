@@ -73,10 +73,6 @@ func (c *Context[R, S]) Yield(v R) S {
 }
 
 func (c *Context[R, S]) Marshal() ([]byte, error) {
-	return c.MarshalAppend(nil)
-}
-
-func (c *Context[R, S]) MarshalAppend(b []byte) ([]byte, error) {
 	return nil, ErrNotDurable
 }
 

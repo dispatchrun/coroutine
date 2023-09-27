@@ -1,4 +1,4 @@
-package serde
+package types
 
 // serde.go contains the reflection based serialization and deserialization
 // procedures. It does not do any type memoization, as eventually codegen should
@@ -15,14 +15,7 @@ import (
 // sID is the unique sID of a pointer or type in the serialized format.
 type sID int64
 
-// Serialize x at the end of b, returning it.
-//
-// To serialize interfaces, the global type register needs to be fed with
-// possible types they can contain. If using coroc, it automatically generates
-// init functions to register types likely to be used in the program. If not,
-// use [RegisterType] to manually add a type to the register. Because
-// [Serialize] starts with an interface, at least the type of the provided value
-// needs to be registered.
+// Serialize x.
 //
 // The output of Serialize can be reconstructed back to a Go value using
 // [Deserialize].
@@ -37,7 +30,7 @@ func Serialize(x any) []byte {
 	// scan dirties s.scanptrs, so clean it up.
 	clear(s.scanptrs)
 
-	SerializeAny(s, t, p)
+	serializeAny(s, t, p)
 	return s.b
 }
 
@@ -156,6 +149,7 @@ func deserializeVarint(d *Deserializer) int {
 	return int(l)
 }
 
+// Serialize a value. See [RegisterSerde].
 func SerializeT[T any](s *Serializer, x T) {
 	var p unsafe.Pointer
 	r := reflect.ValueOf(x)
@@ -167,12 +161,13 @@ func SerializeT[T any](s *Serializer, x T) {
 		n.Elem().Set(r)
 		p = n.UnsafePointer()
 	}
-	SerializeAny(s, t, p)
+	serializeAny(s, t, p)
 }
 
+// Deserialize a value to the provided non-nil pointer. See [RegisterSerde].
 func DeserializeTo[T any](d *Deserializer, x *T) {
 	r := reflect.ValueOf(x)
 	t := r.Type().Elem()
 	p := r.UnsafePointer()
-	DeserializeAny(d, t, p)
+	deserializeAny(d, t, p)
 }
