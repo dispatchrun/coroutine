@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	"github.com/stealthrocket/coroutine/compiler"
 )
@@ -15,9 +16,8 @@ USAGE:
   coroc [OPTIONS] [PATH]
 
 OPTIONS:
-      --output <FILENAME>  Name of the Go file to generate in each package
-
-  -h, --help               Show this help information
+  -h, --help      Show this help information
+  -v, --version   Show the compiler version
 `
 
 func main() {
@@ -29,7 +29,17 @@ func main() {
 
 func run() error {
 	flag.Usage = func() { println(usage[1:]) }
+
+	var showVersion bool
+	flag.BoolVar(&showVersion, "v", false, "")
+	flag.BoolVar(&showVersion, "version", false, "")
+
 	flag.Parse()
+
+	if showVersion {
+		fmt.Println(version())
+		return nil
+	}
 
 	path := flag.Arg(0)
 	if path == "" {
@@ -46,4 +56,22 @@ func run() error {
 	}
 
 	return compiler.Compile(path)
+}
+
+func version() (version string) {
+	version = "devel"
+	if info, ok := debug.ReadBuildInfo(); ok {
+		switch info.Main.Version {
+		case "":
+		case "(devel)":
+		default:
+			version = info.Main.Version
+		}
+		for _, setting := range info.Settings {
+			if setting.Key == "vcs.revision" {
+				version += " " + setting.Value
+			}
+		}
+	}
+	return
 }
