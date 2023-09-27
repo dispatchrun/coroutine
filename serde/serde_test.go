@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -72,6 +73,7 @@ func TestReflect(t *testing.T) {
 
 			"",
 			struct{}{},
+			errors.New("test"),
 		}
 
 		for _, x := range cases {
@@ -99,6 +101,14 @@ func TestReflect(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestErrors(t *testing.T) {
+	s := struct {
+		X5 error
+	}{}
+
+	assertRoundTrip(t, s)
 }
 
 func TestEmptyStructs(t *testing.T) {
