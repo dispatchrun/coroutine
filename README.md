@@ -308,10 +308,10 @@ More examples of how to use durable coroutines can be found in [examples](./exam
 default. However there are times when you may want to control the serialization
 of specific types. For example, `chan` values are not supported, or you may
 decide that some values need specific logic to be functional upon
-deserialization. See [the `coroutine/serde` package][coro-serde] for the tools
+deserialization. See [the `coroutine/types` package][coro-types] for the tools
 to take control of serialization of the coroutine state.
 
-[coro-serde]: https://pkg.go.dev/github.com/stealthrocket/coroutine/serde
+[coro-types]: https://pkg.go.dev/github.com/stealthrocket/coroutine/types
 
 ### Scheduling
 
