@@ -18,8 +18,7 @@ func main() {
 	})
 
 	// Restore state.
-	state, err := os.ReadFile(".state")
-	if err != nil {
+	if state, err := os.ReadFile(".state"); err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
 			log.Fatal(err)
 		}

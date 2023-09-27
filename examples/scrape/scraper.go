@@ -34,6 +34,7 @@ func NewScraper(url string, limit int) *Scraper {
 func (s *Scraper) Start() {
 	queue := []string{s.url}
 	for i := 0; i < len(queue); i++ {
+		url := queue[i]
 		links, err := s.scrape(queue[i])
 		if err != nil {
 			log.Printf("warning: %s => %v", queue[i], err)
@@ -45,6 +46,8 @@ func (s *Scraper) Start() {
 				s.seen[link] = struct{}{}
 			}
 		}
+		// Notify the caller.
+		coroutine.Yield[string, any](url)
 	}
 }
 
@@ -59,8 +62,6 @@ func (s *Scraper) scrape(url string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	coroutine.Yield[string, any](url)
 
 	return collectLinks(url, body), nil
 }
