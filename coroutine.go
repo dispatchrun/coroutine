@@ -58,7 +58,7 @@ type Context[R, S any] struct {
 	// Booleans managing the state of the coroutine.
 	done   bool
 	stop   bool
-	resume bool
+	resume bool //nolint
 
 	context
 }

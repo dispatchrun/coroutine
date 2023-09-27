@@ -1,0 +1,4 @@
+/scrape
+/coroc
+*_durable.go
+coroutine.state
