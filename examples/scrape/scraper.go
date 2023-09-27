@@ -16,6 +16,7 @@ import (
 // Scraper recursively scrapes URLs.
 type Scraper struct {
 	url   string
+	count int
 	limit int
 	seen  map[string]struct{}
 }
@@ -33,11 +34,12 @@ func NewScraper(url string, limit int) *Scraper {
 
 func (s *Scraper) Start() {
 	queue := []string{s.url}
-	for i := 0; i < len(queue); i++ {
-		url := queue[i]
-		links, err := s.scrape(queue[i])
+	for ; len(queue) > 0 && s.count < s.limit; s.count++ {
+		url := queue[0]
+		queue = queue[1:]
+		links, err := s.scrape(url)
 		if err != nil {
-			log.Printf("warning: %s => %v", queue[i], err)
+			log.Printf("warning: %s => %v", url, err)
 			continue
 		}
 		for _, link := range links {
