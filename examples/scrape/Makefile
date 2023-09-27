@@ -9,4 +9,4 @@ coroc:
 
 .PHONY: clean
 clean:
-	$(RM) scrape coroc
+	$(RM) scrape coroc coroutine.state *_durable.go
