@@ -18,7 +18,7 @@ func deserializeType(d *Deserializer) reflect.Type {
 	return t.reflectType(Types)
 }
 
-func SerializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
+func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	if serde, ok := Types.serdeOf(t); ok {
 		serde.ser(s, p)
 		return
@@ -60,7 +60,7 @@ func SerializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	case reflect.Complex128:
 		serializeComplex128(s, *(*complex128)(p))
 	case reflect.String:
-		SerializeString(s, (*string)(p))
+		serializeString(s, (*string)(p))
 	case reflect.Array:
 		serializeArray(s, t, p)
 	case reflect.Interface:
@@ -82,7 +82,7 @@ func SerializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	}
 }
 
-func DeserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
+func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	if serde, ok := Types.serdeOf(t); ok {
 		serde.des(d, p)
 		return
@@ -124,7 +124,7 @@ func DeserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	case reflect.Complex128:
 		deserializeComplex128(d, (*complex128)(p))
 	case reflect.String:
-		DeserializeString(d, (*string)(p))
+		deserializeString(d, (*string)(p))
 	case reflect.Interface:
 		deserializeInterface(d, t, p)
 	case reflect.Pointer:
@@ -175,7 +175,7 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	// offset to flag it is on its own, and write its data.
 	if !r.valid() {
 		serializeVarint(s, -1)
-		SerializeAny(s, t, p)
+		serializeAny(s, t, p)
 		return
 	}
 
@@ -193,7 +193,7 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	if offset == 0 {
 		serializeVarint(s, int(id))
 		serializeVarint(s, -1)
-		SerializeAny(s, r.typ, r.addr)
+		serializeAny(s, r.typ, r.addr)
 		return
 	}
 	serializePointedAt(s, r.typ, r.addr)
@@ -219,7 +219,7 @@ func deserializePointedAt(d *Deserializer, t reflect.Type) reflect.Value {
 		e := reflect.New(t)
 		ep := e.UnsafePointer()
 		d.store(id, ep)
-		DeserializeAny(d, t, ep)
+		deserializeAny(d, t, ep)
 		return e
 	}
 
@@ -263,8 +263,8 @@ func serializeMap(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	for iter.Next() {
 		k.Set(iter.Key())
 		v.Set(iter.Value())
-		SerializeAny(s, t.Key(), k.Addr().UnsafePointer())
-		SerializeAny(s, t.Elem(), v.Addr().UnsafePointer())
+		serializeAny(s, t.Key(), k.Addr().UnsafePointer())
+		serializeAny(s, t.Elem(), v.Addr().UnsafePointer())
 	}
 }
 
@@ -292,9 +292,9 @@ func deserializeMap(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	d.store(id, p)
 	for i := 0; i < n; i++ {
 		k := reflect.New(t.Key())
-		DeserializeAny(d, t.Key(), k.UnsafePointer())
+		deserializeAny(d, t.Key(), k.UnsafePointer())
 		v := reflect.New(t.Elem())
-		DeserializeAny(d, t.Elem(), v.UnsafePointer())
+		deserializeAny(d, t.Elem(), v.UnsafePointer())
 		r.Elem().SetMapIndex(k.Elem(), v.Elem())
 	}
 }
@@ -334,7 +334,7 @@ func serializeArray(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	ts := int(te.Size())
 	for i := 0; i < n; i++ {
 		pe := unsafe.Add(p, ts*i)
-		SerializeAny(s, te, pe)
+		serializeAny(s, te, pe)
 	}
 }
 
@@ -343,7 +343,7 @@ func deserializeArray(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	te := t.Elem()
 	for i := 0; i < t.Len(); i++ {
 		pe := unsafe.Add(p, size*i)
-		DeserializeAny(d, te, pe)
+		deserializeAny(d, te, pe)
 	}
 }
 
@@ -371,7 +371,7 @@ func serializeStructFields(s *Serializer, p unsafe.Pointer, n int, field func(in
 	for i := 0; i < n; i++ {
 		ft := field(i)
 		fp := unsafe.Add(p, ft.Offset)
-		SerializeAny(s, ft.Type, fp)
+		serializeAny(s, ft.Type, fp)
 	}
 }
 
@@ -379,7 +379,7 @@ func deserializeStructFields(d *Deserializer, p unsafe.Pointer, n int, field fun
 	for i := 0; i < n; i++ {
 		ft := field(i)
 		fp := unsafe.Add(p, ft.Offset)
-		DeserializeAny(d, ft.Type, fp)
+		deserializeAny(d, ft.Type, fp)
 	}
 }
 
@@ -393,7 +393,7 @@ func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	fn := FuncByAddr(*(*uintptr)(p))
-	SerializeString(s, &fn.Name)
+	serializeString(s, &fn.Name)
 
 	if fn.Closure != nil {
 		t := fn.Closure
@@ -405,7 +405,7 @@ func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 
 func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	var name string
-	DeserializeString(d, &name)
+	deserializeString(d, &name)
 
 	fn := FuncByName(name)
 	if fn == nil {
@@ -473,7 +473,7 @@ func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	}
 }
 
-func SerializeString(s *Serializer, x *string) {
+func serializeString(s *Serializer, x *string) {
 	// Serialize string as a size and a pointer to an array of bytes.
 
 	l := len(*x)
@@ -489,7 +489,7 @@ func SerializeString(s *Serializer, x *string) {
 	serializePointedAt(s, at, ap)
 }
 
-func DeserializeString(d *Deserializer, x *string) {
+func deserializeString(d *Deserializer, x *string) {
 	l := deserializeVarint(d)
 
 	if l == 0 {

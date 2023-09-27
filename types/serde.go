@@ -30,7 +30,7 @@ func Serialize(x any) []byte {
 	// scan dirties s.scanptrs, so clean it up.
 	clear(s.scanptrs)
 
-	SerializeAny(s, t, p)
+	serializeAny(s, t, p)
 	return s.b
 }
 
@@ -161,7 +161,7 @@ func SerializeT[T any](s *Serializer, x T) {
 		n.Elem().Set(r)
 		p = n.UnsafePointer()
 	}
-	SerializeAny(s, t, p)
+	serializeAny(s, t, p)
 }
 
 // Deserialize a value to the provided non-nil pointer. See [RegisterSerde].
@@ -169,5 +169,5 @@ func DeserializeTo[T any](d *Deserializer, x *T) {
 	r := reflect.ValueOf(x)
 	t := r.Type().Elem()
 	p := r.UnsafePointer()
-	DeserializeAny(d, t, p)
+	deserializeAny(d, t, p)
 }
