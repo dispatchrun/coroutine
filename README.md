@@ -263,6 +263,10 @@ Pausing, marshaling, unmarshalling, and resuming durable coroutines is work for
 a scheduler which is not included in this package. The `coroutine` project only
 provides the building blocks needed to create those types of systems.
 
+> **Note**
+> This is an area of development that we are excited about, feel free to reach
+> out if you would like to learn or discuss more in details about it!
+
 ### Language Support
 
 The `coroc` compiler currently supports a subset of Go when compiling coroutines
