@@ -47,8 +47,8 @@ $ go run main.go
 2
 ```
 
-The `coroutine.New` and `coroutine.Yield` functions are the main functions that
-applications would use to create coroutines and declare yield points.
+`coroutine.New` and `coroutine.Yield` are the main functions that applications
+use to create coroutines and declare yield points.
 An important observation to make here is the fact that the functions have two
 generic type parameters (we name then `R` and `S`) to declare the type of values
 that the program can receive from and send to the coroutine. The types passed to
@@ -109,6 +109,48 @@ Another useful property of coroutines is that, just like functions, they can be
 composed. A parent coroutine can create more coroutines for which it can drive
 execution in a subcontext of the program, and yield values to its caller that
 applied computations from the values received from the sub-routines.
+
+### Design Decisions
+
+There are other coroutine implementations in Go that have taken slightly
+different approaches to express how to yield to the caller; for example, the
+research on the subject that was laid out by Russ Cox in [Coroutines for Go](https://research.swtch.com/coro)
+demonstrates how the API could be based on passing a _yield_ function to the
+coroutine entrypoint.
+
+A quality of this model is it maximizes type safety since the code will not
+compile if the yield function is misused. It also makes it somewhat explicit
+which part of the code is a coroutine, since the yield function must be passed
+through the code up to the location where yield points are reached.
+
+As everything is always a trade off in software engineering, there are also
+problems that can arise with this model; for example, having to explicitly
+accept and pass the yield function through the coroutine code can introduce
+[function coloring problems](https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/)
+in Go programs. Incrementally introducing coroutines in existing code becomes
+challenging as all functions on the call stack up to the yield point must be
+_coroutine-aware_, and participate in passing the yield point through the call
+stack. Sometimes, those changes are made even more difficult by the control flow
+traversing code paths that the programmer does not have control over (e.g., the
+Go standard library or other dependencies). Such changes can, leak deep into the
+code base, as functions or type signatures may have to be changed, breaking
+interface implementations that can sometimes only be detected at runtime.
+
+In this `coroutine` package, we took a different approach and leveraged
+**goroutine local storage (GLS)** to transparently pass the coroutine context
+through the call stack. This model offers more flexibility to incrementally
+evolve existing code into using coroutines, it also makes the declaration of
+yield points are a local decision of the function that yields, leaving the rest
+of the code clear of the responsibility of participating in the coroutine
+control flow.
+
+A limitation of this model is that it creates implicit coupling between the
+place where the coroutine in created, and the places where the yield points
+are declared; the coroutine type must match the type of the yield point, and
+while in most case static analysis can validate correctness, there are cases
+where validation may only happen at runtime and requires the code paths to be
+tested to ensure that no type mismatches would occur on the coroutine code
+paths.
 
 ## Durable Coroutines
 
@@ -256,6 +298,8 @@ yield: 2
 > **Warning**
 > At this time, the state of a coroutine is bound to a specific version of the
 > program, attempting to resume a state on a different version is not supported.
+
+More examples of how to use durable coroutines can be found in [examples](./examples).
 
 ### Scheduling
 
