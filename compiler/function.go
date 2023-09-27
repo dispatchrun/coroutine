@@ -195,6 +195,18 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 	}
 }
 
+func packagePath(p *packages.Package) string {
+	if p.Name == "main" {
+		return "main"
+	} else {
+		return p.PkgPath
+	}
+}
+
+func functionPath(p *packages.Package, f *ast.FuncDecl) string {
+	return packagePath(p) + "." + f.Name.Name
+}
+
 func generateFunctypes(p *packages.Package, f *ast.File, colors map[ast.Node]*types.Signature) {
 	functypes := map[string]functype{}
 
@@ -202,7 +214,7 @@ func generateFunctypes(p *packages.Package, f *ast.File, colors map[ast.Node]*ty
 		switch d := decl.(type) {
 		case *ast.FuncDecl:
 			scope := &funcscope{vars: map[string]*funcvar{}}
-			name := p.PkgPath + "." + d.Name.Name
+			name := functionPath(p, d)
 			collectFunctypes(p, name, d, scope, colors, functypes)
 		}
 	}
