@@ -137,12 +137,13 @@ coroc ./path/to/package
 ```
 This will generate files named `*_durable.go` and set build tags on source files
 that need to be excluded when building in durable mode. Because the compiler may
-need to generate coroutines in code paths of the standard Go library, it creates a copy under `vendor/goroot`.
+need to generate coroutines in code paths of the standard Go library, it creates
+a copy under `./goroot` in the module directory.
 
 The standard Go toolchain can then be used to compile the application in durable
 mode:
 ```
-GOROOT=$PWD/vendor/goroot go build -tags durable .
+GOROOT=$PWD/goroot go build -tags durable .
 ```
 
 **Pro tip**
