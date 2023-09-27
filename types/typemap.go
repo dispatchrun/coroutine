@@ -9,17 +9,17 @@ import (
 // Global type register.
 var types *typemap = newTypemap()
 
-// SerializerFn is the signature of custom serializer functions. Use the
+// SerializerFunc is the signature of custom serializer functions. Use the
 // [Serialize] function to drive the [Serializer]. Returning an error results in
 // the program panicking.
-type SerializerFn[T any] func(*Serializer, *T) error
+type SerializerFunc[T any] func(*Serializer, *T) error
 
-// DeserializerFn is the signature of customer deserializer functions. Use the
+// DeserializerFunc is the signature of customer deserializer functions. Use the
 // [Deserialize] function to drive the [Deserializer]. Returning an error
 // results in the program panicking.
-type DeserializerFn[T any] func(*Deserializer, *T) error
+type DeserializerFunc[T any] func(*Deserializer, *T) error
 
-// RegisterSerde attaches custom serialization and deserialization functions to
+// Register attaches custom serialization and deserialization functions to
 // type T.
 //
 // Coroutine state is serialized and deserialized when calling [Context.Marshal]
@@ -30,7 +30,7 @@ type DeserializerFn[T any] func(*Deserializer, *T) error
 // sync values do not.
 //
 // Custom serializer and deserializer functions can be attached to types using
-// [RegisterSerde] to control how they are serialized, and possibly perform
+// [Register] to control how they are serialized, and possibly perform
 // additional initialization on deserialization. Those functions are drivers for
 // [Serializer] and [Deserializer], that need to invoke [Serialize] and
 // [DeserializeTo] in order to actually perform serialization and
@@ -40,9 +40,9 @@ type DeserializerFn[T any] func(*Deserializer, *T) error
 // result, slices sharing the same backing array are deserialized into one array
 // with two shared slices, just like the original state was. Elements between
 // length and capacity are also preserved.
-func RegisterSerde[T any](
-	serializer SerializerFn[T],
-	deserializer DeserializerFn[T]) {
+func Register[T any](
+	serializer SerializerFunc[T],
+	deserializer DeserializerFunc[T]) {
 	registerSerde[T](types, serializer, deserializer)
 }
 
@@ -67,13 +67,13 @@ func registerSerde[T any](tm *typemap,
 	tm.attach(t, s, d)
 }
 
-type serializerFn func(*Serializer, unsafe.Pointer)
-type deserializerFn func(d *Deserializer, p unsafe.Pointer)
+type serializerFunc func(*Serializer, unsafe.Pointer)
+type deserializerFunc func(d *Deserializer, p unsafe.Pointer)
 
 type serde struct {
 	id  int
-	ser serializerFn
-	des deserializerFn
+	ser serializerFunc
+	des deserializerFunc
 }
 
 type typemap struct {
@@ -89,7 +89,7 @@ func newTypemap() *typemap {
 	return m
 }
 
-func (m *typemap) attach(t reflect.Type, ser serializerFn, des deserializerFn) {
+func (m *typemap) attach(t reflect.Type, ser serializerFunc, des deserializerFunc) {
 	if ser == nil || des == nil {
 		panic("both serializer and deserializer need to be provided")
 	}
