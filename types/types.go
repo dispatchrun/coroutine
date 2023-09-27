@@ -44,7 +44,7 @@ type typeinfo struct {
 	args   []*typeinfo // typeFunc only
 }
 
-func (t *typeinfo) reflectType(tm *TypeMap) reflect.Type {
+func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 	if t.offset != 0 {
 		return typeForOffset(t.offset)
 	}
@@ -135,22 +135,22 @@ type Field struct {
 	tag    string
 }
 
-func (m *TypeMap) ToReflect(t *typeinfo) reflect.Type {
-	if x, ok := m.cache.GetV(t); ok {
+func (m *typemap) ToReflect(t *typeinfo) reflect.Type {
+	if x, ok := m.cache.getV(t); ok {
 		return x
 	}
 	x := t.reflectType(m)
-	m.cache.Add(x, t)
+	m.cache.add(x, t)
 	return x
 }
 
-func (m *TypeMap) ToType(t reflect.Type) *typeinfo {
-	if x, ok := m.cache.GetK(t); ok {
+func (m *typemap) ToType(t reflect.Type) *typeinfo {
+	if x, ok := m.cache.getK(t); ok {
 		return x
 	}
 
 	if t == nil {
-		return m.cache.Add(t, &typeinfo{kind: typeNone})
+		return m.cache.add(t, &typeinfo{kind: typeNone})
 	}
 
 	var offset namedTypeOffset
@@ -162,7 +162,7 @@ func (m *TypeMap) ToType(t reflect.Type) *typeinfo {
 	}
 
 	if s, ok := m.serdes[t]; ok {
-		return m.cache.Add(t, &typeinfo{
+		return m.cache.add(t, &typeinfo{
 			kind:   typeCustom,
 			offset: offset,
 			val:    s.id,
@@ -170,7 +170,7 @@ func (m *TypeMap) ToType(t reflect.Type) *typeinfo {
 	}
 
 	ti := &typeinfo{offset: offset}
-	m.cache.Add(t, ti) // add now for recursion
+	m.cache.add(t, ti) // add now for recursion
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic("can't handle reflect.Invalid")

@@ -9,17 +9,17 @@ import (
 )
 
 func serializeType(s *Serializer, t reflect.Type) {
-	x := Types.ToType(t)
+	x := types.ToType(t)
 	serializePointedAt(s, typeinfoT, unsafe.Pointer(x))
 }
 
 func deserializeType(d *Deserializer) reflect.Type {
 	t := deserializePointedAt(d, typeinfoT).Interface().(*typeinfo)
-	return t.reflectType(Types)
+	return t.reflectType(types)
 }
 
 func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	if serde, ok := Types.serdeOf(t); ok {
+	if serde, ok := types.serdeOf(t); ok {
 		serde.ser(s, p)
 		return
 	}
@@ -83,7 +83,7 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	if serde, ok := Types.serdeOf(t); ok {
+	if serde, ok := types.serdeOf(t); ok {
 		serde.des(d, p)
 		return
 	}

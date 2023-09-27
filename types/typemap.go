@@ -7,7 +7,7 @@ import (
 )
 
 // Global type register.
-var Types *TypeMap = NewTypeMap()
+var types *typemap = newTypemap()
 
 // SerializerFn is the signature of custom serializer functions. Use the
 // [Serialize] function to drive the [Serializer]. Returning an error results in
@@ -43,10 +43,10 @@ type DeserializerFn[T any] func(*Deserializer, *T) error
 func RegisterSerde[T any](
 	serializer SerializerFn[T],
 	deserializer DeserializerFn[T]) {
-	registerSerde[T](Types, serializer, deserializer)
+	registerSerde[T](types, serializer, deserializer)
 }
 
-func registerSerde[T any](tm *TypeMap,
+func registerSerde[T any](tm *typemap,
 	serializer func(*Serializer, *T) error,
 	deserializer func(*Deserializer, *T) error) {
 
@@ -64,7 +64,7 @@ func registerSerde[T any](tm *TypeMap,
 		}
 	}
 
-	tm.Attach(t, s, d)
+	tm.attach(t, s, d)
 }
 
 type serializerFn func(*Serializer, unsafe.Pointer)
@@ -76,20 +76,20 @@ type serde struct {
 	des deserializerFn
 }
 
-type TypeMap struct {
+type typemap struct {
 	custom []reflect.Type
 	cache  doublemap[reflect.Type, *typeinfo]
 	serdes map[reflect.Type]serde
 }
 
-func NewTypeMap() *TypeMap {
-	m := &TypeMap{
+func newTypemap() *typemap {
+	m := &typemap{
 		serdes: make(map[reflect.Type]serde),
 	}
 	return m
 }
 
-func (m *TypeMap) Attach(t reflect.Type, ser serializerFn, des deserializerFn) {
+func (m *typemap) attach(t reflect.Type, ser serializerFn, des deserializerFn) {
 	if ser == nil || des == nil {
 		panic("both serializer and deserializer need to be provided")
 	}
@@ -105,7 +105,7 @@ func (m *TypeMap) Attach(t reflect.Type, ser serializerFn, des deserializerFn) {
 	m.serdes[t] = s
 }
 
-func (m *TypeMap) serdeOf(x reflect.Type) (serde, bool) {
+func (m *typemap) serdeOf(x reflect.Type) (serde, bool) {
 	s, ok := m.serdes[x]
 	return s, ok
 }
@@ -115,17 +115,17 @@ type doublemap[K, V comparable] struct {
 	fromV map[V]K
 }
 
-func (m *doublemap[K, V]) GetK(k K) (V, bool) {
+func (m *doublemap[K, V]) getK(k K) (V, bool) {
 	v, ok := m.fromK[k]
 	return v, ok
 }
 
-func (m *doublemap[K, V]) GetV(v V) (K, bool) {
+func (m *doublemap[K, V]) getV(v V) (K, bool) {
 	k, ok := m.fromV[v]
 	return k, ok
 }
 
-func (m *doublemap[K, V]) Add(k K, v V) V {
+func (m *doublemap[K, V]) add(k K, v V) V {
 	if m.fromK == nil {
 		m.fromK = make(map[K]V)
 		m.fromV = make(map[V]K)
