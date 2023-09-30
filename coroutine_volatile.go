@@ -4,8 +4,6 @@ package coroutine
 
 import (
 	"runtime"
-
-	"github.com/stealthrocket/coroutine/internal/gls"
 )
 
 // Durable is a constant which takes the values true or false depending on
@@ -20,14 +18,10 @@ func New[R, S any](f func()) Coroutine[R, S] {
 		},
 	}
 
-	go func() {
-		g := gls.Context()
-		g.Store(c)
-
+	go with(&gctx, c, func() {
 		defer func() {
 			c.done = true
 			close(c.next)
-			g.Clear()
 		}()
 
 		<-c.next
@@ -35,7 +29,9 @@ func New[R, S any](f func()) Coroutine[R, S] {
 		if !c.stop {
 			f()
 		}
-	}()
+
+		runtime.KeepAlive(c)
+	})
 
 	return Coroutine[R, S]{ctx: c}
 }
