@@ -6,6 +6,9 @@
 
 This project contains a durable coroutine compiler and runtime library for Go.
 
+> **Note**
+> Read our announcement blog post: [Fairy tales of workflow orchestration](https://blog.stealthrocket.tech/fairy-tales-of-workflow-orchestration/).
+
 ## Usage
 
 The `coroutine` package can be used as a simple library to create coroutines in
