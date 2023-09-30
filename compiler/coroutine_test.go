@@ -234,13 +234,12 @@ func TestCoroutineYield(t *testing.T) {
 					}
 					t.Fatal(err)
 				}
-				var reconstructed coroutine.Context[int, any]
-				if n, err := reconstructed.Unmarshal(b); err != nil {
+
+				if n, err := c.Unmarshal(b); err != nil {
 					t.Fatal(err)
 				} else if n != len(b) {
 					t.Fatal("invalid number of bytes read when reconstructing context")
 				}
-				*c = reconstructed
 			}
 			if yield < len(test.yields) {
 				t.Errorf("coroutine did not yield the correct number of times: got %d, expect %d", yield, len(test.yields))

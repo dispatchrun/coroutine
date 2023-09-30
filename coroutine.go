@@ -108,6 +108,7 @@ var gctx uintptr
 
 func load(k uintptr) any
 
+//go:noescape
 func with(k *uintptr, v any, f func())
 
 // ErrNotDurable is an error that occurs when attempting to

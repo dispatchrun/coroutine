@@ -8,7 +8,7 @@ TEXT ·with(SB), NOSPLIT, $0-32
     MOVQ 8(BX), AX        // g.stack.hi
 
     // The v argument is pushed on the stack by the caller, we use its offset
-    // to the goroutine's stack pointer as key to reloacte the value.
+    // to the goroutine's stack pointer as key to relocate the value.
     LEAQ v_type+8(FP), CX
     SUBQ AX, CX // key
 

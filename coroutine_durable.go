@@ -3,7 +3,8 @@
 package coroutine
 
 import (
-	"github.com/stealthrocket/coroutine/internal/gls"
+	"sync"
+
 	"github.com/stealthrocket/coroutine/types"
 )
 
@@ -13,11 +14,13 @@ const Durable = true
 
 // New creates a new coroutine which executes f as entry point.
 func New[R, S any](f func()) Coroutine[R, S] {
-	return Coroutine[R, S]{
+	c := Coroutine[R, S]{
 		ctx: &Context[R, S]{
 			context: context{entry: f},
 		},
 	}
+	c.ctx.cond.L = &c.ctx.lock
+	return c
 }
 
 // Stack is the call stack for a coroutine.
@@ -122,33 +125,37 @@ func (c Coroutine[R, S]) Next() (hasNext bool) {
 		return false
 	}
 
-	g := gls.Context()
+	c.ctx.lock.Lock()
 
-	g.Store(c.ctx)
+	go with(&gctx, c.ctx, func() {
+		defer func() {
+			switch v := recover().(type) {
+			case nil:
+			case unwind:
+			default:
+				// TODO: can we figure out a way to know when we are unwinding the
+				// stack and only recover then so we don't alter the panic stack?
+				panic(v)
+			}
 
-	defer func() {
-		g.Clear()
+			c.ctx.cond.Signal()
+		}()
 
-		switch err := recover(); err {
-		case nil:
-		case unwind{}:
-		default:
-			// TODO: can we figure out a way to know when we are unwinding the
-			// stack and only recover then so we don't alter the panic stack?
-			panic(err)
-		}
+		c.ctx.Stack.FP = -1
+		c.ctx.entry()
+	})
 
-		if c.ctx.Unwinding() {
-			stop := c.ctx.stop
-			c.ctx.done, hasNext = stop, !stop
-		} else {
-			c.ctx.done = true
-		}
-	}()
+	c.ctx.cond.Wait()
+	c.ctx.lock.Unlock()
 
-	c.ctx.Stack.FP = -1
-	c.ctx.entry()
-	return false
+	if c.ctx.Unwinding() {
+		stop := c.ctx.stop
+		c.ctx.done, hasNext = stop, !stop
+	} else {
+		c.ctx.done = true
+	}
+
+	return hasNext
 }
 
 type context struct {
@@ -156,6 +163,10 @@ type context struct {
 	// generator can call into the coroutine to start or resume it at the
 	// last yield point.
 	entry func()
+
+	lock sync.Mutex
+	cond sync.Cond
+
 	Stack
 }
 
