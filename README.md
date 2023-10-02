@@ -1,7 +1,7 @@
 [![build](https://github.com/stealthrocket/coroutine/actions/workflows/build.yml/badge.svg)](https://github.com/stealthrocket/coroutine/actions/workflows/build.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/stealthrocket/coroutine.svg)](https://pkg.go.dev/github.com/stealthrocket/coroutine)
 [![Apache 2 License](https://img.shields.io/badge/license-Apache%202-blue.svg)](LICENSE)
-[![Discord](https://img.shields.io/discord/1126309607166464131)](Discord)
+[![Discord](https://img.shields.io/discord/1126309607166464131?label=Discord)](Discord)
 
 # coroutine
 
