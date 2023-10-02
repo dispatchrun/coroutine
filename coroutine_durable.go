@@ -171,8 +171,8 @@ func (c *Context[R, S]) Unwinding() bool {
 	return c.resume
 }
 
-// The load function is implemented in assembly for each target architecture,
-// it enables loading the last coroutine context seen on the call stack.
+// The load function returns the value passed as first argument to the call to
+// execute that started the coroutine.
 func load() any {
 	g := getg()
 	endOfG := (*uintptr)(unsafe.Pointer(uintptr(unsafe.Pointer(g)) + sizeOfG))

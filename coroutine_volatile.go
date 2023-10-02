@@ -91,8 +91,8 @@ var (
 	offsetOnce sync.Once
 )
 
-// The load function is implemented in assembly for each target architecture,
-// it enables loading the last coroutine context seen on the call stack.
+// The load function returns the value passed as first argument to the call to
+// execute that started the coroutine.
 func load() any {
 	g := getg()
 	p := unsafe.Pointer(g.stack.hi - offset)
