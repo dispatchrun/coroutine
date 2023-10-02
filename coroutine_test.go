@@ -6,7 +6,7 @@ import (
 )
 
 func TestLocalStorage(t *testing.T) {
-	with(42, func() {
+	execute(42, func() {
 		if v := load(); !reflect.DeepEqual(v, 42) {
 			t.Errorf("wrong value: %v", v)
 		}
@@ -24,7 +24,7 @@ func weirdLoop(n int, f func()) int {
 }
 
 func TestLocalStorageGrowStack(t *testing.T) {
-	with("hello", func() {
+	execute("hello", func() {
 		weirdLoop(100e3, func() {
 			if v := load(); v != "hello" {
 				t.Errorf("wrong value: %v", v)
@@ -34,7 +34,7 @@ func TestLocalStorageGrowStack(t *testing.T) {
 }
 
 func BenchmarkLocalStorage(b *testing.B) {
-	with("hello", func() {
+	execute("hello", func() {
 		for i := 0; i < b.N; i++ {
 			load()
 		}

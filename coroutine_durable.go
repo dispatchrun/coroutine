@@ -3,6 +3,9 @@
 package coroutine
 
 import (
+	"runtime"
+	"unsafe"
+
 	"github.com/stealthrocket/coroutine/types"
 )
 
@@ -127,7 +130,7 @@ func (c Coroutine[R, S]) Next() (hasNext bool) {
 		return false
 	}
 
-	with(c.ctx, func() {
+	execute(c.ctx, func() {
 		defer func() {
 			switch v := recover().(type) {
 			case nil:
@@ -166,4 +169,50 @@ type unwind struct{}
 // Unwinding returns true if the coroutine is currently unwinding its stack.
 func (c *Context[R, S]) Unwinding() bool {
 	return c.resume
+}
+
+// The load function is implemented in assembly for each target architecture,
+// it enables loading the last coroutine context seen on the call stack.
+func load() any {
+	g := getg()
+	endOfG := (*uintptr)(unsafe.Pointer(uintptr(unsafe.Pointer(g)) + sizeOfG))
+	return *(*any)(unsafe.Pointer(g.stack.hi - *endOfG))
+}
+
+// The execute function is the entry point of coroutines, it pushes the
+// coroutine context in v to the stack, registering it to be retrieved by
+// calling load, and invokes f as the entry point.
+//
+// The coroutine continues execution until a yield point is reached or until
+// the function passed as entry point returns.
+//
+//go:nosplit
+//go:noinline
+func execute(v any, f func()) {
+	g := getg()
+	p := unsafe.Pointer(&v)
+
+	// On 64 bits architectures, the g struct is 408 bytes, but allocated on the
+	// heap it uses a class size of 416 bytes, which means that we have 8 bytes
+	// unused at the end of the struct where we can store the offset.
+	//
+	// TODO: since we are recompiling the code, we should inject a field in the
+	// runtime's g struct instead of relying on finding spare space.
+	endOfG := (*uintptr)(unsafe.Pointer(uintptr(unsafe.Pointer(g)) + sizeOfG))
+
+	// We reload the g from thread local storage so we don't have to store it on
+	// this stack frame, it will be the same value as the one we've seen at the
+	// beginning of the function.
+	//
+	// TODO: this code path does not get executed if a panic occurs, we either
+	// need to disallow the coroutine entry point to panic (i.e., volatile does
+	// this implicitly since we use a goroutine), or we need to figure out how
+	// to declare defers in assembly code.
+	prevOffset := *endOfG
+	defer func() { *endOfG = prevOffset }()
+
+	*endOfG = g.stack.hi - uintptr(p)
+	f()
+
+	runtime.KeepAlive(v)
 }

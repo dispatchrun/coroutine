@@ -104,11 +104,6 @@ func LoadContext[R, S any]() *Context[R, S] {
 	}
 }
 
-func load() any
-
-//go:noescape
-func with(v any, f func())
-
 // ErrNotDurable is an error that occurs when attempting to
 // serialize a coroutine that is not durable.
 var ErrNotDurable = errors.New("only durable coroutines can be serialized")
