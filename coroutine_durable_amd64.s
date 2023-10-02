@@ -1,3 +1,5 @@
+//go:build amd64 && durable
+
 #include "go_asm.h"
 #include "textflag.h"
 
