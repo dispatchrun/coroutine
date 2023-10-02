@@ -20,20 +20,20 @@ func New[R, S any](f func()) Coroutine[R, S] {
 		},
 	}
 
-	go execute(c, func() {
-		defer func() {
-			c.done = true
-			close(c.next)
-		}()
+	go func() {
+		execute(c, func() {
+			defer func() {
+				c.done = true
+				close(c.next)
+			}()
 
-		<-c.next
+			<-c.next
 
-		if !c.stop {
-			f()
-		}
-
-		runtime.KeepAlive(c)
-	})
+			if !c.stop {
+				f()
+			}
+		})
+	}()
 
 	return Coroutine[R, S]{ctx: c}
 }
