@@ -3,8 +3,6 @@
 package coroutine
 
 import (
-	"sync"
-
 	"github.com/stealthrocket/coroutine/types"
 )
 
@@ -13,14 +11,18 @@ import (
 const Durable = true
 
 // New creates a new coroutine which executes f as entry point.
+//
+//go:noinline
 func New[R, S any](f func()) Coroutine[R, S] {
-	c := Coroutine[R, S]{
+	// The function has the go:noinline tag because we want to ensure that the
+	// context will be allocated on the heap. If the context remains allocated
+	// on the stack it might escape when returned by a call to LoadContext that
+	// the compiler cannot track.
+	return Coroutine[R, S]{
 		ctx: &Context[R, S]{
 			context: context{entry: f},
 		},
 	}
-	c.ctx.cond.L = &c.ctx.lock
-	return c
 }
 
 // Stack is the call stack for a coroutine.
@@ -125,9 +127,7 @@ func (c Coroutine[R, S]) Next() (hasNext bool) {
 		return false
 	}
 
-	c.ctx.lock.Lock()
-
-	go with(&gctx, c.ctx, func() {
+	with(c.ctx, func() {
 		defer func() {
 			switch v := recover().(type) {
 			case nil:
@@ -138,22 +138,17 @@ func (c Coroutine[R, S]) Next() (hasNext bool) {
 				panic(v)
 			}
 
-			c.ctx.cond.Signal()
+			if c.ctx.Unwinding() {
+				stop := c.ctx.stop
+				c.ctx.done, hasNext = stop, !stop
+			} else {
+				c.ctx.done = true
+			}
 		}()
 
 		c.ctx.Stack.FP = -1
 		c.ctx.entry()
 	})
-
-	c.ctx.cond.Wait()
-	c.ctx.lock.Unlock()
-
-	if c.ctx.Unwinding() {
-		stop := c.ctx.stop
-		c.ctx.done, hasNext = stop, !stop
-	} else {
-		c.ctx.done = true
-	}
 
 	return hasNext
 }
@@ -163,10 +158,6 @@ type context struct {
 	// generator can call into the coroutine to start or resume it at the
 	// last yield point.
 	entry func()
-
-	lock sync.Mutex
-	cond sync.Cond
-
 	Stack
 }
 

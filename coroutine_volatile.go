@@ -18,7 +18,7 @@ func New[R, S any](f func()) Coroutine[R, S] {
 		},
 	}
 
-	go with(&gctx, c, func() {
+	go with(c, func() {
 		defer func() {
 			c.done = true
 			close(c.next)

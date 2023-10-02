@@ -94,7 +94,7 @@ func Yield[R, S any](v R) S {
 // The function panics when called on a stack where no active coroutine exists,
 // or if the type parameters do not match those of the coroutine.
 func LoadContext[R, S any]() *Context[R, S] {
-	switch c := load(gctx).(type) {
+	switch c := load().(type) {
 	case *Context[R, S]:
 		return c
 	case nil:
@@ -104,12 +104,10 @@ func LoadContext[R, S any]() *Context[R, S] {
 	}
 }
 
-var gctx uintptr
-
-func load(k uintptr) any
+func load() any
 
 //go:noescape
-func with(k *uintptr, v any, f func())
+func with(v any, f func())
 
 // ErrNotDurable is an error that occurs when attempting to
 // serialize a coroutine that is not durable.

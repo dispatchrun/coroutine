@@ -3,21 +3,14 @@ package coroutine
 import (
 	"reflect"
 	"testing"
-	"unsafe"
 )
 
 func TestLocalStorage(t *testing.T) {
-	ch := make(chan any)
-	key := uintptr(0)
-	val := any(42)
-
-	go with(&key, val, func() {
-		ch <- load(key)
+	with(42, func() {
+		if v := load(); !reflect.DeepEqual(v, 42) {
+			t.Errorf("wrong value: %v", v)
+		}
 	})
-
-	if v := <-ch; !reflect.DeepEqual(v, val) {
-		t.Errorf("wrong value for key=%v: %v", key, *(*[2]unsafe.Pointer)(unsafe.Pointer(&v)))
-	}
 }
 
 //go:noinline
@@ -31,25 +24,19 @@ func weirdLoop(n int, f func()) int {
 }
 
 func TestLocalStorageGrowStack(t *testing.T) {
-	ch := make(chan any)
-	key := uintptr(0)
-	val := any(42)
-
-	go with(&key, val, func() {
-		weirdLoop(100e3, func() { ch <- load(key) })
+	with("hello", func() {
+		weirdLoop(100e3, func() {
+			if v := load(); v != "hello" {
+				t.Errorf("wrong value: %v", v)
+			}
+		})
 	})
-
-	if v := <-ch; !reflect.DeepEqual(v, val) {
-		t.Errorf("wrong value for key=%v: %v", key, *(*[2]unsafe.Pointer)(unsafe.Pointer(&v)))
-	}
 }
 
 func BenchmarkLocalStorage(b *testing.B) {
-	key := uintptr(0)
-	val := any(42)
-	with(&key, val, func() {
+	with("hello", func() {
 		for i := 0; i < b.N; i++ {
-			load(key)
+			load()
 		}
 	})
 }

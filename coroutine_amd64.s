@@ -1,38 +1,47 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-// func with(k *uintptr, v any, f func())
-TEXT ·with(SB), NOSPLIT, $0-32
+// GOARCH=amd64 exposes the get_tls and g macros to access thread local storage
+// and the g pointer in it. The routine here inlines the following macros
+// defined in $GOROOT/src/runtime/go_tls.h:
+//
+//  #define get_tls(r) MOVQ TLS, r
+//  #define g(r)       0(r)(TLS*1)
+//
+// See: https://go.dev/doc/asm (64-bit Intel 386)
+
+TEXT ·with(SB), NOSPLIT, $0-24
     MOVQ TLS, CX
     MOVQ 0(CX)(TLS*1), BX // g
     MOVQ 8(BX), AX        // g.stack.hi
 
     // The v argument is pushed on the stack by the caller, we use its offset
     // to the goroutine's stack pointer as key to relocate the value.
-    LEAQ v_type+8(FP), CX
-    SUBQ AX, CX // key
+    LEAQ v_type+0(FP), CX
+    SUBQ AX, CX // offset
 
-    // Write the key associated with the value; this may race when called from
-    // multiple goroutines but we don't care because we always write the same
-    // value as long as a single key is associated with call site.
-    MOVQ k+0(FP), BX
-    MOVQ CX, (BX)
+    // Write the offset of v on the stack, this is used to relocate v in calls
+    // to load.
+    //
+    // On amd64, the g struct is 408 bytes, but allocated on the heap it uses a
+    // class size of 416 bytes, which means that we have 8 bytes unused at the
+    // end of the struct where we can store the offset.
+    MOVQ CX, 408(BX)
 
-    MOVQ f+24(FP), BX
-    MOVQ BX, DX // calling convention for closures
-    CALL (BX)
+    MOVQ f+16(FP), AX
+    MOVQ AX, DX // calling convention for closures
+    CALL (AX)
     RET
 
-// func load(k uintptr) any
-TEXT ·load(SB), NOSPLIT, $0-24
+TEXT ·load(SB), NOSPLIT, $0-16
     MOVQ TLS, CX
     MOVQ 0(CX)(TLS*1), BX // g
     MOVQ 8(BX), AX        // g.stack.hi
+    MOVQ 408(BX), CX
 
-    MOVQ k+0(FP), CX
-    MOVQ 0(AX)(CX*1), BX
-    MOVQ 8(AX)(CX*1), CX
+    MOVQ 0(AX)(CX*1), R8
+    MOVQ 8(AX)(CX*1), R9
 
-    MOVQ BX, ret_type+8(FP)
-    MOVQ CX, ret_data+16(FP)
+    MOVQ R8, ret_type+0(FP)
+    MOVQ R9, ret_data+8(FP)
     RET
