@@ -9,8 +9,9 @@
 //  #define g(r)       0(r)(TLS*1)
 //
 // See: https://go.dev/doc/asm (64-bit Intel 386)
+
 TEXT ·getg(SB), NOSPLIT, $0-8
     MOVQ TLS, CX
-    MOVQ 0(CX)(TLS*1), AX
+    MOVQ 0(CX)(TLS*1), AX // g
     MOVQ AX, ret+0(FP)
     RET

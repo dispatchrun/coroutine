@@ -2,8 +2,6 @@ package coroutine
 
 import (
 	"errors"
-
-	"github.com/stealthrocket/coroutine/internal/gls"
 )
 
 // Coroutine instances expose APIs allowing the program to drive the execution
@@ -96,7 +94,7 @@ func Yield[R, S any](v R) S {
 // The function panics when called on a stack where no active coroutine exists,
 // or if the type parameters do not match those of the coroutine.
 func LoadContext[R, S any]() *Context[R, S] {
-	switch c := gls.Context().Load().(type) {
+	switch c := load().(type) {
 	case *Context[R, S]:
 		return c
 	case nil:

@@ -3,7 +3,9 @@
 package coroutine
 
 import (
-	"github.com/stealthrocket/coroutine/internal/gls"
+	"runtime"
+	"unsafe"
+
 	"github.com/stealthrocket/coroutine/types"
 )
 
@@ -12,7 +14,13 @@ import (
 const Durable = true
 
 // New creates a new coroutine which executes f as entry point.
+//
+//go:noinline
 func New[R, S any](f func()) Coroutine[R, S] {
+	// The function has the go:noinline tag because we want to ensure that the
+	// context will be allocated on the heap. If the context remains allocated
+	// on the stack it might escape when returned by a call to LoadContext that
+	// the compiler cannot track.
 	return Coroutine[R, S]{
 		ctx: &Context[R, S]{
 			context: context{entry: f},
@@ -122,33 +130,30 @@ func (c Coroutine[R, S]) Next() (hasNext bool) {
 		return false
 	}
 
-	g := gls.Context()
+	execute(c.ctx, func() {
+		defer func() {
+			switch v := recover().(type) {
+			case nil:
+			case unwind:
+			default:
+				// TODO: can we figure out a way to know when we are unwinding the
+				// stack and only recover then so we don't alter the panic stack?
+				panic(v)
+			}
 
-	g.Store(c.ctx)
+			if c.ctx.Unwinding() {
+				stop := c.ctx.stop
+				c.ctx.done, hasNext = stop, !stop
+			} else {
+				c.ctx.done = true
+			}
+		}()
 
-	defer func() {
-		g.Clear()
+		c.ctx.Stack.FP = -1
+		c.ctx.entry()
+	})
 
-		switch err := recover(); err {
-		case nil:
-		case unwind{}:
-		default:
-			// TODO: can we figure out a way to know when we are unwinding the
-			// stack and only recover then so we don't alter the panic stack?
-			panic(err)
-		}
-
-		if c.ctx.Unwinding() {
-			stop := c.ctx.stop
-			c.ctx.done, hasNext = stop, !stop
-		} else {
-			c.ctx.done = true
-		}
-	}()
-
-	c.ctx.Stack.FP = -1
-	c.ctx.entry()
-	return false
+	return hasNext
 }
 
 type context struct {
@@ -164,4 +169,50 @@ type unwind struct{}
 // Unwinding returns true if the coroutine is currently unwinding its stack.
 func (c *Context[R, S]) Unwinding() bool {
 	return c.resume
+}
+
+// The load function returns the value passed as first argument to the call to
+// execute that started the coroutine.
+func load() any {
+	g := getg()
+	endOfG := (*uintptr)(unsafe.Pointer(uintptr(unsafe.Pointer(g)) + sizeOfG))
+	return *(*any)(unsafe.Pointer(g.stack.hi - *endOfG))
+}
+
+// The execute function is the entry point of coroutines, it pushes the
+// coroutine context in v to the stack, registering it to be retrieved by
+// calling load, and invokes f as the entry point.
+//
+// The coroutine continues execution until a yield point is reached or until
+// the function passed as entry point returns.
+//
+//go:nosplit
+//go:noinline
+func execute(v any, f func()) {
+	g := getg()
+	p := unsafe.Pointer(&v)
+
+	// On 64 bits architectures, the g struct is 408 bytes, but allocated on the
+	// heap it uses a class size of 416 bytes, which means that we have 8 bytes
+	// unused at the end of the struct where we can store the offset.
+	//
+	// TODO: since we are recompiling the code, we should inject a field in the
+	// runtime's g struct instead of relying on finding spare space.
+	endOfG := (*uintptr)(unsafe.Pointer(uintptr(unsafe.Pointer(g)) + sizeOfG))
+
+	// We reload the g from thread local storage so we don't have to store it on
+	// this stack frame, it will be the same value as the one we've seen at the
+	// beginning of the function.
+	//
+	// TODO: this code path does not get executed if a panic occurs, we either
+	// need to disallow the coroutine entry point to panic (i.e., volatile does
+	// this implicitly since we use a goroutine), or we need to figure out how
+	// to declare defers in assembly code.
+	prevOffset := *endOfG
+	defer func() { *endOfG = prevOffset }()
+
+	*endOfG = g.stack.hi - uintptr(p)
+	f()
+
+	runtime.KeepAlive(v)
 }

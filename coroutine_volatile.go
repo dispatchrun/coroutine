@@ -4,8 +4,8 @@ package coroutine
 
 import (
 	"runtime"
-
-	"github.com/stealthrocket/coroutine/internal/gls"
+	"sync"
+	"unsafe"
 )
 
 // Durable is a constant which takes the values true or false depending on
@@ -20,14 +20,10 @@ func New[R, S any](f func()) Coroutine[R, S] {
 		},
 	}
 
-	go func() {
-		g := gls.Context()
-		g.Store(c)
-
+	go execute(c, func() {
 		defer func() {
 			c.done = true
 			close(c.next)
-			g.Clear()
 		}()
 
 		<-c.next
@@ -35,7 +31,9 @@ func New[R, S any](f func()) Coroutine[R, S] {
 		if !c.stop {
 			f()
 		}
-	}()
+
+		runtime.KeepAlive(c)
+	})
 
 	return Coroutine[R, S]{ctx: c}
 }
@@ -78,4 +76,57 @@ func (c *Context[R, S]) Marshal() ([]byte, error) {
 
 func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
 	return 0, ErrNotDurable
+}
+
+// The offset from the high address of the stack pointer where the v argument
+// of the execute function is stored.
+//
+// We use a once value to lazily initialize the value when executing coroutines
+// because we must compute the exact distance from the high stack pointer on the
+// coroutine entry point code path. After initialization, the global offset
+// variable is only read from the same goroutine, so there is no race since the
+// last write is always observed.
+var (
+	offset     uintptr
+	offsetOnce sync.Once
+)
+
+// The load function returns the value passed as first argument to the call to
+// execute that started the coroutine.
+func load() any {
+	g := getg()
+	p := unsafe.Pointer(g.stack.hi - offset)
+	return *(*any)(p)
+}
+
+// The execute function is the entry point of coroutines, it pushes the
+// coroutine context in v to the stack, registering it to be retrieved by
+// calling load, and invokes f as the entry point.
+//
+// The coroutine continues execution until a yield point is reached or until
+// the function passed as entry point returns.
+//
+// The function has go:nosplit because the address of its local variables must
+// remain stable
+//
+//go:nosplit
+//go:noinline
+func execute(v any, f func()) {
+	p := unsafe.Pointer(&v)
+
+	offsetOnce.Do(func() {
+		g := getg()
+		// In volatile mode a new goroutine is started to back each coroutine,
+		// which means that we have control over the distance from the call to
+		// with and the base pointer of the goroutine stack; we can store the
+		// offset in a global. It does not matter if this write is performed
+		// from concurrent threads, it always has the same value.
+		offset = g.stack.hi - uintptr(p)
+	})
+
+	f()
+
+	// Keep the variable alive so we know that it will remain on the stack and
+	// won't be erased by the GC.
+	runtime.KeepAlive(v)
 }
