@@ -116,11 +116,11 @@ func execute(v any, f func()) {
 
 	offsetOnce.Do(func() {
 		g := getg()
-		// In volatile mode a new goroutine is started to back each coroutine, which
-		// means that we have control over the distance from the call to with and
-		// the base pointer of the goroutine stack; we can store the offset in a
-		// global. It does not matter if this write is performed from concurrent
-		// threads, it always has the same value.
+		// In volatile mode a new goroutine is started to back each coroutine,
+		// which means that we have control over the distance from the call to
+		// with and the base pointer of the goroutine stack; we can store the
+		// offset in a global. It does not matter if this write is performed
+		// from concurrent threads, it always has the same value.
 		offset = g.stack.hi - uintptr(p)
 	})
 
