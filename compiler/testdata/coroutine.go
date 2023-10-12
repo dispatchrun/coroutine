@@ -533,3 +533,17 @@ func (s *MethodGeneratorState) MethodGenerator(n int) {
 		coroutine.Yield[int, any](s.i)
 	}
 }
+
+func VarArgs(n int) {
+	args := make([]int, n)
+	for i := range args {
+		args[i] = i
+	}
+	varArgs(args...)
+}
+
+func varArgs(args ...int) {
+	for _, arg := range args {
+		coroutine.Yield[int, any](arg)
+	}
+}

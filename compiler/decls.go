@@ -53,9 +53,13 @@ func extractDecls(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, r
 		for _, field := range typ.Params.List {
 			for _, ident := range field.Names {
 				if ident.Name != "_" {
+					fieldType := field.Type
+					if e, ok := fieldType.(*ast.Ellipsis); ok {
+						fieldType = &ast.ArrayType{Elt: e.Elt}
+					}
 					frameType.Fields.List = append(frameType.Fields.List, &ast.Field{
 						Names: []*ast.Ident{ident},
-						Type:  field.Type,
+						Type:  fieldType,
 					})
 					frameInit.Elts = append(frameInit.Elts, &ast.KeyValueExpr{
 						Key:   ident,
