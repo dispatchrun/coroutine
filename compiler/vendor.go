@@ -15,22 +15,20 @@ import (
 
 const copyConcurrency = 16
 
-// vendor copies GOROOT packages into a new directory.
-func vendor(newRoot string, pkgs []*packages.Package) error {
+// vendorGOROOT copies GOROOT packages into a new directory.
+func vendorGOROOT(newRoot string, pkgs []*packages.Package) error {
 	goroot := runtime.GOROOT()
 
 	var scanErr error
 	packages.Visit(pkgs, func(p *packages.Package) bool {
-		path := filepath.Dir(p.GoFiles[0])
-		rel, err := filepath.Rel(goroot, path)
+		dir := packageDir(p)
+		rel, err := filepath.Rel(goroot, dir)
 		if err != nil {
 			scanErr = err
 			return false
 		}
 		if strings.HasPrefix(rel, "..") {
-			// TODO: these could be dependencies in GOPATH, in which
-			//  case they could be vendored under ./vendor?
-			scanErr = fmt.Errorf("package %s (%s) is not in GOROOT (%s)", p.PkgPath, path, goroot)
+			scanErr = fmt.Errorf("package %s (%s) is not in GOROOT (%s)", p.PkgPath, dir, goroot)
 			return false
 		}
 		return scanErr == nil
@@ -60,6 +58,19 @@ func vendor(newRoot string, pkgs []*packages.Package) error {
 		err = nil
 	}
 	return err
+}
+
+func packageDir(p *packages.Package) string {
+	var f string
+	switch {
+	case len(p.GoFiles) > 0:
+		f = p.GoFiles[0]
+	case len(p.OtherFiles) > 0:
+		f = p.OtherFiles[0]
+	default:
+		panic("cannot determine directory of package " + p.PkgPath)
+	}
+	return filepath.Dir(f)
 }
 
 type copyOperation struct{ src, dst string }
