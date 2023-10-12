@@ -192,6 +192,12 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   func() { var s MethodGeneratorState; s.MethodGenerator(5) },
 			yields: []int{0, 1, 2, 3, 4, 5},
 		},
+
+		{
+			name:   "var args",
+			coro:   func() { VarArgs(3) },
+			yields: []int{0, 1, 2},
+		},
 	}
 
 	// This emulates the installation of function type information by the

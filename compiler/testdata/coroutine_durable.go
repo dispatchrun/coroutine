@@ -3077,6 +3077,103 @@ func (_fn0 *MethodGeneratorState) MethodGenerator(_fn1 int) {
 		}
 	}
 }
+
+//go:noinline
+func VarArgs(_fn0 int) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 int
+		X1 []int
+	} = coroutine.Push[struct {
+		IP int
+		X0 int
+		X1 []int
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 int
+			X1 []int
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X1 = make([]int, _f0.X0)
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 3:
+		for i := range _f0.X1 {
+			_f0.X1[i] = i
+		}
+		_f0.IP = 3
+		fallthrough
+	case _f0.IP < 4:
+		varArgs(_f0.X1...)
+	}
+}
+
+//go:noinline
+func varArgs(_fn0 ...int) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 []int
+		X1 []int
+		X2 int
+		X3 int
+	} = coroutine.Push[struct {
+		IP int
+		X0 []int
+		X1 []int
+		X2 int
+		X3 int
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 []int
+			X1 []int
+			X2 int
+			X3 int
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X1 = _f0.X0
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 5:
+		switch {
+		case _f0.IP < 3:
+			_f0.X2 = 0
+			_f0.IP = 3
+			fallthrough
+		case _f0.IP < 5:
+			for ; _f0.X2 < len(_f0.X1); _f0.X2, _f0.IP = _f0.X2+1, 3 {
+				switch {
+				case _f0.IP < 4:
+					_f0.X3 = _f0.X1[_f0.X2]
+					_f0.IP = 4
+					fallthrough
+				case _f0.IP < 5:
+
+					coroutine.Yield[int, any](_f0.X3)
+				}
+			}
+		}
+	}
+}
 func init() {
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Double")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.EvenSquareGenerator")
@@ -3180,6 +3277,7 @@ func init() {
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.SquareGeneratorTwice")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.SquareGeneratorTwiceLoop")
 	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.TypeSwitchingGenerator")
+	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.VarArgs")
 	_types.RegisterFunc[func(_fn0 *int, _fn1, _fn2 int)]("github.com/stealthrocket/coroutine/compiler/testdata.YieldAndDeferAssign")
 	_types.RegisterClosure[func(), struct {
 		F  uintptr
@@ -3205,4 +3303,5 @@ func init() {
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingExpressionDesugaring")
 	_types.RegisterFunc[func(_fn0 int) (_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.a")
 	_types.RegisterFunc[func(_fn0 int) (_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.b")
+	_types.RegisterFunc[func(_fn0 ...int)]("github.com/stealthrocket/coroutine/compiler/testdata.varArgs")
 }
