@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -161,17 +162,46 @@ func (c *compiler) compile(path string) error {
 		pkgColors[fn] = color
 	}
 
+	// Before mutating packages, we need to ensure that packages exist in a
+	// location where mutations can be made safely (without affecting other
+	// builds).
 	var needVendoring []*packages.Package
+	goroot := runtime.GOROOT()
 	for p := range colorsByPkg {
-		if p.Module == nil || p.Module.Dir != moduleDir {
-			needVendoring = append(needVendoring, p)
-			break
+		dir := packageDir(p)
+
+		// The input module can be mutated, and so can nested
+		// packages (including those in the ./vendor directory).
+		moduleRel, err := filepath.Rel(moduleDir, dir)
+		if err != nil {
+			return err
 		}
+		if !strings.HasPrefix(moduleRel, "..") {
+			continue
+		}
+
+		// Collect GOROOT packages and vendor them below.
+		gorootRel, err := filepath.Rel(goroot, dir)
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(gorootRel, "..") {
+			needVendoring = append(needVendoring, p)
+			continue
+		}
+
+		// Reject packages without an associated module.
+		if p.Module == nil {
+			return fmt.Errorf("cannot mutate package %s (%s) without a Go module", p.PkgPath, dir)
+		}
+
+		// Reject packages outside ./vendor.
+		return fmt.Errorf("cannot mutate package %s (%s) safely. Please vendor dependencies: go mod vendor", p.PkgPath, dir)
 	}
 	if len(needVendoring) > 0 {
-		log.Printf("vendoring packages")
+		log.Printf("vendoring GOROOT packages")
 		newRoot := filepath.Join(moduleDir, "goroot")
-		if err := vendor(newRoot, needVendoring); err != nil {
+		if err := vendorGOROOT(newRoot, needVendoring); err != nil {
 			return err
 		}
 	}
