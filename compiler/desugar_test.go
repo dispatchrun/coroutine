@@ -1136,6 +1136,16 @@ defer func() {
 }
 `,
 		},
+		{
+			name: "repeated function calls",
+			body: "time.Now().UTC()",
+			expect: `
+{
+	_v0 := time.Now()
+	_v0.UTC()
+}
+`,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			expr, err := parser.ParseExpr("func() {\n" + test.body + "\n}()")
