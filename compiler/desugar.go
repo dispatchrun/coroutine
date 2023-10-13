@@ -767,11 +767,15 @@ const (
 )
 
 func (d *desugarer) mayYield(n ast.Node) bool {
-	switch n.(type) {
+	switch x := n.(type) {
 	case nil:
 		return false
 	case *ast.BasicLit, *ast.FuncLit, *ast.Ident:
 		return false
+	case *ast.SelectorExpr:
+		if _, ok := x.X.(*ast.Ident); ok {
+			return false
+		}
 	case *ast.ArrayType, *ast.ChanType, *ast.FuncType, *ast.InterfaceType, *ast.MapType, *ast.StructType:
 		return false
 	}
@@ -820,7 +824,11 @@ func (d *desugarer) decomposeExpression(expr ast.Expr, flags exprFlags) (ast.Exp
 					continue
 				}
 			}
-			e.Fun = decompose(e.Fun)
+			if se, ok := e.Fun.(*ast.SelectorExpr); ok && d.mayYield(se.X) {
+				se.X = decompose(se.X)
+			} else {
+				e.Fun = decompose(e.Fun)
+			}
 			for i, arg := range e.Args {
 				e.Args[i] = decompose(arg)
 			}
