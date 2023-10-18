@@ -3,6 +3,7 @@
 package coroutine
 
 import (
+	"errors"
 	"runtime"
 	"unsafe"
 
@@ -95,6 +96,9 @@ func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
 	start := len(b)
 	v, b, err := types.Deserialize(b)
 	if err != nil {
+		if errors.Is(err, types.ErrBuildIDMismatch) {
+			return 0, ErrInvalidState
+		}
 		return 0, err
 	}
 	s := v.(*serializedCoroutine)
