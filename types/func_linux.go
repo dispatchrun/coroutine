@@ -2,26 +2,19 @@ package types
 
 import (
 	"debug/elf"
-	"os"
 )
 
-func init() {
-	f, err := elf.Open(os.Args[0])
-	if err != nil {
-		panic("cannot read elf binary: " + err.Error())
-	}
-
+func initELFFunctionTables(f *elf.File) error {
 	pclntab := f.Section(".gopclntab")
 	pclntabData, err := readAll(pclntab, pclntab.Size)
 	if err != nil {
-		panic("cannot read pclntab: " + err.Error())
+		return fmt.Errorf("cannot read pclntab: %w", err)
 	}
-
 	symtab := f.Section(".gosymtab")
 	symtabData, err := readAll(symtab, symtab.Size)
 	if err != nil {
-		panic("cannot read symtab: " + err.Error())
+		return fmt.Errorf("cannot read symtab: %w", err)
 	}
-
 	initFunctionTables(pclntabData, symtabData)
+	return nil
 }
