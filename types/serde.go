@@ -7,6 +7,7 @@ package types
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"reflect"
 	"unsafe"
@@ -14,6 +15,10 @@ import (
 
 // sID is the unique sID of a pointer or type in the serialized format.
 type sID int64
+
+// ErrBuildIDMismatch is an error that occurs when a program attempts
+// to deserialize objects from another build.
+var ErrBuildIDMismatch = errors.New("build ID mismatch")
 
 // Serialize x.
 //
@@ -35,14 +40,17 @@ func Serialize(x any) []byte {
 }
 
 // Deserialize value from b. Return left over bytes.
-func Deserialize(b []byte) (interface{}, []byte) {
-	d := newDeserializer(b)
+func Deserialize(b []byte) (interface{}, []byte, error) {
+	d, err := newDeserializer(b)
+	if err != nil {
+		return nil, nil, err
+	}
 	var x interface{}
 	px := &x
 	t := reflect.TypeOf(px).Elem()
 	p := unsafe.Pointer(px)
 	deserializeInterface(d, t, p)
-	return x, d.b
+	return x, d.b, nil
 }
 
 type Deserializer struct {
@@ -54,11 +62,22 @@ type Deserializer struct {
 	b []byte
 }
 
-func newDeserializer(b []byte) *Deserializer {
+func newDeserializer(b []byte) (*Deserializer, error) {
+	buildIDLength, n := binary.Varint(b)
+	if n <= 0 || buildIDLength <= 0 || buildIDLength > int64(len(buildID)) || int64(len(b)-n) < buildIDLength {
+		return nil, fmt.Errorf("missing or invalid build ID")
+	}
+	b = b[n:]
+	serializedBuildID := string(b[:buildIDLength])
+	b = b[buildIDLength:]
+	if serializedBuildID != buildID {
+		return nil, fmt.Errorf("%w: got %v, expect %v", ErrBuildIDMismatch, serializedBuildID, buildID)
+	}
+
 	return &Deserializer{
 		ptrs: make(map[sID]unsafe.Pointer),
 		b:    b,
-	}
+	}, nil
 }
 
 func (d *Deserializer) readPtr() (unsafe.Pointer, sID) {
@@ -123,9 +142,14 @@ type Serializer struct {
 }
 
 func newSerializer() *Serializer {
+	b := make([]byte, 0, 128)
+	b = binary.AppendVarint(b, int64(len(buildID)))
+	b = append(b, buildID...)
+
 	return &Serializer{
 		ptrs:     make(map[unsafe.Pointer]sID),
 		scanptrs: make(map[reflect.Value]struct{}),
+		b:        b,
 	}
 }
 

@@ -44,7 +44,7 @@ func initELFBuildID(f *elf.File) {
 	tag := f.ByteOrder.Uint32(note[8:])
 	nname := note[12:16]
 	if nameSize == 4 && 16+valSize <= uint32(len(note)) && tag == buildIDTag && bytes.Equal(nname, buildIDNote) {
-		buildid = string(note[16 : 16+valSize])
+		buildID = string(note[16 : 16+valSize])
 	} else {
 		panic("build ID not found")
 	}

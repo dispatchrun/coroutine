@@ -56,7 +56,7 @@ func initMachOBuildID(f *macho.File) {
 	if err != nil {
 		panic("build ID not found")
 	}
-	buildid = id
+	buildID = id
 }
 
 var (

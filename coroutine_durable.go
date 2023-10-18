@@ -93,7 +93,10 @@ func (c *Context[R, S]) Marshal() ([]byte, error) {
 // context.
 func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
 	start := len(b)
-	v, b := types.Deserialize(b)
+	v, b, err := types.Deserialize(b)
+	if err != nil {
+		return 0, err
+	}
 	s := v.(*serializedCoroutine)
 	c.entry = s.entry
 	c.Stack = s.stack

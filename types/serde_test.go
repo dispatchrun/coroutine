@@ -40,7 +40,10 @@ func TestSerdeTime(t *testing.T) {
 
 func testSerdeTime(t *testing.T, x time.Time) {
 	b := Serialize(x)
-	out, _ := Deserialize(b)
+	out, _, err := Deserialize(b)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if !x.Equal(out.(time.Time)) {
 		t.Errorf("expected %v, got %v", x, out)
@@ -120,7 +123,10 @@ func TestReflect(t *testing.T) {
 			typ := reflect.TypeOf(x)
 			t.Run(fmt.Sprintf("%d-%s", i, typ), func(t *testing.T) {
 				b := Serialize(x)
-				out, b := Deserialize(b)
+				out, b, err := Deserialize(b)
+				if err != nil {
+					t.Fatal(err)
+				}
 
 				assertEqual(t, x, out)
 
@@ -302,7 +308,10 @@ func TestReflectCustom(t *testing.T) {
 		// unserializable function in CheckRedirect.
 
 		b := Serialize(x)
-		out, b := Deserialize(b)
+		out, b, err := Deserialize(b)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		assertEqual(t, x.Timeout, out.(http.Client).Timeout)
 
@@ -615,7 +624,10 @@ func assertRoundTrip[T any](t *testing.T, orig T) T {
 	t.Helper()
 
 	b := Serialize(orig)
-	out, b := Deserialize(b)
+	out, b, err := Deserialize(b)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	assertEqual(t, orig, out)
 
