@@ -2,7 +2,6 @@ package types
 
 import (
 	"debug/macho"
-	"fmt"
 	"os"
 )
 
@@ -13,22 +12,34 @@ func init() {
 	}
 	defer f.Close()
 
-	if err := initMachOFunctionTables(f); err != nil {
-		panic(err)
-	}
+	initMachOFunctionTables(f)
+	initMachOBuildID(f)
 }
 
-func initMachOFunctionTables(f *macho.File) error {
+func initMachOFunctionTables(f *macho.File) {
 	pclntab := f.Section("__gopclntab")
-	pclntabData, err := readAll(pclntab, pclntab.Size)
+	pclntabData, err := readSection(pclntab, pclntab.Size)
 	if err != nil {
-		return fmt.Errorf("cannot read pclntab: %w", err)
+		panic("cannot read pclntab: " + err.Error())
 	}
 	symtab := f.Section("__gosymtab")
-	symtabData, err := readAll(symtab, symtab.Size)
+	symtabData, err := readSection(symtab, symtab.Size)
 	if err != nil {
-		return fmt.Errorf("cannot read symtab: %w", err)
+		panic("cannot read symtab: " + err.Error())
 	}
 	initFunctionTables(pclntabData, symtabData)
-	return nil
+}
+
+func initMachOBuildID(f *macho.File) {
+	text := f.Section("__text")
+
+	// Read up to 32KB from the text section.
+	// See https://github.com/golang/go/blob/3803c858/src/cmd/internal/buildid/note.go#L199
+	buf, err := readSection(text, min(text.Size, 32*1024))
+	if err != nil {
+		panic("cannot read __text: " + err.Error())
+	}
+	if err := parseBuildID(buf); err != nil {
+		panic(err)
+	}
 }

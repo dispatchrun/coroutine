@@ -4,6 +4,7 @@ package types
 
 import (
 	"debug/gosym"
+	"errors"
 	"io"
 	"reflect"
 	"runtime"
@@ -150,7 +151,10 @@ func initFunctionTables(pclntab, symtab []byte) {
 	}
 }
 
-func readAll(r io.ReaderAt, size uint64) ([]byte, error) {
+func readSection(r io.ReaderAt, size uint64) ([]byte, error) {
+	if r == nil {
+		return nil, errors.New("section missing")
+	}
 	b := make([]byte, size)
 	n, err := r.ReadAt(b, 0)
 	if err != nil && n < len(b) {
