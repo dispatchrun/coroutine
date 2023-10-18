@@ -5,6 +5,7 @@ func init() {
 	if err != nil {
 		panic("cannot read elf binary: " + err.Error())
 	}
+	defer f.Close()
 
 	if err := initELFFunctionTables(f); err != nil {
 		panic(err)

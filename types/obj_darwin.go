@@ -10,6 +10,7 @@ func init() {
 	if err != nil {
 		panic("cannot read Mach-O binary: " + err.Error())
 	}
+	defer f.Close()
 
 	if err := initMachOFunctionTables(f); err != nil {
 		panic(err)
