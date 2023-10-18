@@ -1,8 +1,10 @@
 package types
 
 import (
+	"bytes"
 	"debug/macho"
 	"os"
+	"strconv"
 )
 
 func init() {
@@ -35,11 +37,29 @@ func initMachOBuildID(f *macho.File) {
 
 	// Read up to 32KB from the text section.
 	// See https://github.com/golang/go/blob/3803c858/src/cmd/internal/buildid/note.go#L199
-	buf, err := readSection(text, min(text.Size, 32*1024))
+	data, err := readSection(text, min(text.Size, 32*1024))
 	if err != nil {
 		panic("cannot read __text: " + err.Error())
 	}
-	if err := parseBuildID(buf); err != nil {
-		panic(err)
+
+	// From https://github.com/golang/go/blob/3803c858/src/cmd/internal/buildid/buildid.go#L300
+	i := bytes.Index(data, buildIDPrefix)
+	if i < 0 {
+		panic("build ID not found")
 	}
+	j := bytes.Index(data[i+len(buildIDPrefix):], buildIDEnd)
+	if j < 0 {
+		panic("build ID not found")
+	}
+	quoted := data[i+len(buildIDPrefix)-1 : i+len(buildIDPrefix)+j+1]
+	id, err := strconv.Unquote(string(quoted))
+	if err != nil {
+		panic("build ID not found")
+	}
+	buildid = id
 }
+
+var (
+	buildIDPrefix = []byte("\xff Go build ID: \"")
+	buildIDEnd    = []byte("\"\n \xff")
+)
