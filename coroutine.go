@@ -104,6 +104,12 @@ func LoadContext[R, S any]() *Context[R, S] {
 	}
 }
 
-// ErrNotDurable is an error that occurs when attempting to
-// serialize a coroutine that is not durable.
-var ErrNotDurable = errors.New("only durable coroutines can be serialized")
+var (
+	// ErrNotDurable is an error that occurs when attempting to
+	// serialize a coroutine that is not durable.
+	ErrNotDurable = errors.New("only durable coroutines can be serialized")
+
+	// ErrInvalidState is an error that occurs when attempting to
+	// deserialize a coroutine that was serialized in another build.
+	ErrInvalidState = errors.New("durable coroutine was serialized in another build")
+)
