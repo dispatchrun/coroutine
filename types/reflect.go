@@ -388,9 +388,11 @@ func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	// memory location starting with the address of the function, hence the
 	// double indirection here.
 	p = *(*unsafe.Pointer)(p)
-	if p == nil { // nil function value?
-		panic("cannot serialize nil function values yet")
+	if p == nil { // nil function value
+		serializeBool(s, false)
+		return
 	}
+	serializeBool(s, true)
 
 	fn := FuncByAddr(*(*uintptr)(p))
 	serializeString(s, &fn.Name)
@@ -404,6 +406,13 @@ func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
+	var ok bool
+	deserializeBool(d, &ok)
+	if !ok {
+		*(**Func)(p) = nil
+		return
+	}
+
 	var name string
 	deserializeString(d, &name)
 

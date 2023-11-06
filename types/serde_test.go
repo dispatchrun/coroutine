@@ -55,6 +55,8 @@ type EasyStruct struct {
 	B string
 }
 
+type funcType func(int) error
+
 func TestReflect(t *testing.T) {
 	withBlankTypeMap(func() {
 		intv := int(100)
@@ -94,6 +96,8 @@ func TestReflect(t *testing.T) {
 
 			[]any{(*int)(nil)},
 
+			funcType(nil),
+
 			func() {},
 			func(int) int { return 42 },
 
@@ -113,8 +117,9 @@ func TestReflect(t *testing.T) {
 
 			if t.Kind() == reflect.Func {
 				a := FuncAddr(x)
-				f := FuncByAddr(a)
-				f.Type = t
+				if f := FuncByAddr(a); f != nil {
+					f.Type = t
+				}
 			}
 		}
 
