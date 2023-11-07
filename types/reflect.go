@@ -217,6 +217,10 @@ func serializeReflectValue(s *Serializer, v reflect.Value) {
 	case reflect.String:
 		s := v.String()
 		p = unsafe.Pointer(&s)
+	case reflect.Func:
+		fp := v.Pointer()
+		indirect := unsafe.Pointer(&fp)
+		p = unsafe.Pointer(&indirect)
 	default:
 		panic(fmt.Sprintf("not implemented: serializing reflect.Value with type %s", t))
 	}
@@ -264,7 +268,7 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type, p unsafe.Pointer) 
 	case reflect.String:
 		v = reflect.ValueOf(*(*string)(p))
 	default:
-		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", t))
+		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", rt))
 	}
 
 	r := reflect.NewAt(t, p)
@@ -544,7 +548,11 @@ func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	}
 	serializeBool(s, true)
 
-	fn := FuncByAddr(*(*uintptr)(p))
+	addr := *(*uintptr)(p)
+	fn := FuncByAddr(addr)
+	if fn == nil {
+		panic(fmt.Sprintf("function not found at address %v", addr))
+	}
 	serializeString(s, &fn.Name)
 
 	if fn.Closure != nil {
