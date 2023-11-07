@@ -267,6 +267,11 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type, p unsafe.Pointer) 
 		v = reflect.ValueOf(*(*complex128)(p))
 	case reflect.String:
 		v = reflect.ValueOf(*(*string)(p))
+	case reflect.Func:
+		fn := *(**Func)(p)
+		v = reflect.New(rt).Elem()
+		p := unsafe.Pointer(v.UnsafeAddr())
+		*(*unsafe.Pointer)(p) = unsafe.Pointer(&fn.Addr)
 	default:
 		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", rt))
 	}

@@ -58,12 +58,16 @@ type EasyStruct struct {
 
 type funcType func(int) error
 
+func identity(v int) int { return v }
+
 func TestReflect(t *testing.T) {
 	withBlankTypeMap(func() {
 		intv := int(100)
 		intp := &intv
 		intpp := &intp
 		type ctxKey1 struct{}
+
+		RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/types.identity")
 
 		cases := []any{
 			"foo",
@@ -126,6 +130,7 @@ func TestReflect(t *testing.T) {
 			reflect.ValueOf(uint64(math.MaxUint64)),
 			reflect.ValueOf(float32(3.14)),
 			reflect.ValueOf(float64(math.MaxFloat64)),
+			reflect.ValueOf(identity),
 		}
 
 		for _, x := range cases {
@@ -681,8 +686,10 @@ func equalReflectValue(v1, v2 reflect.Value) bool {
 		return v1.Complex() == v2.Complex()
 	case reflect.String:
 		return v1.String() == v2.String()
+	case reflect.Func:
+		return v1.UnsafePointer() == v2.UnsafePointer()
 	default:
-		panic(fmt.Sprintf("not implemented: comparison of reflect.Value with type %T", v1))
+		panic(fmt.Sprintf("not implemented: comparison of reflect.Value with type %s", v1.Type()))
 	}
 }
 
