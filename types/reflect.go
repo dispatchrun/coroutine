@@ -24,6 +24,12 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		return
 	}
 
+	switch t {
+	case reflectValueType:
+		serializeReflectValue(s, *(*reflect.Value)(p))
+		return
+	}
+
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic(fmt.Errorf("can't serialize reflect.Invalid"))
@@ -89,6 +95,12 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		return
 	}
 
+	switch t {
+	case reflectValueType:
+		deserializeReflectValue(d, t, p)
+		return
+	}
+
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic(fmt.Errorf("can't deserialize reflect.Invalid"))
@@ -145,6 +157,118 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	default:
 		panic(fmt.Errorf("reflection cannot deserialize type %s", t))
 	}
+}
+
+var reflectValueType = reflect.TypeOf(reflect.Value{})
+
+func serializeReflectValue(s *Serializer, v reflect.Value) {
+	t := v.Type()
+	serializeType(s, t)
+
+	var p unsafe.Pointer
+	switch t.Kind() {
+	case reflect.Invalid:
+		panic(fmt.Errorf("can't serialize reflect.Invalid"))
+	case reflect.Bool:
+		b := v.Bool()
+		p = unsafe.Pointer(&b)
+	case reflect.Int:
+		i := int(v.Int())
+		p = unsafe.Pointer(&i)
+	case reflect.Int8:
+		i := int8(v.Int())
+		p = unsafe.Pointer(&i)
+	case reflect.Int16:
+		i := int16(v.Int())
+		p = unsafe.Pointer(&i)
+	case reflect.Int32:
+		i := int32(v.Int())
+		p = unsafe.Pointer(&i)
+	case reflect.Int64:
+		i := int64(v.Int())
+		p = unsafe.Pointer(&i)
+	case reflect.Uint:
+		u := uint(v.Uint())
+		p = unsafe.Pointer(&u)
+	case reflect.Uint8:
+		u := uint8(v.Uint())
+		p = unsafe.Pointer(&u)
+	case reflect.Uint16:
+		u := uint16(v.Uint())
+		p = unsafe.Pointer(&u)
+	case reflect.Uint32:
+		u := uint32(v.Uint())
+		p = unsafe.Pointer(&u)
+	case reflect.Uint64:
+		u := uint64(v.Uint())
+		p = unsafe.Pointer(&u)
+	case reflect.Float32:
+		f := float32(v.Float())
+		p = unsafe.Pointer(&f)
+	case reflect.Float64:
+		f := float64(v.Float())
+		p = unsafe.Pointer(&f)
+	case reflect.Complex64:
+		c := complex64(v.Complex())
+		p = unsafe.Pointer(&c)
+	case reflect.Complex128:
+		c := complex128(v.Complex())
+		p = unsafe.Pointer(&c)
+	case reflect.String:
+		s := v.String()
+		p = unsafe.Pointer(&s)
+	default:
+		panic(fmt.Sprintf("not implemented: serializing reflect.Value with type %s", t))
+	}
+	serializeAny(s, t, p)
+}
+
+func deserializeReflectValue(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
+	rt := deserializeType(d)
+	deserializeAny(d, rt, p)
+
+	var v reflect.Value
+	switch rt.Kind() {
+	case reflect.Invalid:
+		panic(fmt.Errorf("can't deserialize reflect.Invalid"))
+	case reflect.Bool:
+		v = reflect.ValueOf(*(*bool)(p))
+	case reflect.Int:
+		v = reflect.ValueOf(*(*int)(p))
+	case reflect.Int8:
+		v = reflect.ValueOf(*(*int8)(p))
+	case reflect.Int16:
+		v = reflect.ValueOf(*(*int16)(p))
+	case reflect.Int32:
+		v = reflect.ValueOf(*(*int32)(p))
+	case reflect.Int64:
+		v = reflect.ValueOf(*(*int64)(p))
+	case reflect.Uint:
+		v = reflect.ValueOf(*(*uint)(p))
+	case reflect.Uint8:
+		v = reflect.ValueOf(*(*uint8)(p))
+	case reflect.Uint16:
+		v = reflect.ValueOf(*(*uint16)(p))
+	case reflect.Uint32:
+		v = reflect.ValueOf(*(*uint32)(p))
+	case reflect.Uint64:
+		v = reflect.ValueOf(*(*uint64)(p))
+	case reflect.Float32:
+		v = reflect.ValueOf(*(*float32)(p))
+	case reflect.Float64:
+		v = reflect.ValueOf(*(*float64)(p))
+	case reflect.Complex64:
+		v = reflect.ValueOf(*(*complex64)(p))
+	case reflect.Complex128:
+		v = reflect.ValueOf(*(*complex128)(p))
+	case reflect.String:
+		v = reflect.ValueOf(*(*string)(p))
+	default:
+		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", t))
+	}
+
+	r := reflect.NewAt(t, p)
+	r.Elem().Set(reflect.ValueOf(v))
 }
 
 func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {

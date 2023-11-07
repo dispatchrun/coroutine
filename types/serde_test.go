@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -111,6 +112,20 @@ func TestReflect(t *testing.T) {
 			struct{}{},
 			errors.New("test"),
 			unsafe.Pointer(nil),
+			reflect.ValueOf("foo"),
+			reflect.ValueOf(true),
+			reflect.ValueOf(int(1)),
+			reflect.ValueOf(int8(math.MaxInt8)),
+			reflect.ValueOf(int16(-math.MaxInt16)),
+			reflect.ValueOf(int32(math.MaxInt32)),
+			reflect.ValueOf(int64(-math.MaxInt64)),
+			reflect.ValueOf(uint(1)),
+			reflect.ValueOf(uint8(math.MaxUint8)),
+			reflect.ValueOf(uint16(math.MaxUint16)),
+			reflect.ValueOf(uint32(math.MaxUint8)),
+			reflect.ValueOf(uint64(math.MaxUint64)),
+			reflect.ValueOf(float32(3.14)),
+			reflect.ValueOf(float64(math.MaxFloat64)),
 		}
 
 		for _, x := range cases {
@@ -638,11 +653,37 @@ func deepEqual(v1, v2 any) bool {
 		return false
 	}
 
+	if t1 == reflect.TypeOf(reflect.Value{}) {
+		return equalReflectValue(v1.(reflect.Value), v2.(reflect.Value))
+	}
+
 	if t1.Kind() == reflect.Func {
 		return FuncAddr(v1) == FuncAddr(v2)
 	}
 
 	return reflect.DeepEqual(v1, v2)
+}
+
+func equalReflectValue(v1, v2 reflect.Value) bool {
+	if v1.Type() != v2.Type() {
+		return false
+	}
+	switch v1.Kind() {
+	case reflect.Bool:
+		return v1.Bool() == v2.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v1.Int() == v2.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return v1.Uint() == v2.Uint()
+	case reflect.Float32, reflect.Float64:
+		return v1.Float() == v2.Float()
+	case reflect.Complex64, reflect.Complex128:
+		return v1.Complex() == v2.Complex()
+	case reflect.String:
+		return v1.String() == v2.String()
+	default:
+		panic(fmt.Sprintf("not implemented: comparison of reflect.Value with type %T", v1))
+	}
 }
 
 func assertRoundTrip[T any](t *testing.T, orig T) T {
