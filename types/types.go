@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"reflect"
+	"unsafe"
 )
 
 type typekind int
@@ -96,6 +97,9 @@ func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 			panic("Basic type unknown")
 		}
 	case typePointer:
+		if t.elem == nil {
+			return reflect.TypeOf(unsafe.Pointer(nil))
+		}
 		return reflect.PointerTo(tm.ToReflect(t.elem))
 	case typeMap:
 		return reflect.MapOf(tm.ToReflect(t.key), tm.ToReflect(t.elem))
@@ -205,6 +209,9 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 	case reflect.Pointer:
 		ti.kind = typePointer
 		ti.elem = m.ToType(t.Elem())
+	case reflect.UnsafePointer:
+		ti.kind = typePointer
+		ti.elem = nil
 	case reflect.Slice:
 		ti.kind = typeSlice
 		ti.elem = m.ToType(t.Elem())
