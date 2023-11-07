@@ -110,6 +110,7 @@ func TestReflect(t *testing.T) {
 			"",
 			struct{}{},
 			errors.New("test"),
+			unsafe.Pointer(nil),
 		}
 
 		for _, x := range cases {
@@ -141,6 +142,25 @@ func TestReflect(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestReflectUnsafePointer(t *testing.T) {
+	type unsafePointerStruct struct{ p unsafe.Pointer }
+	var selfRef unsafePointerStruct
+	selfRef.p = unsafe.Pointer(&selfRef)
+
+	b := Serialize(&selfRef)
+	out, b, err := Deserialize(b)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(b) > 0 {
+		t.Fatalf("leftover bytes: %d", len(b))
+	}
+
+	res := out.(*unsafePointerStruct)
+	if unsafe.Pointer(res) != unsafe.Pointer(res.p) {
+		t.Errorf("unsafe.Pointer was not restored correctly")
+	}
 }
 
 func TestErrors(t *testing.T) {

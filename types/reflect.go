@@ -69,6 +69,8 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		serializeMap(s, t, p)
 	case reflect.Pointer:
 		serializePointer(s, t, p)
+	case reflect.UnsafePointer:
+		serializeUnsafePointer(s, p)
 	case reflect.Slice:
 		serializeSlice(s, t, p)
 	case reflect.Struct:
@@ -76,7 +78,6 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	case reflect.Func:
 		serializeFunc(s, t, p)
 	// Chan
-	// UnsafePointer
 	default:
 		panic(fmt.Errorf("reflection cannot serialize type %s", t))
 	}
@@ -129,6 +130,8 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		deserializeInterface(d, t, p)
 	case reflect.Pointer:
 		deserializePointer(d, t, p)
+	case reflect.UnsafePointer:
+		deserializeUnsafePointer(d, p)
 	case reflect.Array:
 		deserializeArray(d, t, p)
 	case reflect.Slice:
@@ -174,6 +177,9 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	// If this pointer does not belong to any region, write a negative
 	// offset to flag it is on its own, and write its data.
 	if !r.valid() {
+		if t == nil {
+			panic("cannot serialize unsafe.Pointer pointing to region of unknown size")
+		}
 		serializeVarint(s, -1)
 		serializeAny(s, t, p)
 		return
@@ -359,6 +365,26 @@ func deserializePointer(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	r.Elem().Set(ep)
 }
 
+func serializeUnsafePointer(s *Serializer, p unsafe.Pointer) {
+	if p == nil {
+		serializePointedAt(s, nil, nil)
+	} else {
+		serializePointedAt(s, nil, *(*unsafe.Pointer)(p))
+	}
+}
+
+var unsafePointerType = reflect.TypeOf(unsafe.Pointer(nil))
+
+func deserializeUnsafePointer(d *Deserializer, p unsafe.Pointer) {
+	r := reflect.NewAt(unsafePointerType, p)
+
+	ep := deserializePointedAt(d, unsafePointerType)
+	if !ep.IsNil() {
+		up := ep.UnsafePointer()
+		r.Elem().Set(reflect.ValueOf(up))
+	}
+}
+
 func serializeStruct(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	serializeStructFields(s, p, t.NumField(), t.Field)
 }
@@ -476,9 +502,11 @@ func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	ep := deserializePointedAt(d, et)
 
 	// Store the result in the interface
+	r := reflect.NewAt(t, p)
 	if !ep.IsNil() {
-		r := reflect.NewAt(t, p)
 		r.Elem().Set(ep.Elem())
+	} else {
+		r.Elem().Set(reflect.Zero(et))
 	}
 }
 
