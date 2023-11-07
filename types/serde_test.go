@@ -116,6 +116,8 @@ func TestReflect(t *testing.T) {
 			struct{}{},
 			errors.New("test"),
 			unsafe.Pointer(nil),
+
+			// Primitives
 			reflect.ValueOf("foo"),
 			reflect.ValueOf(true),
 			reflect.ValueOf(int(1)),
@@ -130,12 +132,17 @@ func TestReflect(t *testing.T) {
 			reflect.ValueOf(uint64(math.MaxUint64)),
 			reflect.ValueOf(float32(3.14)),
 			reflect.ValueOf(float64(math.MaxFloat64)),
+
+			// Slices
 			reflect.ValueOf([]byte("foo")),
 			reflect.ValueOf([][]byte{[]byte("foo"), []byte("bar")}),
 			reflect.ValueOf([]string{"foo", "bar"}),
 			reflect.ValueOf([]int{}),
 			reflect.ValueOf([]int(nil)),
+
+			// Funcs
 			reflect.ValueOf(identity),
+			reflect.ValueOf(funcType(nil)),
 		}
 
 		for _, x := range cases {
@@ -186,6 +193,72 @@ func TestReflectUnsafePointer(t *testing.T) {
 	if unsafe.Pointer(res) != unsafe.Pointer(res.p) {
 		t.Errorf("unsafe.Pointer was not restored correctly")
 	}
+}
+
+func TestReflectFunc(t *testing.T) {
+	RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/types.identity")
+
+	b := Serialize(reflect.ValueOf(identity))
+
+	out, b, err := Deserialize(b)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(b) > 0 {
+		t.Fatalf("leftover bytes: %d", len(b))
+	}
+
+	fn := out.(reflect.Value)
+	res := fn.Call([]reflect.Value{reflect.ValueOf(3)})
+	if len(res) != 1 || !res[0].CanInt() || res[0].Int() != 3 {
+		t.Errorf("unexpected identity(3) results: %#v", res)
+	}
+}
+
+func TestReflectClosure(t *testing.T) {
+	v := 3
+	fn := func() int {
+		return v
+	}
+
+	RegisterClosure[func() int, struct {
+		F  uintptr
+		X0 int
+	}]("github.com/stealthrocket/coroutine/types.TestReflectClosure.func1")
+
+	t.Run("raw", func(t *testing.T) {
+		b := Serialize(fn)
+
+		out, b, err := Deserialize(b)
+		if err != nil {
+			t.Fatal(err)
+		} else if len(b) > 0 {
+			t.Fatalf("leftover bytes: %d", len(b))
+		}
+
+		rfn := out.(func() int)
+		if res := rfn(); res != v {
+			t.Errorf("unexpected closure call results: %#v", res)
+		}
+	})
+
+	t.Run("reflect-value", func(t *testing.T) {
+		// FIXME: get reflect.Value(closure) working
+		t.Skipf("reflect.Value(closure) is not working correctly")
+
+		b := Serialize(reflect.ValueOf(fn))
+
+		out, b, err := Deserialize(b)
+		if err != nil {
+			t.Fatal(err)
+		} else if len(b) > 0 {
+			t.Fatalf("leftover bytes: %d", len(b))
+		}
+
+		rfn := out.(reflect.Value)
+		if res := rfn.Call(nil); len(res) != 1 || !res[0].CanInt() || res[0].Int() != int64(v) {
+			t.Errorf("unexpected closure reflect call results: %#v", res)
+		}
+	})
 }
 
 func TestErrors(t *testing.T) {

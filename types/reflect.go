@@ -224,9 +224,12 @@ func serializeReflectValue(s *Serializer, v reflect.Value) {
 		s.cap = v.Cap()
 		p = unsafe.Pointer(&s)
 	case reflect.Func:
-		fp := v.Pointer()
-		indirect := unsafe.Pointer(&fp)
-		p = unsafe.Pointer(&indirect)
+		if fp := v.Pointer(); fp != 0 {
+			indirect := unsafe.Pointer(&fp)
+			p = unsafe.Pointer(&indirect)
+		} else {
+			p = unsafe.Pointer(&fp)
+		}
 	default:
 		panic(fmt.Sprintf("not implemented: serializing reflect.Value with type %s", t))
 	}
@@ -277,10 +280,11 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type, p unsafe.Pointer) 
 		v = reflect.New(rt).Elem()
 		*(*slice)(unsafe.Pointer(v.UnsafeAddr())) = *(*slice)(p)
 	case reflect.Func:
-		fn := *(**Func)(p)
 		v = reflect.New(rt).Elem()
-		p := unsafe.Pointer(v.UnsafeAddr())
-		*(*unsafe.Pointer)(p) = unsafe.Pointer(&fn.Addr)
+		if fn := *(**Func)(p); fn != nil {
+			p := unsafe.Pointer(v.UnsafeAddr())
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(&fn.Addr)
+		}
 	default:
 		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", rt))
 	}
