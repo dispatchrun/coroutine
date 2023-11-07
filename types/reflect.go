@@ -217,6 +217,12 @@ func serializeReflectValue(s *Serializer, v reflect.Value) {
 	case reflect.String:
 		s := v.String()
 		p = unsafe.Pointer(&s)
+	case reflect.Slice:
+		var s slice
+		s.data = v.UnsafePointer()
+		s.len = v.Len()
+		s.cap = v.Cap()
+		p = unsafe.Pointer(&s)
 	case reflect.Func:
 		fp := v.Pointer()
 		indirect := unsafe.Pointer(&fp)
@@ -267,6 +273,9 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type, p unsafe.Pointer) 
 		v = reflect.ValueOf(*(*complex128)(p))
 	case reflect.String:
 		v = reflect.ValueOf(*(*string)(p))
+	case reflect.Slice:
+		v = reflect.New(rt).Elem()
+		*(*slice)(unsafe.Pointer(v.UnsafeAddr())) = *(*slice)(p)
 	case reflect.Func:
 		fn := *(**Func)(p)
 		v = reflect.New(rt).Elem()

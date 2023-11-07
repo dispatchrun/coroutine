@@ -130,6 +130,11 @@ func TestReflect(t *testing.T) {
 			reflect.ValueOf(uint64(math.MaxUint64)),
 			reflect.ValueOf(float32(3.14)),
 			reflect.ValueOf(float64(math.MaxFloat64)),
+			reflect.ValueOf([]byte("foo")),
+			reflect.ValueOf([][]byte{[]byte("foo"), []byte("bar")}),
+			reflect.ValueOf([]string{"foo", "bar"}),
+			reflect.ValueOf([]int{}),
+			reflect.ValueOf([]int(nil)),
 			reflect.ValueOf(identity),
 		}
 
@@ -688,6 +693,18 @@ func equalReflectValue(v1, v2 reflect.Value) bool {
 		return v1.String() == v2.String()
 	case reflect.Func:
 		return v1.UnsafePointer() == v2.UnsafePointer()
+	case reflect.Slice:
+		if v1.Len() != v2.Len() {
+			return false
+		} else if v1.Cap() != v2.Cap() {
+			return false
+		}
+		for i := 0; i < v1.Len(); i++ {
+			if !equalReflectValue(v1.Index(i), v2.Index(i)) {
+				return false
+			}
+		}
+		return true
 	default:
 		panic(fmt.Sprintf("not implemented: comparison of reflect.Value with type %s", v1.Type()))
 	}
