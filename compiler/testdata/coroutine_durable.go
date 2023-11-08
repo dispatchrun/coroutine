@@ -167,7 +167,7 @@ func EvenSquareGenerator(_fn0 int) {
 }
 
 //go:noinline
-func NestedLoops(_fn0 int) {
+func NestedLoops(_fn0 int) (_ int) {
 	_c := coroutine.LoadContext[int, any]()
 	var _f0 *struct {
 		IP int
@@ -175,12 +175,14 @@ func NestedLoops(_fn0 int) {
 		X1 int
 		X2 int
 		X3 int
+		X4 int
 	} = coroutine.Push[struct {
 		IP int
 		X0 int
 		X1 int
 		X2 int
 		X3 int
+		X4 int
 	}](&_c.Stack)
 	if _f0.IP == 0 {
 		*_f0 = struct {
@@ -189,6 +191,7 @@ func NestedLoops(_fn0 int) {
 			X1 int
 			X2 int
 			X3 int
+			X4 int
 		}{X0: _fn0}
 	}
 	defer func() {
@@ -198,32 +201,51 @@ func NestedLoops(_fn0 int) {
 	}()
 	switch {
 	case _f0.IP < 2:
-		_f0.X1 = 1
 		_f0.IP = 2
 		fallthrough
-	case _f0.IP < 5:
-		for ; _f0.X1 <= _f0.X0; _f0.X1, _f0.IP = _f0.X1+1, 2 {
-			switch {
-			case _f0.IP < 3:
-				_f0.X2 = 1
-				_f0.IP = 3
-				fallthrough
-			case _f0.IP < 5:
-				for ; _f0.X2 <= _f0.X0; _f0.X2, _f0.IP = _f0.X2+1, 3 {
-					switch {
-					case _f0.IP < 4:
-						_f0.X3 = 1
-						_f0.IP = 4
-						fallthrough
-					case _f0.IP < 5:
-						for ; _f0.X3 <= _f0.X0; _f0.X3, _f0.IP = _f0.X3+1, 4 {
-							coroutine.Yield[int, any](_f0.X1 * _f0.X2 * _f0.X3)
+	case _f0.IP < 7:
+		switch {
+		case _f0.IP < 3:
+			_f0.X2 = 1
+			_f0.IP = 3
+			fallthrough
+		case _f0.IP < 7:
+			for ; _f0.X2 <= _f0.X0; _f0.X2, _f0.IP = _f0.X2+1, 3 {
+				switch {
+				case _f0.IP < 4:
+					_f0.X3 = 1
+					_f0.IP = 4
+					fallthrough
+				case _f0.IP < 7:
+					for ; _f0.X3 <= _f0.X0; _f0.X3, _f0.IP = _f0.X3+1, 4 {
+						switch {
+						case _f0.IP < 5:
+							_f0.X4 = 1
+							_f0.IP = 5
+							fallthrough
+						case _f0.IP < 7:
+							for ; _f0.X4 <= _f0.X0; _f0.X4, _f0.IP = _f0.X4+1, 5 {
+								switch {
+								case _f0.IP < 6:
+									coroutine.Yield[int, any](_f0.X2 * _f0.X3 * _f0.X4)
+									_f0.IP = 6
+									fallthrough
+								case _f0.IP < 7:
+									_f0.X1++
+								}
+							}
 						}
 					}
 				}
 			}
 		}
+		_f0.IP = 7
+		fallthrough
+	case _f0.IP < 8:
+
+		return _f0.X1
 	}
+	return
 }
 
 //go:noinline
@@ -3182,7 +3204,7 @@ func init() {
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Identity")
 	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.LoopBreakAndContinue")
 	_types.RegisterFunc[func(_fn1 int)]("github.com/stealthrocket/coroutine/compiler/testdata.MethodGenerator")
-	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.NestedLoops")
+	_types.RegisterFunc[func(_fn0 int) (_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.NestedLoops")
 	_types.RegisterFunc[func(_fn0 int, _fn1 func(int))]("github.com/stealthrocket/coroutine/compiler/testdata.Range")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureCapturingPointers")
 	_types.RegisterClosure[func() (_ bool), struct {

@@ -19,7 +19,9 @@ func TestCoroutineYield(t *testing.T) {
 	tests := []struct {
 		name   string
 		coro   func()
+		coroR  func() int
 		yields []int
+		result int
 		skip   bool
 	}{
 		{
@@ -198,15 +200,28 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   func() { VarArgs(3) },
 			yields: []int{0, 1, 2},
 		},
+
+		{
+			name:   "return values",
+			coroR:  func() int { return NestedLoops(3) },
+			yields: []int{1, 2, 3, 2, 4, 6, 3, 6, 9, 2, 4, 6, 4, 8, 12, 6, 12, 18, 3, 6, 9, 6, 12, 18, 9, 18, 27},
+			result: 27,
+		},
 	}
 
 	// This emulates the installation of function type information by the
 	// compiler because we are not doing codegen for the test files in this
 	// package.
 	for _, test := range tests {
-		a := types.FuncAddr(test.coro)
-		f := types.FuncByAddr(a)
-		types.RegisterFunc[func()](f.Name)
+		if test.coro != nil {
+			addr := types.FuncAddr(test.coro)
+			fn := types.FuncByAddr(addr)
+			types.RegisterFunc[func()](fn.Name)
+		} else {
+			addr := types.FuncAddr(test.coroR)
+			fn := types.FuncByAddr(addr)
+			types.RegisterFunc[func() int](fn.Name)
+		}
 	}
 
 	for _, test := range tests {
@@ -215,7 +230,12 @@ func TestCoroutineYield(t *testing.T) {
 				t.Skip("test is disabled")
 			}
 
-			g := coroutine.New[int, any](test.coro)
+			var g coroutine.Coroutine[int, any]
+			if test.coro != nil {
+				g = coroutine.New[int, any](test.coro)
+			} else {
+				g = coroutine.NewWithReturn[int, any](test.coroR)
+			}
 
 			var yield int
 			for g.Next() {
@@ -250,6 +270,11 @@ func TestCoroutineYield(t *testing.T) {
 			}
 			if yield < len(test.yields) {
 				t.Errorf("coroutine did not yield the correct number of times: got %d, expect %d", yield, len(test.yields))
+			}
+			if test.coroR != nil {
+				if got := g.Result(); got != test.result {
+					t.Errorf("unexpected coroutine return value: got %v, want %v", got, test.result)
+				}
 			}
 		})
 	}

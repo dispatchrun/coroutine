@@ -14,8 +14,16 @@ const Durable = false
 
 // New creates a new coroutine which executes f as entry point.
 func New[R, S any](f func()) Coroutine[R, S] {
+	return NewWithReturn[R, S](func() (_ R) {
+		f()
+		return
+	})
+}
+
+// New creates a new coroutine which executes f as entry point.
+func NewWithReturn[R, S any](f func() R) Coroutine[R, S] {
 	c := &Context[R, S]{
-		context: context{
+		context: context[R]{
 			next: make(chan struct{}),
 		},
 	}
@@ -30,7 +38,7 @@ func New[R, S any](f func()) Coroutine[R, S] {
 			<-c.next
 
 			if !c.stop {
-				f()
+				c.result = f()
 			}
 		})
 	}()
@@ -51,7 +59,7 @@ func (c Coroutine[R, S]) Next() bool {
 	return ok
 }
 
-type context struct {
+type context[R any] struct {
 	next chan struct{}
 }
 

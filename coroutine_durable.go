@@ -24,7 +24,22 @@ func New[R, S any](f func()) Coroutine[R, S] {
 	// the compiler cannot track.
 	return Coroutine[R, S]{
 		ctx: &Context[R, S]{
-			context: context{entry: f},
+			context: context[R]{entry: f},
+		},
+	}
+}
+
+// New creates a new coroutine which executes f as entry point.
+//
+//go:noinline
+func NewWithReturn[R, S any](f func() R) Coroutine[R, S] {
+	// The function has the go:noinline tag because we want to ensure that the
+	// context will be allocated on the heap. If the context remains allocated
+	// on the stack it might escape when returned by a call to LoadContext that
+	// the compiler cannot track.
+	return Coroutine[R, S]{
+		ctx: &Context[R, S]{
+			context: context[R]{entryR: f},
 		},
 	}
 }
@@ -74,16 +89,18 @@ func (s *Stack) isTop() bool {
 	return s.FP == len(s.Frames)-1
 }
 
-type serializedCoroutine struct {
+type serializedCoroutine[R any] struct {
 	entry  func()
+	entryR func() R
 	stack  Stack
 	resume bool
 }
 
 // Marshal returns a serialized Context.
 func (c *Context[R, S]) Marshal() ([]byte, error) {
-	return types.Serialize(&serializedCoroutine{
+	return types.Serialize(&serializedCoroutine[R]{
 		entry:  c.entry,
+		entryR: c.entryR,
 		stack:  c.Stack,
 		resume: c.resume,
 	}), nil
@@ -101,8 +118,9 @@ func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
 		}
 		return 0, err
 	}
-	s := v.(*serializedCoroutine)
+	s := v.(*serializedCoroutine[R])
 	c.entry = s.entry
+	c.entryR = s.entryR
 	c.Stack = s.stack
 	c.resume = s.resume
 	sn := start - len(b)
@@ -157,17 +175,29 @@ func (c Coroutine[R, S]) Next() (hasNext bool) {
 		}()
 
 		c.ctx.Stack.FP = -1
-		c.ctx.entry()
+		if c.ctx.entry != nil {
+			c.ctx.entry()
+		} else {
+			c.ctx.result = c.ctx.entryR()
+		}
 	})
 
 	return hasNext
 }
 
-type context struct {
+type context[R any] struct {
 	// Entry point of the coroutine, this is captured so the associated
 	// generator can call into the coroutine to start or resume it at the
 	// last yield point.
-	entry func()
+	//
+	// The raw func (via New) and func returning R (via NewWithReturn)
+	// are stored separately to work around a limitation with the compiler.
+	// In volatile mode we only store the latter, and support the former
+	// by creating a closure that calls the func() and returns the zero
+	// value R. The compiler does not yet support compiling generic
+	// functions so the strategy doesn't work in durable mode.
+	entry  func()
+	entryR func() R
 	Stack
 }
 

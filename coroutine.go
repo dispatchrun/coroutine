@@ -24,6 +24,11 @@ func (c Coroutine[R, S]) Recv() R { return c.ctx.recv }
 // by the coroutine.
 func (c Coroutine[R, S]) Send(v S) { c.ctx.send = v }
 
+// Result is the return value of the coroutine, if it was constructed with
+// NewWithReturn. Result should only be called once Next returns false,
+// indicating that the coroutine finished executing.
+func (c Coroutine[R, S]) Result() R { return c.ctx.result }
+
 // Stop interrupts the coroutine. On the next call to Next, the coroutine will
 // not return from its yield point; instead, it unwinds its call stack, calling
 // each defer statement in the inverse order that they were declared.
@@ -53,12 +58,15 @@ type Context[R, S any] struct {
 	recv R
 	send S
 
+	// Value returned from the coroutine.
+	result R
+
 	// Booleans managing the state of the coroutine.
 	done   bool
 	stop   bool
 	resume bool //nolint
 
-	context
+	context[R]
 }
 
 // Run executes a coroutine to completion, calling f for each value that the
