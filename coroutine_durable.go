@@ -100,6 +100,7 @@ type serializedCoroutine[R any] struct {
 func (c *Context[R, S]) Marshal() ([]byte, error) {
 	return types.Serialize(&serializedCoroutine[R]{
 		entry:  c.entry,
+		entryR: c.entryR,
 		stack:  c.Stack,
 		resume: c.resume,
 	}), nil
@@ -119,6 +120,7 @@ func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
 	}
 	s := v.(*serializedCoroutine[R])
 	c.entry = s.entry
+	c.entryR = s.entryR
 	c.Stack = s.stack
 	c.resume = s.resume
 	sn := start - len(b)
