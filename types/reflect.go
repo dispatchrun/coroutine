@@ -230,8 +230,10 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 		} else {
 			serializeFunc(s, t, unsafe.Pointer(&addr))
 		}
+	case reflect.Pointer:
+		serializePointedAt(s, t.Elem(), v.UnsafePointer())
 	default:
-		panic(fmt.Sprintf("not implemented: serializing reflect.Value with type %s", t))
+		panic(fmt.Sprintf("not implemented: serializing reflect.Value with type %s (%s)", t, t.Kind()))
 	}
 }
 
@@ -329,6 +331,10 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type) (v reflect.Value) 
 			p := unsafe.Pointer(v.UnsafeAddr())
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(&fn.Addr)
 		}
+	case reflect.Pointer:
+		ep := deserializePointedAt(d, t.Elem())
+		v = reflect.New(t).Elem()
+		v.Set(ep)
 	default:
 		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", t))
 	}

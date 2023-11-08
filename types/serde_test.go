@@ -154,6 +154,9 @@ func TestReflect(t *testing.T) {
 			// Structs
 			reflect.ValueOf(struct{ A, B int }{1, 2}),
 
+			// Pointers
+			reflect.ValueOf(errors.New("fail")),
+
 			// Funcs
 			reflect.ValueOf(identity),
 			reflect.ValueOf(funcType(nil)),
@@ -833,6 +836,12 @@ func equalReflectValue(v1, v2 reflect.Value) bool {
 
 	case reflect.Func:
 		return v1.UnsafePointer() == v2.UnsafePointer()
+
+	case reflect.Pointer:
+		if v1.IsNil() != v2.IsNil() {
+			return false
+		}
+		return v1.IsNil() || equalReflectValue(v1.Elem(), v2.Elem())
 
 	default:
 		panic(fmt.Sprintf("not implemented: comparison of reflect.Value with type %s", v1.Type()))
