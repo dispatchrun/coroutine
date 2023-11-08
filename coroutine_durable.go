@@ -189,6 +189,13 @@ type context[R any] struct {
 	// Entry point of the coroutine, this is captured so the associated
 	// generator can call into the coroutine to start or resume it at the
 	// last yield point.
+	//
+	// The raw func (via New) and func returning R (via NewWithReturn)
+	// are stored separately to work around a limitation with the compiler.
+	// In volatile mode we only store the latter, and support the former
+	// by creating a closure that calls the func() and returns the zero
+	// value R. The compiler does not yet support compiling generic
+	// functions so the strategy doesn't work in durable mode.
 	entry  func()
 	entryR func() R
 	Stack
