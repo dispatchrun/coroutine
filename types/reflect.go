@@ -100,7 +100,7 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	switch t {
 	case reflectValueType:
 		rt := deserializeType(d)
-		v := deserializeReflectValue(d, rt, p)
+		v := deserializeReflectValue(d, rt)
 		reflect.NewAt(reflectValueType, p).Elem().Set(reflect.ValueOf(v))
 		return
 	}
@@ -212,6 +212,14 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 		serializeSlice(s, t, unsafe.Pointer(&sl))
 	case reflect.Map:
 		serializeMapReflect(s, t, v)
+	case reflect.Struct:
+		for i := 0; i < t.NumField(); i++ {
+			f := t.Field(i)
+			if !f.IsExported() {
+				panic("not implemented: serializing reflect.Value(struct) with unexported fields")
+			}
+			serializeReflectValue(s, f.Type, v.Field(i))
+		}
 	case reflect.Func:
 		if addr := v.Pointer(); addr != 0 {
 			if fn := FuncByAddr(addr); fn != nil && fn.Closure != nil {
@@ -227,7 +235,7 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 	}
 }
 
-func deserializeReflectValue(d *Deserializer, t reflect.Type, p unsafe.Pointer) (v reflect.Value) {
+func deserializeReflectValue(d *Deserializer, t reflect.Type) (v reflect.Value) {
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic(fmt.Errorf("can't deserialize reflect.Invalid"))
@@ -305,11 +313,19 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type, p unsafe.Pointer) 
 		*(*slice)(unsafe.Pointer(v.UnsafeAddr())) = value
 	case reflect.Map:
 		v = reflect.New(t).Elem()
-		deserializeMapReflect(d, t, v, p)
-	case reflect.Func:
-		deserializeFunc(d, t, p)
+		var p uintptr // FIXME: what should this be?
+		deserializeMapReflect(d, t, v, unsafe.Pointer(&p))
+	case reflect.Struct:
 		v = reflect.New(t).Elem()
-		if fn := *(**Func)(p); fn != nil {
+		for i := 0; i < t.NumField(); i++ {
+			fv := deserializeReflectValue(d, t.Field(i).Type)
+			v.Field(i).Set(fv)
+		}
+	case reflect.Func:
+		var fn *Func
+		deserializeFunc(d, t, unsafe.Pointer(&fn))
+		v = reflect.New(t).Elem()
+		if fn != nil {
 			p := unsafe.Pointer(v.UnsafeAddr())
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(&fn.Addr)
 		}

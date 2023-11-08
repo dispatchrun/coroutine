@@ -151,6 +151,9 @@ func TestReflect(t *testing.T) {
 			reflect.ValueOf(http.Header{"Content-Length": []string{"11"}, "X-Forwarded-For": []string{"1.1.1.1", "2.2.2.2"}}),
 			reflect.ValueOf(emptyMap),
 
+			// Structs
+			reflect.ValueOf(struct{ A, B int }{1, 2}),
+
 			// Funcs
 			reflect.ValueOf(identity),
 			reflect.ValueOf(funcType(nil)),
@@ -765,16 +768,22 @@ func equalReflectValue(v1, v2 reflect.Value) bool {
 	switch v1.Kind() {
 	case reflect.Bool:
 		return v1.Bool() == v2.Bool()
+
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return v1.Int() == v2.Int()
+
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return v1.Uint() == v2.Uint()
+
 	case reflect.Float32, reflect.Float64:
 		return v1.Float() == v2.Float()
+
 	case reflect.Complex64, reflect.Complex128:
 		return v1.Complex() == v2.Complex()
+
 	case reflect.String:
 		return v1.String() == v2.String()
+
 	case reflect.Array:
 		if v1.Len() != v2.Len() {
 			return false
@@ -785,6 +794,7 @@ func equalReflectValue(v1, v2 reflect.Value) bool {
 			}
 		}
 		return true
+
 	case reflect.Slice:
 		if v1.Len() != v2.Len() {
 			return false
@@ -797,6 +807,7 @@ func equalReflectValue(v1, v2 reflect.Value) bool {
 			}
 		}
 		return true
+
 	case reflect.Map:
 		if v1.Len() != v2.Len() {
 			return false
@@ -811,8 +822,18 @@ func equalReflectValue(v1, v2 reflect.Value) bool {
 			}
 		}
 		return true
+
+	case reflect.Struct:
+		for i := 0; i < v1.NumField(); i++ {
+			if !equalReflectValue(v1.Field(i), v2.Field(i)) {
+				return false
+			}
+		}
+		return true
+
 	case reflect.Func:
 		return v1.UnsafePointer() == v2.UnsafePointer()
+
 	default:
 		panic(fmt.Sprintf("not implemented: comparison of reflect.Value with type %s", v1.Type()))
 	}
