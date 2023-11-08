@@ -69,6 +69,8 @@ func TestReflect(t *testing.T) {
 
 		RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/types.identity")
 
+		var emptyMap map[string]struct{}
+
 		cases := []any{
 			"foo",
 			true,
@@ -87,6 +89,7 @@ func TestReflect(t *testing.T) {
 			[2]int{1, 2},
 			[]int{1, 2, 3},
 			map[string]int{"one": 1, "two": 2},
+			emptyMap,
 			EasyStruct{
 				A: 52,
 				B: "test",
@@ -142,6 +145,11 @@ func TestReflect(t *testing.T) {
 			reflect.ValueOf([]string{"foo", "bar"}),
 			reflect.ValueOf([]int{}),
 			reflect.ValueOf([]int(nil)),
+
+			// Maps
+			reflect.ValueOf(map[string]string{"foo": "bar", "abc": "xyz"}),
+			reflect.ValueOf(http.Header{"Content-Length": []string{"11"}, "X-Forwarded-For": []string{"1.1.1.1", "2.2.2.2"}}),
+			reflect.ValueOf(emptyMap),
 
 			// Funcs
 			reflect.ValueOf(identity),
@@ -785,6 +793,20 @@ func equalReflectValue(v1, v2 reflect.Value) bool {
 		}
 		for i := 0; i < v1.Len(); i++ {
 			if !equalReflectValue(v1.Index(i), v2.Index(i)) {
+				return false
+			}
+		}
+		return true
+	case reflect.Map:
+		if v1.Len() != v2.Len() {
+			return false
+		}
+		it := v1.MapRange()
+		for it.Next() {
+			k := it.Key()
+			mv1 := it.Value()
+			mv2 := v2.MapIndex(k)
+			if !equalReflectValue(mv1, mv2) {
 				return false
 			}
 		}

@@ -210,6 +210,8 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 	case reflect.Slice:
 		sl := slice{data: v.UnsafePointer(), len: v.Len(), cap: v.Cap()}
 		serializeSlice(s, t, unsafe.Pointer(&sl))
+	case reflect.Map:
+		serializeMapReflect(s, t, v)
 	case reflect.Func:
 		if f := v.Pointer(); f != 0 {
 			indirect := unsafe.Pointer(&f)
@@ -298,6 +300,9 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type, p unsafe.Pointer) 
 		deserializeSlice(d, t, unsafe.Pointer(&value))
 		v = reflect.New(t).Elem()
 		*(*slice)(unsafe.Pointer(v.UnsafeAddr())) = value
+	case reflect.Map:
+		v = reflect.New(t).Elem()
+		deserializeMapReflect(d, t, v, p)
 	case reflect.Func:
 		deserializeFunc(d, t, p)
 		v = reflect.New(t).Elem()
@@ -408,7 +413,10 @@ func deserializePointedAt(d *Deserializer, t reflect.Type) reflect.Value {
 
 func serializeMap(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	r := reflect.NewAt(t, p).Elem()
+	serializeMapReflect(s, t, r)
+}
 
+func serializeMapReflect(s *Serializer, t reflect.Type, r reflect.Value) {
 	if r.IsNil() {
 		serializeVarint(s, 0)
 		return
@@ -439,8 +447,11 @@ func serializeMap(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func deserializeMap(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	r := reflect.NewAt(t, p)
+	r := reflect.NewAt(t, p).Elem()
+	deserializeMapReflect(d, t, r, p)
+}
 
+func deserializeMapReflect(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.Pointer) {
 	ptr, id := d.readPtr()
 	if id == 0 {
 		// nil map
@@ -449,7 +460,7 @@ func deserializeMap(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	if ptr != nil {
 		// already deserialized at ptr
 		existing := reflect.NewAt(t, ptr).Elem()
-		r.Elem().Set(existing)
+		r.Set(existing)
 		return
 	}
 
@@ -458,14 +469,14 @@ func deserializeMap(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		return
 	}
 	nv := reflect.MakeMapWithSize(t, n)
-	r.Elem().Set(nv)
+	r.Set(nv)
 	d.store(id, p)
 	for i := 0; i < n; i++ {
 		k := reflect.New(t.Key())
 		deserializeAny(d, t.Key(), k.UnsafePointer())
 		v := reflect.New(t.Elem())
 		deserializeAny(d, t.Elem(), v.UnsafePointer())
-		r.Elem().SetMapIndex(k.Elem(), v.Elem())
+		r.SetMapIndex(k.Elem(), v.Elem())
 	}
 }
 
