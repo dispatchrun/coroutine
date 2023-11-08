@@ -213,14 +213,15 @@ func TestCoroutineYield(t *testing.T) {
 	// compiler because we are not doing codegen for the test files in this
 	// package.
 	for _, test := range tests {
-		var addr uintptr
 		if test.coro != nil {
-			addr = types.FuncAddr(test.coro)
+			addr := types.FuncAddr(test.coro)
+			fn := types.FuncByAddr(addr)
+			types.RegisterFunc[func()](fn.Name)
 		} else {
-			addr = types.FuncAddr(test.coroR)
+			addr := types.FuncAddr(test.coroR)
+			fn := types.FuncByAddr(addr)
+			types.RegisterFunc[func() int](fn.Name)
 		}
-		fn := types.FuncByAddr(addr)
-		types.RegisterFunc[func()](fn.Name)
 	}
 
 	for _, test := range tests {
