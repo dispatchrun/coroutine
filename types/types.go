@@ -18,6 +18,7 @@ const (
 	typeSlice
 	typeStruct
 	typeFunc
+	typeChan
 )
 
 // typeinfo represents a type in the serialization format. It is a
@@ -37,13 +38,22 @@ type typeinfo struct {
 	// - typeFunc uses it to store the number of input arguments and whether
 	//   its variadic as the first bit.
 	val int
-	// typeArray, typeSlice, typePointer, and TypeMap use this field to
+	// typeArray, typeSlice, typePointer, typeChan and typeMap use this field to
 	// store the information about the type they contain.
 	elem   *typeinfo
 	key    *typeinfo   // typeMap only
 	fields []Field     // typeStruct only
 	args   []*typeinfo // typeFunc only
+	dir    chanDir     // typeChan only
 }
+
+type chanDir int
+
+const (
+	recvDir chanDir             = 1 << iota // <-chan
+	sendDir                                 // chan<-
+	bothDir = recvDir | sendDir             // chan
+)
 
 func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 	if t.offset != 0 {
@@ -126,6 +136,17 @@ func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 			insouts[i] = tm.ToReflect(t)
 		}
 		return reflect.FuncOf(insouts[:in], insouts[in:], variadic)
+	case typeChan:
+		var dir reflect.ChanDir
+		switch t.dir {
+		case recvDir:
+			dir = reflect.RecvDir
+		case sendDir:
+			dir = reflect.SendDir
+		case bothDir:
+			dir = reflect.BothDir
+		}
+		return reflect.ChanOf(dir, tm.ToReflect(t.elem))
 	}
 	panic(fmt.Errorf("unknown typekind: %d", t.kind))
 }
@@ -245,6 +266,17 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 		ti.kind = typeFunc
 		ti.val = nin<<1 | boolint(t.IsVariadic())
 		ti.args = types
+	case reflect.Chan:
+		ti.kind = typeChan
+		ti.elem = m.ToType(t.Elem())
+		switch t.ChanDir() {
+		case reflect.RecvDir:
+			ti.dir = recvDir
+		case reflect.SendDir:
+			ti.dir = sendDir
+		case reflect.BothDir:
+			ti.dir = bothDir
+		}
 	default:
 		panic(fmt.Errorf("unsupported reflect.Kind (%s)", t.Kind()))
 	}
