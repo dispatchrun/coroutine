@@ -213,11 +213,14 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 	case reflect.Map:
 		serializeMapReflect(s, t, v)
 	case reflect.Func:
-		if f := v.Pointer(); f != 0 {
-			indirect := unsafe.Pointer(&f)
+		if addr := v.Pointer(); addr != 0 {
+			if fn := FuncByAddr(addr); fn != nil && fn.Closure != nil {
+				panic("not implemented: serializing reflect.Value(closure)")
+			}
+			indirect := unsafe.Pointer(&addr)
 			serializeFunc(s, t, unsafe.Pointer(&indirect))
 		} else {
-			serializeFunc(s, t, unsafe.Pointer(&f))
+			serializeFunc(s, t, unsafe.Pointer(&addr))
 		}
 	default:
 		panic(fmt.Sprintf("not implemented: serializing reflect.Value with type %s", t))
