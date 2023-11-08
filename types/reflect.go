@@ -24,6 +24,14 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		return
 	}
 
+	switch t {
+	case reflectValueType:
+		v := *(*reflect.Value)(p)
+		serializeType(s, v.Type())
+		serializeReflectValue(s, v.Type(), v)
+		return
+	}
+
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic(fmt.Errorf("can't serialize reflect.Invalid"))
@@ -69,6 +77,8 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		serializeMap(s, t, p)
 	case reflect.Pointer:
 		serializePointer(s, t, p)
+	case reflect.UnsafePointer:
+		serializeUnsafePointer(s, p)
 	case reflect.Slice:
 		serializeSlice(s, t, p)
 	case reflect.Struct:
@@ -76,7 +86,6 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	case reflect.Func:
 		serializeFunc(s, t, p)
 	// Chan
-	// UnsafePointer
 	default:
 		panic(fmt.Errorf("reflection cannot serialize type %s", t))
 	}
@@ -85,6 +94,14 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	if serde, ok := types.serdeOf(t); ok {
 		serde.des(d, p)
+		return
+	}
+
+	switch t {
+	case reflectValueType:
+		rt := deserializeType(d)
+		v := deserializeReflectValue(d, rt)
+		reflect.NewAt(reflectValueType, p).Elem().Set(reflect.ValueOf(v))
 		return
 	}
 
@@ -129,6 +146,8 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		deserializeInterface(d, t, p)
 	case reflect.Pointer:
 		deserializePointer(d, t, p)
+	case reflect.UnsafePointer:
+		deserializeUnsafePointer(d, p)
 	case reflect.Array:
 		deserializeArray(d, t, p)
 	case reflect.Slice:
@@ -142,6 +161,184 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	default:
 		panic(fmt.Errorf("reflection cannot deserialize type %s", t))
 	}
+}
+
+var reflectValueType = reflect.TypeOf(reflect.Value{})
+
+func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
+	switch t.Kind() {
+	case reflect.Invalid:
+		panic(fmt.Errorf("can't serialize reflect.Invalid"))
+	case reflect.Bool:
+		serializeBool(s, v.Bool())
+	case reflect.Int:
+		serializeInt(s, int(v.Int()))
+	case reflect.Int8:
+		serializeInt8(s, int8(v.Int()))
+	case reflect.Int16:
+		serializeInt16(s, int16(v.Int()))
+	case reflect.Int32:
+		serializeInt32(s, int32(v.Int()))
+	case reflect.Int64:
+		serializeInt64(s, v.Int())
+	case reflect.Uint:
+		serializeUint(s, uint(v.Uint()))
+	case reflect.Uint8:
+		serializeUint8(s, uint8(v.Uint()))
+	case reflect.Uint16:
+		serializeUint16(s, uint16(v.Uint()))
+	case reflect.Uint32:
+		serializeUint32(s, uint32(v.Uint()))
+	case reflect.Uint64:
+		serializeUint64(s, v.Uint())
+	case reflect.Float32:
+		serializeFloat32(s, float32(v.Float()))
+	case reflect.Float64:
+		serializeFloat64(s, v.Float())
+	case reflect.Complex64:
+		serializeComplex64(s, complex64(v.Complex()))
+	case reflect.Complex128:
+		serializeComplex128(s, complex128(v.Complex()))
+	case reflect.String:
+		str := v.String()
+		serializeString(s, &str)
+	case reflect.Array:
+		et := t.Elem()
+		for i := 0; i < t.Len(); i++ {
+			serializeReflectValue(s, et, v.Index(i))
+		}
+	case reflect.Slice:
+		sl := slice{data: v.UnsafePointer(), len: v.Len(), cap: v.Cap()}
+		serializeSlice(s, t, unsafe.Pointer(&sl))
+	case reflect.Map:
+		serializeMapReflect(s, t, v)
+	case reflect.Struct:
+		for i := 0; i < t.NumField(); i++ {
+			f := t.Field(i)
+			if !f.IsExported() {
+				panic("not implemented: serializing reflect.Value(struct) with unexported fields")
+			}
+			serializeReflectValue(s, f.Type, v.Field(i))
+		}
+	case reflect.Func:
+		if addr := v.Pointer(); addr != 0 {
+			if fn := FuncByAddr(addr); fn != nil && fn.Closure != nil {
+				panic("not implemented: serializing reflect.Value(closure)")
+			}
+			indirect := unsafe.Pointer(&addr)
+			serializeFunc(s, t, unsafe.Pointer(&indirect))
+		} else {
+			serializeFunc(s, t, unsafe.Pointer(&addr))
+		}
+	case reflect.Pointer:
+		serializePointedAt(s, t.Elem(), v.UnsafePointer())
+	default:
+		panic(fmt.Sprintf("not implemented: serializing reflect.Value with type %s (%s)", t, t.Kind()))
+	}
+}
+
+func deserializeReflectValue(d *Deserializer, t reflect.Type) (v reflect.Value) {
+	switch t.Kind() {
+	case reflect.Invalid:
+		panic(fmt.Errorf("can't deserialize reflect.Invalid"))
+	case reflect.Bool:
+		var value bool
+		deserializeBool(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Int:
+		var value int
+		deserializeInt(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Int8:
+		var value int8
+		deserializeInt8(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Int16:
+		var value int16
+		deserializeInt16(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Int32:
+		var value int32
+		deserializeInt32(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Int64:
+		var value int64
+		deserializeInt64(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Uint:
+		var value uint
+		deserializeUint(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Uint8:
+		var value uint8
+		deserializeUint8(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Uint16:
+		var value uint16
+		deserializeUint16(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Uint32:
+		var value uint32
+		deserializeUint32(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Uint64:
+		var value uint64
+		deserializeUint64(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Float32:
+		var value float32
+		deserializeFloat32(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Float64:
+		var value float64
+		deserializeFloat64(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Complex64:
+		var value complex64
+		deserializeComplex64(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Complex128:
+		var value complex128
+		deserializeComplex128(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.String:
+		var value string
+		deserializeString(d, &value)
+		v = reflect.ValueOf(value)
+	case reflect.Array:
+		v = reflect.New(t).Elem()
+		deserializeArray(d, t, unsafe.Pointer(v.UnsafeAddr()))
+	case reflect.Slice:
+		var value slice
+		deserializeSlice(d, t, unsafe.Pointer(&value))
+		v = reflect.New(t).Elem()
+		*(*slice)(unsafe.Pointer(v.UnsafeAddr())) = value
+	case reflect.Map:
+		v = reflect.New(t).Elem()
+		var p uintptr // FIXME: what should this be?
+		deserializeMapReflect(d, t, v, unsafe.Pointer(&p))
+	case reflect.Struct:
+		v = reflect.New(t).Elem()
+		for i := 0; i < t.NumField(); i++ {
+			fv := deserializeReflectValue(d, t.Field(i).Type)
+			v.Field(i).Set(fv)
+		}
+	case reflect.Func:
+		var fn *Func
+		deserializeFunc(d, t, unsafe.Pointer(&fn))
+		v = reflect.New(t).Elem()
+		if fn != nil {
+			p := unsafe.Pointer(v.UnsafeAddr())
+			*(*unsafe.Pointer)(p) = unsafe.Pointer(&fn.Addr)
+		}
+	case reflect.Pointer:
+		ep := deserializePointedAt(d, t.Elem())
+		v = reflect.New(t).Elem()
+		v.Set(ep)
+	default:
+		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", t))
+	}
+	return
 }
 
 func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
@@ -174,6 +371,9 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	// If this pointer does not belong to any region, write a negative
 	// offset to flag it is on its own, and write its data.
 	if !r.valid() {
+		if t == nil {
+			panic("cannot serialize unsafe.Pointer pointing to region of unknown size")
+		}
 		serializeVarint(s, -1)
 		serializeAny(s, t, p)
 		return
@@ -238,7 +438,10 @@ func deserializePointedAt(d *Deserializer, t reflect.Type) reflect.Value {
 
 func serializeMap(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	r := reflect.NewAt(t, p).Elem()
+	serializeMapReflect(s, t, r)
+}
 
+func serializeMapReflect(s *Serializer, t reflect.Type, r reflect.Value) {
 	if r.IsNil() {
 		serializeVarint(s, 0)
 		return
@@ -269,8 +472,11 @@ func serializeMap(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func deserializeMap(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	r := reflect.NewAt(t, p)
+	r := reflect.NewAt(t, p).Elem()
+	deserializeMapReflect(d, t, r, p)
+}
 
+func deserializeMapReflect(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.Pointer) {
 	ptr, id := d.readPtr()
 	if id == 0 {
 		// nil map
@@ -279,7 +485,7 @@ func deserializeMap(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	if ptr != nil {
 		// already deserialized at ptr
 		existing := reflect.NewAt(t, ptr).Elem()
-		r.Elem().Set(existing)
+		r.Set(existing)
 		return
 	}
 
@@ -288,14 +494,14 @@ func deserializeMap(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		return
 	}
 	nv := reflect.MakeMapWithSize(t, n)
-	r.Elem().Set(nv)
+	r.Set(nv)
 	d.store(id, p)
 	for i := 0; i < n; i++ {
 		k := reflect.New(t.Key())
 		deserializeAny(d, t.Key(), k.UnsafePointer())
 		v := reflect.New(t.Elem())
 		deserializeAny(d, t.Elem(), v.UnsafePointer())
-		r.Elem().SetMapIndex(k.Elem(), v.Elem())
+		r.SetMapIndex(k.Elem(), v.Elem())
 	}
 }
 
@@ -359,6 +565,26 @@ func deserializePointer(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	r.Elem().Set(ep)
 }
 
+func serializeUnsafePointer(s *Serializer, p unsafe.Pointer) {
+	if p == nil {
+		serializePointedAt(s, nil, nil)
+	} else {
+		serializePointedAt(s, nil, *(*unsafe.Pointer)(p))
+	}
+}
+
+var unsafePointerType = reflect.TypeOf(unsafe.Pointer(nil))
+
+func deserializeUnsafePointer(d *Deserializer, p unsafe.Pointer) {
+	r := reflect.NewAt(unsafePointerType, p)
+
+	ep := deserializePointedAt(d, unsafePointerType)
+	if !ep.IsNil() {
+		up := ep.UnsafePointer()
+		r.Elem().Set(reflect.ValueOf(up))
+	}
+}
+
 func serializeStruct(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	serializeStructFields(s, p, t.NumField(), t.Field)
 }
@@ -388,11 +614,17 @@ func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	// memory location starting with the address of the function, hence the
 	// double indirection here.
 	p = *(*unsafe.Pointer)(p)
-	if p == nil { // nil function value?
-		panic("cannot serialize nil function values yet")
+	if p == nil { // nil function value
+		serializeBool(s, false)
+		return
 	}
+	serializeBool(s, true)
 
-	fn := FuncByAddr(*(*uintptr)(p))
+	addr := *(*uintptr)(p)
+	fn := FuncByAddr(addr)
+	if fn == nil {
+		panic(fmt.Sprintf("function not found at address %v", addr))
+	}
 	serializeString(s, &fn.Name)
 
 	if fn.Closure != nil {
@@ -404,6 +636,13 @@ func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
+	var ok bool
+	deserializeBool(d, &ok)
+	if !ok {
+		*(**Func)(p) = nil
+		return
+	}
+
 	var name string
 	deserializeString(d, &name)
 
@@ -467,9 +706,11 @@ func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	ep := deserializePointedAt(d, et)
 
 	// Store the result in the interface
+	r := reflect.NewAt(t, p)
 	if !ep.IsNil() {
-		r := reflect.NewAt(t, p)
 		r.Elem().Set(ep.Elem())
+	} else {
+		r.Elem().Set(reflect.Zero(et))
 	}
 }
 

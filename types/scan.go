@@ -249,6 +249,10 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	}
 	s.scanptrs[r] = struct{}{}
 
+	if r.IsNil() {
+		return
+	}
+
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic("handling invalid reflect.Type")
@@ -262,6 +266,9 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		}
 	case reflect.Slice:
 		sr := r.Elem()
+		if sr.IsNil() {
+			return
+		}
 		ep := sr.UnsafePointer()
 		if ep == nil {
 			return
@@ -278,9 +285,15 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 			scan(s, et, ep)
 		}
 	case reflect.Interface:
-		et := reflect.TypeOf(r.Elem().Interface())
+		if r.Elem().IsNil() {
+			return
+		}
+		it := r.Elem().Interface()
+		if it == nil {
+			return
+		}
+		et := reflect.TypeOf(it)
 		eptr := (*iface)(p).ptr
-
 		if eptr == nil {
 			return
 		}
@@ -300,6 +313,9 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 			scan(s, ft, fp)
 		}
 	case reflect.Pointer:
+		if r.Elem().IsNil() {
+			return
+		}
 		ep := r.Elem().UnsafePointer()
 		scan(s, t.Elem(), ep)
 	case reflect.String:

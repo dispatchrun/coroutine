@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -55,12 +56,20 @@ type EasyStruct struct {
 	B string
 }
 
+type funcType func(int) error
+
+func identity(v int) int { return v }
+
 func TestReflect(t *testing.T) {
 	withBlankTypeMap(func() {
 		intv := int(100)
 		intp := &intv
 		intpp := &intp
 		type ctxKey1 struct{}
+
+		RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/types.identity")
+
+		var emptyMap map[string]struct{}
 
 		cases := []any{
 			"foo",
@@ -80,6 +89,7 @@ func TestReflect(t *testing.T) {
 			[2]int{1, 2},
 			[]int{1, 2, 3},
 			map[string]int{"one": 1, "two": 2},
+			emptyMap,
 			EasyStruct{
 				A: 52,
 				B: "test",
@@ -94,6 +104,8 @@ func TestReflect(t *testing.T) {
 
 			[]any{(*int)(nil)},
 
+			funcType(nil),
+
 			func() {},
 			func(int) int { return 42 },
 
@@ -106,6 +118,48 @@ func TestReflect(t *testing.T) {
 			"",
 			struct{}{},
 			errors.New("test"),
+			unsafe.Pointer(nil),
+
+			// Primitives
+			reflect.ValueOf("foo"),
+			reflect.ValueOf(true),
+			reflect.ValueOf(int(1)),
+			reflect.ValueOf(int8(math.MaxInt8)),
+			reflect.ValueOf(int16(-math.MaxInt16)),
+			reflect.ValueOf(int32(math.MaxInt32)),
+			reflect.ValueOf(int64(-math.MaxInt64)),
+			reflect.ValueOf(uint(1)),
+			reflect.ValueOf(uint8(math.MaxUint8)),
+			reflect.ValueOf(uint16(math.MaxUint16)),
+			reflect.ValueOf(uint32(math.MaxUint8)),
+			reflect.ValueOf(uint64(math.MaxUint64)),
+			reflect.ValueOf(float32(3.14)),
+			reflect.ValueOf(float64(math.MaxFloat64)),
+
+			// Arrays
+			reflect.ValueOf([32]byte{0: 1, 15: 2, 31: 3}),
+
+			// Slices
+			reflect.ValueOf([]byte("foo")),
+			reflect.ValueOf([][]byte{[]byte("foo"), []byte("bar")}),
+			reflect.ValueOf([]string{"foo", "bar"}),
+			reflect.ValueOf([]int{}),
+			reflect.ValueOf([]int(nil)),
+
+			// Maps
+			reflect.ValueOf(map[string]string{"foo": "bar", "abc": "xyz"}),
+			reflect.ValueOf(http.Header{"Content-Length": []string{"11"}, "X-Forwarded-For": []string{"1.1.1.1", "2.2.2.2"}}),
+			reflect.ValueOf(emptyMap),
+
+			// Structs
+			reflect.ValueOf(struct{ A, B int }{1, 2}),
+
+			// Pointers
+			reflect.ValueOf(errors.New("fail")),
+
+			// Funcs
+			reflect.ValueOf(identity),
+			reflect.ValueOf(funcType(nil)),
 		}
 
 		for _, x := range cases {
@@ -113,8 +167,9 @@ func TestReflect(t *testing.T) {
 
 			if t.Kind() == reflect.Func {
 				a := FuncAddr(x)
-				f := FuncByAddr(a)
-				f.Type = t
+				if f := FuncByAddr(a); f != nil {
+					f.Type = t
+				}
 			}
 		}
 
@@ -134,6 +189,91 @@ func TestReflect(t *testing.T) {
 					t.Fatalf("leftover bytes: %d", len(b))
 				}
 			})
+		}
+	})
+}
+
+func TestReflectUnsafePointer(t *testing.T) {
+	type unsafePointerStruct struct{ p unsafe.Pointer }
+	var selfRef unsafePointerStruct
+	selfRef.p = unsafe.Pointer(&selfRef)
+
+	b := Serialize(&selfRef)
+	out, b, err := Deserialize(b)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(b) > 0 {
+		t.Fatalf("leftover bytes: %d", len(b))
+	}
+
+	res := out.(*unsafePointerStruct)
+	if unsafe.Pointer(res) != unsafe.Pointer(res.p) {
+		t.Errorf("unsafe.Pointer was not restored correctly")
+	}
+}
+
+func TestReflectFunc(t *testing.T) {
+	RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/types.identity")
+
+	b := Serialize(reflect.ValueOf(identity))
+
+	out, b, err := Deserialize(b)
+	if err != nil {
+		t.Fatal(err)
+	} else if len(b) > 0 {
+		t.Fatalf("leftover bytes: %d", len(b))
+	}
+
+	fn := out.(reflect.Value)
+	res := fn.Call([]reflect.Value{reflect.ValueOf(3)})
+	if len(res) != 1 || !res[0].CanInt() || res[0].Int() != 3 {
+		t.Errorf("unexpected identity(3) results: %#v", res)
+	}
+}
+
+func TestReflectClosure(t *testing.T) {
+	v := 3
+	fn := func() int {
+		return v
+	}
+
+	RegisterClosure[func() int, struct {
+		F  uintptr
+		X0 int
+	}]("github.com/stealthrocket/coroutine/types.TestReflectClosure.func1")
+
+	t.Run("raw", func(t *testing.T) {
+		b := Serialize(fn)
+
+		out, b, err := Deserialize(b)
+		if err != nil {
+			t.Fatal(err)
+		} else if len(b) > 0 {
+			t.Fatalf("leftover bytes: %d", len(b))
+		}
+
+		rfn := out.(func() int)
+		if res := rfn(); res != v {
+			t.Errorf("unexpected closure call results: %#v", res)
+		}
+	})
+
+	t.Run("reflect-value", func(t *testing.T) {
+		// FIXME: get reflect.Value(closure) working
+		t.Skipf("reflect.Value(closure) is not working correctly")
+
+		b := Serialize(reflect.ValueOf(fn))
+
+		out, b, err := Deserialize(b)
+		if err != nil {
+			t.Fatal(err)
+		} else if len(b) > 0 {
+			t.Fatalf("leftover bytes: %d", len(b))
+		}
+
+		rfn := out.(reflect.Value)
+		if res := rfn.Call(nil); len(res) != 1 || !res[0].CanInt() || res[0].Int() != int64(v) {
+			t.Errorf("unexpected closure reflect call results: %#v", res)
 		}
 	})
 }
@@ -613,11 +753,99 @@ func deepEqual(v1, v2 any) bool {
 		return false
 	}
 
+	if t1 == reflect.TypeOf(reflect.Value{}) {
+		return equalReflectValue(v1.(reflect.Value), v2.(reflect.Value))
+	}
+
 	if t1.Kind() == reflect.Func {
 		return FuncAddr(v1) == FuncAddr(v2)
 	}
 
 	return reflect.DeepEqual(v1, v2)
+}
+
+func equalReflectValue(v1, v2 reflect.Value) bool {
+	if v1.Type() != v2.Type() {
+		return false
+	}
+	switch v1.Kind() {
+	case reflect.Bool:
+		return v1.Bool() == v2.Bool()
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v1.Int() == v2.Int()
+
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return v1.Uint() == v2.Uint()
+
+	case reflect.Float32, reflect.Float64:
+		return v1.Float() == v2.Float()
+
+	case reflect.Complex64, reflect.Complex128:
+		return v1.Complex() == v2.Complex()
+
+	case reflect.String:
+		return v1.String() == v2.String()
+
+	case reflect.Array:
+		if v1.Len() != v2.Len() {
+			return false
+		}
+		for i := 0; i < v1.Len(); i++ {
+			if !equalReflectValue(v1.Index(i), v2.Index(i)) {
+				return false
+			}
+		}
+		return true
+
+	case reflect.Slice:
+		if v1.Len() != v2.Len() {
+			return false
+		} else if v1.Cap() != v2.Cap() {
+			return false
+		}
+		for i := 0; i < v1.Len(); i++ {
+			if !equalReflectValue(v1.Index(i), v2.Index(i)) {
+				return false
+			}
+		}
+		return true
+
+	case reflect.Map:
+		if v1.Len() != v2.Len() {
+			return false
+		}
+		it := v1.MapRange()
+		for it.Next() {
+			k := it.Key()
+			mv1 := it.Value()
+			mv2 := v2.MapIndex(k)
+			if !equalReflectValue(mv1, mv2) {
+				return false
+			}
+		}
+		return true
+
+	case reflect.Struct:
+		for i := 0; i < v1.NumField(); i++ {
+			if !equalReflectValue(v1.Field(i), v2.Field(i)) {
+				return false
+			}
+		}
+		return true
+
+	case reflect.Func:
+		return v1.UnsafePointer() == v2.UnsafePointer()
+
+	case reflect.Pointer:
+		if v1.IsNil() != v2.IsNil() {
+			return false
+		}
+		return v1.IsNil() || equalReflectValue(v1.Elem(), v2.Elem())
+
+	default:
+		panic(fmt.Sprintf("not implemented: comparison of reflect.Value with type %s", v1.Type()))
+	}
 }
 
 func assertRoundTrip[T any](t *testing.T, orig T) T {
