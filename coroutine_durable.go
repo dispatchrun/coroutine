@@ -18,13 +18,23 @@ const Durable = true
 //
 //go:noinline
 func New[R, S any](f func()) Coroutine[R, S] {
+	return NewWithReturn[R, S](func() (_ R) {
+		f()
+		return
+	})
+}
+
+// New creates a new coroutine which executes f as entry point.
+//
+//go:noinline
+func NewWithReturn[R, S any](f func() R) Coroutine[R, S] {
 	// The function has the go:noinline tag because we want to ensure that the
 	// context will be allocated on the heap. If the context remains allocated
 	// on the stack it might escape when returned by a call to LoadContext that
 	// the compiler cannot track.
 	return Coroutine[R, S]{
 		ctx: &Context[R, S]{
-			context: context{entry: f},
+			context: context[R]{entry: f},
 		},
 	}
 }
@@ -74,15 +84,15 @@ func (s *Stack) isTop() bool {
 	return s.FP == len(s.Frames)-1
 }
 
-type serializedCoroutine struct {
-	entry  func()
+type serializedCoroutine[R any] struct {
+	entry  func() R
 	stack  Stack
 	resume bool
 }
 
 // Marshal returns a serialized Context.
 func (c *Context[R, S]) Marshal() ([]byte, error) {
-	return types.Serialize(&serializedCoroutine{
+	return types.Serialize(&serializedCoroutine[R]{
 		entry:  c.entry,
 		stack:  c.Stack,
 		resume: c.resume,
@@ -101,7 +111,7 @@ func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
 		}
 		return 0, err
 	}
-	s := v.(*serializedCoroutine)
+	s := v.(*serializedCoroutine[R])
 	c.entry = s.entry
 	c.Stack = s.stack
 	c.resume = s.resume
@@ -157,17 +167,17 @@ func (c Coroutine[R, S]) Next() (hasNext bool) {
 		}()
 
 		c.ctx.Stack.FP = -1
-		c.ctx.entry()
+		c.ctx.result = c.ctx.entry()
 	})
 
 	return hasNext
 }
 
-type context struct {
+type context[R any] struct {
 	// Entry point of the coroutine, this is captured so the associated
 	// generator can call into the coroutine to start or resume it at the
 	// last yield point.
-	entry func()
+	entry func() R
 	Stack
 }
 
