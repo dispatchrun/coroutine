@@ -243,6 +243,12 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		return
 	}
 
+	// Don't scan types where custom serialization routines
+	// have been registered.
+	if _, ok := types.serdeOf(t); ok {
+		return
+	}
+
 	r := reflect.NewAt(t, p)
 	if _, ok := s.scanptrs[r]; ok {
 		return
