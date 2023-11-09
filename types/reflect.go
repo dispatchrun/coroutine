@@ -653,7 +653,7 @@ func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	if fn.Type == nil {
 		panic(name + ": function type is missing")
 	}
-	if fn.Type != t {
+	if !t.AssignableTo(fn.Type) {
 		panic(name + ": function type mismatch: " + fn.Type.String() + " != " + t.String())
 	}
 
