@@ -52,34 +52,53 @@ func registerSerde[T any](tm *typemap,
 
 	t := reflect.TypeOf((*T)(nil)).Elem()
 
-	s := func(s *Serializer, p unsafe.Pointer) {
+	s := func(s *Serializer, actualType reflect.Type, p unsafe.Pointer) {
+		if t != actualType {
+			v := reflect.NewAt(actualType, p).Elem()
+			box := reflect.New(t)
+			box.Elem().Set(v.Convert(t))
+			p = box.UnsafePointer()
+		}
 		if err := serializer(s, (*T)(p)); err != nil {
 			panic(fmt.Errorf("serializing %s: %w", t, err))
 		}
 	}
 
-	d := func(d *Deserializer, p unsafe.Pointer) {
-		if err := deserializer(d, (*T)(p)); err != nil {
-			panic(fmt.Errorf("deserializing %s: %w", t, err))
+	d := func(d *Deserializer, actualType reflect.Type, p unsafe.Pointer) {
+		if t != actualType {
+			box := reflect.New(t)
+			boxp := box.UnsafePointer()
+			if err := deserializer(d, (*T)(boxp)); err != nil {
+				panic(fmt.Errorf("deserializing %s: %w", t, err))
+			}
+			v := reflect.NewAt(actualType, p)
+			reinterpreted := reflect.ValueOf(box.Elem().Interface())
+			v.Elem().Set(reinterpreted)
+		} else {
+			if err := deserializer(d, (*T)(p)); err != nil {
+				panic(fmt.Errorf("deserializing %s: %w", t, err))
+			}
 		}
 	}
 
 	tm.attach(t, s, d)
 }
 
-type serializerFunc func(*Serializer, unsafe.Pointer)
-type deserializerFunc func(d *Deserializer, p unsafe.Pointer)
+type serializerFunc func(*Serializer, reflect.Type, unsafe.Pointer)
+type deserializerFunc func(*Deserializer, reflect.Type, unsafe.Pointer)
 
 type serde struct {
 	id  int
+	t   reflect.Type
 	ser serializerFunc
 	des deserializerFunc
 }
 
 type typemap struct {
-	custom []reflect.Type
-	cache  doublemap[reflect.Type, *typeinfo]
-	serdes map[reflect.Type]serde
+	custom     []reflect.Type
+	cache      doublemap[reflect.Type, *typeinfo]
+	serdes     map[reflect.Type]serde
+	interfaces []serde
 }
 
 func newTypemap() *typemap {
@@ -99,15 +118,29 @@ func (m *typemap) attach(t reflect.Type, ser serializerFunc, des deserializerFun
 		s.id = len(m.custom)
 		m.custom = append(m.custom, t)
 	}
+	s.t = t
 	s.ser = ser
 	s.des = des
 
 	m.serdes[t] = s
+
+	if t.Kind() == reflect.Interface {
+		m.interfaces = append(m.interfaces, s)
+	}
 }
 
 func (m *typemap) serdeOf(x reflect.Type) (serde, bool) {
 	s, ok := m.serdes[x]
-	return s, ok
+	if ok {
+		return s, true
+	}
+	for i := range m.interfaces {
+		s := m.interfaces[i]
+		if x.Implements(s.t) {
+			return s, true
+		}
+	}
+	return serde{}, false
 }
 
 type doublemap[K, V comparable] struct {

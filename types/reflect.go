@@ -20,7 +20,7 @@ func deserializeType(d *Deserializer) reflect.Type {
 
 func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	if serde, ok := types.serdeOf(t); ok {
-		serde.ser(s, p)
+		serde.ser(s, t, p)
 		return
 	}
 
@@ -93,7 +93,7 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 
 func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	if serde, ok := types.serdeOf(t); ok {
-		serde.des(d, p)
+		serde.des(d, t, p)
 		return
 	}
 
