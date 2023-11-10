@@ -73,6 +73,8 @@ func TestReflect(t *testing.T) {
 
 		cases := []any{
 			map[string]*EasyStruct{"a": {A: 30}},
+			map[string]map[string]*EasyStruct{"a": {"b": {A: 30}}},
+			map[string][1]*EasyStruct{"a": {{A: 30}}},
 			"foo",
 			true,
 			int(42),
