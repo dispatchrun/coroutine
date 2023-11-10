@@ -348,6 +348,11 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 
 			v := iter.Value()
 			vp := (*iface)(unsafe.Pointer(&v)).ptr
+			if inlined(vt) {
+				xp := vp
+				vp = unsafe.Pointer(&xp)
+			}
+
 			scan(s, vt, vp)
 		}
 	case reflect.Bool,
