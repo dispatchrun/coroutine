@@ -103,28 +103,26 @@ func (c *Context[R, S]) Marshal() ([]byte, error) {
 		entryR: c.entryR,
 		stack:  c.Stack,
 		resume: c.resume,
-	}), nil
+	})
 }
 
 // Unmarshal deserializes a Context from the provided buffer, returning
 // the number of bytes that were read in order to reconstruct the
 // context.
-func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
-	start := len(b)
-	v, b, err := types.Deserialize(b)
+func (c *Context[R, S]) Unmarshal(b []byte) error {
+	v, err := types.Deserialize(b)
 	if err != nil {
 		if errors.Is(err, types.ErrBuildIDMismatch) {
-			return 0, ErrInvalidState
+			err = ErrInvalidState
 		}
-		return 0, err
+		return err
 	}
 	s := v.(*serializedCoroutine[R])
 	c.entry = s.entry
 	c.entryR = s.entryR
 	c.Stack = s.stack
 	c.resume = s.resume
-	sn := start - len(b)
-	return sn, nil
+	return nil
 }
 
 func (c *Context[R, S]) Yield(value R) S {

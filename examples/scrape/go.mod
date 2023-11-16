@@ -2,6 +2,8 @@ module scrape
 
 go 1.21.0
 
-require github.com/stealthrocket/coroutine v0.0.0-20230927150141-7c62a3508ce8
+require github.com/stealthrocket/coroutine v0.0.0-00000000000000-000000000000
 
-replace  github.com/stealthrocket/coroutine => ../../
+require google.golang.org/protobuf v1.31.0 // indirect
+
+replace github.com/stealthrocket/coroutine => ../../

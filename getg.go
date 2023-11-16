@@ -9,7 +9,7 @@ package coroutine
 // See: https://github.com/golang/go/blob/master/src/runtime/runtime2.go
 
 type stack struct {
-	lo, hi uintptr
+	_, hi uintptr
 }
 
 type g struct {

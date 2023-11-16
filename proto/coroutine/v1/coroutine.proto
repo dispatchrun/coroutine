@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package coroutine.v1;
+
+// State is durable coroutine state.
+message State {
+  Build build = 1;
+  bytes state = 2;
+}
+
+// Build is info about the build in which a durable coroutine
+// is/was running.
+message Build {
+  string id = 1;
+  string os = 2;
+  string arch = 3;
+}

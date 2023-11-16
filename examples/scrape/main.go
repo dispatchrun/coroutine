@@ -27,7 +27,7 @@ func main() {
 			if !errors.Is(err, os.ErrNotExist) {
 				log.Fatal(err)
 			}
-		} else if _, err := coro.Context().Unmarshal(state); err != nil {
+		} else if err := coro.Context().Unmarshal(state); err != nil {
 			if errors.Is(err, coroutine.ErrInvalidState) {
 				log.Println("warning: coroutine state is no longer valid. Starting fresh")
 			} else {

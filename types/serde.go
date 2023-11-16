@@ -10,7 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
 	"unsafe"
+
+	coroutinev1 "github.com/stealthrocket/coroutine/gen/proto/go/coroutine/v1"
 )
 
 // sID is the unique sID of a pointer or type in the serialized format.
@@ -20,11 +23,23 @@ type sID int64
 // to deserialize objects from another build.
 var ErrBuildIDMismatch = errors.New("build ID mismatch")
 
+// Information about the current build. This is attached to serialized
+// items, and checked at deserialization time to ensure compatibility.
+var buildInfo *coroutinev1.Build
+
+func init() {
+	buildInfo = &coroutinev1.Build{
+		Id:   buildID,
+		Os:   runtime.GOOS,
+		Arch: runtime.GOARCH,
+	}
+}
+
 // Serialize x.
 //
 // The output of Serialize can be reconstructed back to a Go value using
 // [Deserialize].
-func Serialize(x any) []byte {
+func Serialize(x any) ([]byte, error) {
 	s := newSerializer()
 	w := &x // w is *interface{}
 	wr := reflect.ValueOf(w)
@@ -36,21 +51,34 @@ func Serialize(x any) []byte {
 	clear(s.scanptrs)
 
 	serializeAny(s, t, p)
-	return s.b
+
+	state := &coroutinev1.State{
+		State: s.b,
+		Build: buildInfo,
+	}
+	return state.MarshalVT()
 }
 
 // Deserialize value from b. Return left over bytes.
-func Deserialize(b []byte) (interface{}, []byte, error) {
-	d, err := newDeserializer(b)
-	if err != nil {
-		return nil, nil, err
+func Deserialize(b []byte) (interface{}, error) {
+	var state coroutinev1.State
+	if err := state.UnmarshalVT(b); err != nil {
+		return nil, err
 	}
+	if state.Build.Id != buildInfo.Id {
+		return nil, fmt.Errorf("%w: got %v, expect %v", ErrBuildIDMismatch, state.Build.Id, buildInfo.Id)
+	}
+
+	d := newDeserializer(state.State)
 	var x interface{}
 	px := &x
 	t := reflect.TypeOf(px).Elem()
 	p := unsafe.Pointer(px)
 	deserializeInterface(d, t, p)
-	return x, d.b, nil
+	if len(d.b) != 0 {
+		return nil, errors.New("trailing bytes")
+	}
+	return x, nil
 }
 
 type Deserializer struct {
@@ -62,22 +90,11 @@ type Deserializer struct {
 	b []byte
 }
 
-func newDeserializer(b []byte) (*Deserializer, error) {
-	buildIDLength, n := binary.Varint(b)
-	if n <= 0 || buildIDLength <= 0 || buildIDLength > int64(len(buildID)) || int64(len(b)-n) < buildIDLength {
-		return nil, fmt.Errorf("missing or invalid build ID")
-	}
-	b = b[n:]
-	serializedBuildID := string(b[:buildIDLength])
-	b = b[buildIDLength:]
-	if serializedBuildID != buildID {
-		return nil, fmt.Errorf("%w: got %v, expect %v", ErrBuildIDMismatch, serializedBuildID, buildID)
-	}
-
+func newDeserializer(b []byte) *Deserializer {
 	return &Deserializer{
 		ptrs: make(map[sID]unsafe.Pointer),
 		b:    b,
-	}, nil
+	}
 }
 
 func (d *Deserializer) readPtr() (unsafe.Pointer, sID) {
@@ -142,14 +159,10 @@ type Serializer struct {
 }
 
 func newSerializer() *Serializer {
-	b := make([]byte, 0, 128)
-	b = binary.AppendVarint(b, int64(len(buildID)))
-	b = append(b, buildID...)
-
 	return &Serializer{
 		ptrs:     make(map[unsafe.Pointer]sID),
 		scanptrs: make(map[reflect.Value]struct{}),
-		b:        b,
+		b:        make([]byte, 0, 128),
 	}
 }
 
