@@ -10,4 +10,5 @@ require (
 require (
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
+	google.golang.org/protobuf v1.31.0 // indirect
 )

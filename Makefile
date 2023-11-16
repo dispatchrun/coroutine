@@ -7,15 +7,18 @@ test:
 	$(GO) test --tags=durable ./...
 	$(MAKE) -C compiler $@
 
-.PHONY: fmt
 fmt:
 	$(GO) fmt ./...
+	buf format -w
 
-.PHONY: lint
+gen:
+	buf generate
+
 lint:
-	which golangci-lint >/dev/null && golangci-lint run
+	golangci-lint run
+	buf lint
 
 clean:
 	$(MAKE) -C compiler $@
 
-.PHONY: all clean test
+.PHONY: all clean fmt gen lint test
