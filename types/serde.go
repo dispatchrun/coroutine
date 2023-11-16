@@ -24,7 +24,7 @@ var ErrBuildIDMismatch = errors.New("build ID mismatch")
 //
 // The output of Serialize can be reconstructed back to a Go value using
 // [Deserialize].
-func Serialize(x any) []byte {
+func Serialize(x any) ([]byte, error) {
 	s := newSerializer()
 	w := &x // w is *interface{}
 	wr := reflect.ValueOf(w)
@@ -36,7 +36,7 @@ func Serialize(x any) []byte {
 	clear(s.scanptrs)
 
 	serializeAny(s, t, p)
-	return s.b
+	return s.b, nil
 }
 
 // Deserialize value from b. Return left over bytes.

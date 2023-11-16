@@ -40,7 +40,10 @@ func TestSerdeTime(t *testing.T) {
 }
 
 func testSerdeTime(t *testing.T, x time.Time) {
-	b := Serialize(x)
+	b, err := Serialize(x)
+	if err != nil {
+		t.Fatal(err)
+	}
 	out, err := Deserialize(b)
 	if err != nil {
 		t.Fatal(err)
@@ -180,7 +183,10 @@ func TestReflect(t *testing.T) {
 			x := x
 			typ := reflect.TypeOf(x)
 			t.Run(fmt.Sprintf("%d-%s", i, typ), func(t *testing.T) {
-				b := Serialize(x)
+				b, err := Serialize(x)
+				if err != nil {
+					t.Fatal(err)
+				}
 				out, err := Deserialize(b)
 				if err != nil {
 					t.Fatal(err)
@@ -197,7 +203,10 @@ func TestReflectUnsafePointer(t *testing.T) {
 	var selfRef unsafePointerStruct
 	selfRef.p = unsafe.Pointer(&selfRef)
 
-	b := Serialize(&selfRef)
+	b, err := Serialize(&selfRef)
+	if err != nil {
+		t.Fatal(err)
+	}
 	out, err := Deserialize(b)
 	if err != nil {
 		t.Fatal(err)
@@ -212,7 +221,10 @@ func TestReflectUnsafePointer(t *testing.T) {
 func TestReflectFunc(t *testing.T) {
 	RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/types.identity")
 
-	b := Serialize(reflect.ValueOf(identity))
+	b, err := Serialize(reflect.ValueOf(identity))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	out, err := Deserialize(b)
 	if err != nil {
@@ -238,7 +250,10 @@ func TestReflectClosure(t *testing.T) {
 	}]("github.com/stealthrocket/coroutine/types.TestReflectClosure.func1")
 
 	t.Run("raw", func(t *testing.T) {
-		b := Serialize(fn)
+		b, err := Serialize(fn)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		out, err := Deserialize(b)
 		if err != nil {
@@ -255,7 +270,10 @@ func TestReflectClosure(t *testing.T) {
 		// FIXME: get reflect.Value(closure) working
 		t.Skipf("reflect.Value(closure) is not working correctly")
 
-		b := Serialize(reflect.ValueOf(fn))
+		b, err := Serialize(reflect.ValueOf(fn))
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		out, err := Deserialize(b)
 		if err != nil {
@@ -347,7 +365,10 @@ func TestReflectCustom(t *testing.T) {
 
 		assertRoundTrip(t, p)
 
-		b := Serialize(p)
+		b, err := Serialize(p)
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		if !bytes.Contains(b, int42) {
 			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
@@ -372,7 +393,10 @@ func TestReflectCustom(t *testing.T) {
 
 		assertRoundTrip(t, x)
 
-		b := Serialize(x)
+		b, err := Serialize(x)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if !bytes.Contains(b, int42) {
 			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
 		}
@@ -396,7 +420,10 @@ func TestReflectCustom(t *testing.T) {
 		x.int = &x.y.custom
 
 		assertRoundTrip(t, x)
-		b := Serialize(x)
+		b, err := Serialize(x)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if !bytes.Contains(b, int42) {
 			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
 		}
@@ -406,7 +433,10 @@ func TestReflectCustom(t *testing.T) {
 		Register[int](ser, des)
 		x := []int{1, 2, 3, 42, 5, 6}
 		assertRoundTrip(t, x)
-		b := Serialize(x)
+		b, err := Serialize(x)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if !bytes.Contains(b, int42) {
 			t.Fatalf("custom serde was not used:\ngot: %v\nexpected: %v", b, int42)
 		}
@@ -438,7 +468,11 @@ func TestReflectCustom(t *testing.T) {
 		// Without custom serializer, it would panic because of the
 		// unserializable function in CheckRedirect.
 
-		b := Serialize(x)
+		b, err := Serialize(x)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		out, err := Deserialize(b)
 		if err != nil {
 			t.Fatal(err)
@@ -837,7 +871,10 @@ func equalReflectValue(v1, v2 reflect.Value) bool {
 func assertRoundTrip[T any](t *testing.T, orig T) T {
 	t.Helper()
 
-	b := Serialize(orig)
+	b, err := Serialize(orig)
+	if err != nil {
+		t.Fatal(err)
+	}
 	out, err := Deserialize(b)
 	if err != nil {
 		t.Fatal(err)

@@ -103,7 +103,7 @@ func (c *Context[R, S]) Marshal() ([]byte, error) {
 		entryR: c.entryR,
 		stack:  c.Stack,
 		resume: c.resume,
-	}), nil
+	})
 }
 
 // Unmarshal deserializes a Context from the provided buffer, returning
