@@ -82,8 +82,8 @@ func (c *Context[R, S]) Marshal() ([]byte, error) {
 	return nil, ErrNotDurable
 }
 
-func (c *Context[R, S]) Unmarshal(b []byte) (int, error) {
-	return 0, ErrNotDurable
+func (c *Context[R, S]) Unmarshal(b []byte) error {
+	return ErrNotDurable
 }
 
 // The offset from the high address of the stack pointer where the v argument

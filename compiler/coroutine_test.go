@@ -261,10 +261,8 @@ func TestCoroutineYield(t *testing.T) {
 				}
 
 				reconstructed := coroutine.New[int, any](test.coro)
-				if n, err := reconstructed.Context().Unmarshal(b); err != nil {
+				if err := reconstructed.Context().Unmarshal(b); err != nil {
 					t.Fatal(err)
-				} else if n != len(b) {
-					t.Fatal("invalid number of bytes read when reconstructing context")
 				}
 				g = reconstructed
 			}

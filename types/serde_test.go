@@ -41,7 +41,7 @@ func TestSerdeTime(t *testing.T) {
 
 func testSerdeTime(t *testing.T, x time.Time) {
 	b := Serialize(x)
-	out, _, err := Deserialize(b)
+	out, err := Deserialize(b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,16 +181,12 @@ func TestReflect(t *testing.T) {
 			typ := reflect.TypeOf(x)
 			t.Run(fmt.Sprintf("%d-%s", i, typ), func(t *testing.T) {
 				b := Serialize(x)
-				out, b, err := Deserialize(b)
+				out, err := Deserialize(b)
 				if err != nil {
 					t.Fatal(err)
 				}
 
 				assertEqual(t, x, out)
-
-				if len(b) > 0 {
-					t.Fatalf("leftover bytes: %d", len(b))
-				}
 			})
 		}
 	})
@@ -202,11 +198,9 @@ func TestReflectUnsafePointer(t *testing.T) {
 	selfRef.p = unsafe.Pointer(&selfRef)
 
 	b := Serialize(&selfRef)
-	out, b, err := Deserialize(b)
+	out, err := Deserialize(b)
 	if err != nil {
 		t.Fatal(err)
-	} else if len(b) > 0 {
-		t.Fatalf("leftover bytes: %d", len(b))
 	}
 
 	res := out.(*unsafePointerStruct)
@@ -220,11 +214,9 @@ func TestReflectFunc(t *testing.T) {
 
 	b := Serialize(reflect.ValueOf(identity))
 
-	out, b, err := Deserialize(b)
+	out, err := Deserialize(b)
 	if err != nil {
 		t.Fatal(err)
-	} else if len(b) > 0 {
-		t.Fatalf("leftover bytes: %d", len(b))
 	}
 
 	fn := out.(reflect.Value)
@@ -248,11 +240,9 @@ func TestReflectClosure(t *testing.T) {
 	t.Run("raw", func(t *testing.T) {
 		b := Serialize(fn)
 
-		out, b, err := Deserialize(b)
+		out, err := Deserialize(b)
 		if err != nil {
 			t.Fatal(err)
-		} else if len(b) > 0 {
-			t.Fatalf("leftover bytes: %d", len(b))
 		}
 
 		rfn := out.(func() int)
@@ -267,11 +257,9 @@ func TestReflectClosure(t *testing.T) {
 
 		b := Serialize(reflect.ValueOf(fn))
 
-		out, b, err := Deserialize(b)
+		out, err := Deserialize(b)
 		if err != nil {
 			t.Fatal(err)
-		} else if len(b) > 0 {
-			t.Fatalf("leftover bytes: %d", len(b))
 		}
 
 		rfn := out.(reflect.Value)
@@ -451,17 +439,12 @@ func TestReflectCustom(t *testing.T) {
 		// unserializable function in CheckRedirect.
 
 		b := Serialize(x)
-		out, b, err := Deserialize(b)
+		out, err := Deserialize(b)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		assertEqual(t, x.Timeout, out.(http.Client).Timeout)
-
-		if len(b) > 0 {
-			t.Fatalf("leftover bytes: %d", len(b))
-		}
-
 	})
 }
 
@@ -855,16 +838,12 @@ func assertRoundTrip[T any](t *testing.T, orig T) T {
 	t.Helper()
 
 	b := Serialize(orig)
-	out, b, err := Deserialize(b)
+	out, err := Deserialize(b)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	assertEqual(t, orig, out)
-
-	if len(b) > 0 {
-		t.Fatalf("leftover bytes: %d", len(b))
-	}
 
 	return out.(T)
 }

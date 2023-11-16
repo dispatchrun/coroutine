@@ -40,17 +40,20 @@ func Serialize(x any) []byte {
 }
 
 // Deserialize value from b. Return left over bytes.
-func Deserialize(b []byte) (interface{}, []byte, error) {
+func Deserialize(b []byte) (interface{}, error) {
 	d, err := newDeserializer(b)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	var x interface{}
 	px := &x
 	t := reflect.TypeOf(px).Elem()
 	p := unsafe.Pointer(px)
 	deserializeInterface(d, t, p)
-	return x, d.b, nil
+	if len(d.b) != 0 {
+		return nil, errors.New("trailing bytes")
+	}
+	return x, nil
 }
 
 type Deserializer struct {
