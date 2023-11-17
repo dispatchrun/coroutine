@@ -49,8 +49,7 @@ type typeinfo struct {
 	offset namedTypeOffset
 
 	// - typeArray stores its length
-	// - typeFunc uses it to store the number of input arguments and whether
-	//   its variadic as the first bit
+	// - typeFunc uses it to store the number of input arguments
 	val int
 
 	// typeArray, typeSlice, typePointer, typeChan and typeMap use this field to
@@ -61,6 +60,9 @@ type typeinfo struct {
 	fields []Field     // typeStruct only
 	args   []*typeinfo // typeFunc only
 	dir    chanDir     // typeChan only
+
+	// variadic is true if the type represents a function with a variadic argument
+	variadic bool
 
 	// custom is true if a custom serializer has been registered for this type
 	custom bool
@@ -140,13 +142,12 @@ func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 		}
 		return reflect.StructOf(fields)
 	case typeFunc:
-		variadic := (t.val & 1) > 0
-		in := t.val >> 1
+		in := t.val
 		insouts := make([]reflect.Type, len(t.args))
 		for i, t := range t.args {
 			insouts[i] = tm.ToReflect(t)
 		}
-		return reflect.FuncOf(insouts[:in], insouts[in:], variadic)
+		return reflect.FuncOf(insouts[:in], insouts[in:], t.variadic)
 	case typeChan:
 		var dir reflect.ChanDir
 		switch t.dir {
@@ -287,7 +288,8 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 			types[nin+i] = m.ToType(t.Out(i))
 		}
 		ti.kind = typeFunc
-		ti.val = nin<<1 | boolint(t.IsVariadic())
+		ti.val = nin
+		ti.variadic = t.IsVariadic()
 		ti.args = types
 	case reflect.Chan:
 		ti.kind = typeChan
