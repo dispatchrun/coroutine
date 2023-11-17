@@ -610,21 +610,18 @@ func deserializeStructFields(d *Deserializer, p unsafe.Pointer, n int, field fun
 }
 
 func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	// p is a pointer to a function value, function values are pointers to a
-	// memory location starting with the address of the function, hence the
-	// double indirection here.
-	p = *(*unsafe.Pointer)(p)
-	if p == nil {
+	fn := *(**function)(p)
+	if fn == nil {
 		// Function IDs start at 1; use 0 to represent nil ptr.
 		serializeVarint(s, 0)
 		return
 	}
 
-	addr := *(*uintptr)(p)
-	id, closure := s.funcs.RegisterAddr(addr)
+	id, closure := s.funcs.RegisterAddr(fn.addr)
 	serializeVarint(s, int(id))
 
 	if closure != nil {
+		p = unsafe.Pointer(fn)
 		// Skip the first field, which is the function ptr.
 		serializeStructFields(s, p, closure.NumField()-1, func(i int) reflect.StructField {
 			return closure.Field(i + 1)
@@ -635,7 +632,7 @@ func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	id := deserializeVarint(d)
 	if id == 0 {
-		*(**Func)(p) = nil
+		*(**function)(p) = nil
 		return
 	}
 
@@ -660,7 +657,10 @@ func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 
 		*(*unsafe.Pointer)(p) = closure
 	} else {
-		*(**Func)(p) = fn
+		// Avoid an allocation by storing a pointer to the immutable Func.
+		// This works because the addr is the first element in both the Func
+		// and function structs.
+		*(**function)(p) = (*function)(unsafe.Pointer(fn))
 	}
 }
 

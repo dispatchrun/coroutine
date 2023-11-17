@@ -19,6 +19,12 @@ type slice struct {
 	cap  int
 }
 
+// Used for unsafe access to a function pointer and closure vars.
+type function struct {
+	addr unsafe.Pointer
+	// closure vars follow...
+}
+
 // returns true iff type t would be inlined in an interface.
 func inlined(t reflect.Type) bool {
 	switch t.Kind() {

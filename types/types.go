@@ -380,8 +380,8 @@ func (m *funcmap) ToFunc(id funcid) *Func {
 	return f
 }
 
-func (m *funcmap) RegisterAddr(addr uintptr) (id funcid, closureType reflect.Type) {
-	f := FuncByAddr(addr)
+func (m *funcmap) RegisterAddr(addr unsafe.Pointer) (id funcid, closureType reflect.Type) {
+	f := FuncByAddr(uintptr(addr))
 	if f == nil {
 		panic(fmt.Sprintf("function not found at address %v", addr))
 	}
