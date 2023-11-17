@@ -4,38 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"unsafe"
-)
 
-type typekind int
-
-const (
-	typeNone typekind = iota
-	typeBool
-	typeInt
-	typeInt8
-	typeInt16
-	typeInt32
-	typeInt64
-	typeUint
-	typeUint8
-	typeUint16
-	typeUint32
-	typeUint64
-	typeUintptr
-	typeFloat32
-	typeFloat64
-	typeComplex64
-	typeComplex128
-	typeArray
-	typeChan
-	typeFunc
-	typeInterface
-	typeMap
-	typePointer
-	typeSlice
-	typeString
-	typeStruct
-	typeUnsafePointer
+	coroutinev1 "github.com/stealthrocket/coroutine/gen/proto/go/coroutine/v1"
 )
 
 // typeinfo represents a type in the serialization format. It is a
@@ -43,7 +13,7 @@ const (
 // reflect.Type. This is because an interface-based approach is more difficult
 // to get right, and we will be revamping serde anyway.
 type typeinfo struct {
-	kind typekind
+	kind coroutinev1.Kind
 
 	// Only present for named types. See documentation of [namedTypeOffset].
 	offset namedTypeOffset
@@ -71,7 +41,7 @@ type typeinfo struct {
 	custom bool
 
 	// dir is the direction of a channel type
-	dir chanDir
+	dir coroutinev1.ChanDir
 }
 
 type Field struct {
@@ -83,69 +53,61 @@ type Field struct {
 	tag    string
 }
 
-type chanDir int
-
-const (
-	recvDir chanDir             = 1 << iota // <-chan
-	sendDir                                 // chan<-
-	bothDir = recvDir | sendDir             // chan
-)
-
 func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 	if t.offset != 0 {
 		return typeForOffset(t.offset)
 	}
 
 	switch t.kind {
-	case typeNone:
+	case coroutinev1.Kind_KIND_NIL:
 		return nil
-	case typeBool:
+	case coroutinev1.Kind_KIND_BOOL:
 		return reflect.TypeOf(false)
-	case typeInt:
+	case coroutinev1.Kind_KIND_INT:
 		return reflect.TypeOf(int(0))
-	case typeInt8:
+	case coroutinev1.Kind_KIND_INT8:
 		return reflect.TypeOf(int8(0))
-	case typeInt16:
+	case coroutinev1.Kind_KIND_INT16:
 		return reflect.TypeOf(int16(0))
-	case typeInt32:
+	case coroutinev1.Kind_KIND_INT32:
 		return reflect.TypeOf(int32(0))
-	case typeInt64:
+	case coroutinev1.Kind_KIND_INT64:
 		return reflect.TypeOf(int64(0))
-	case typeUint:
+	case coroutinev1.Kind_KIND_UINT:
 		return reflect.TypeOf(uint(0))
-	case typeUint8:
+	case coroutinev1.Kind_KIND_UINT8:
 		return reflect.TypeOf(uint8(0))
-	case typeUint16:
+	case coroutinev1.Kind_KIND_UINT16:
 		return reflect.TypeOf(uint16(0))
-	case typeUint32:
+	case coroutinev1.Kind_KIND_UINT32:
 		return reflect.TypeOf(uint32(0))
-	case typeUint64:
+	case coroutinev1.Kind_KIND_UINT64:
 		return reflect.TypeOf(uint64(0))
-	case typeUintptr:
+	case coroutinev1.Kind_KIND_UINTPTR:
 		return reflect.TypeOf(uintptr(0))
-	case typeFloat32:
+	case coroutinev1.Kind_KIND_FLOAT32:
 		return reflect.TypeOf(float32(0))
-	case typeFloat64:
+	case coroutinev1.Kind_KIND_FLOAT64:
 		return reflect.TypeOf(float64(0))
-	case typeComplex64:
+	case coroutinev1.Kind_KIND_COMPLEX64:
 		return reflect.TypeOf(complex64(0))
-	case typeComplex128:
+	case coroutinev1.Kind_KIND_COMPLEX128:
 		return reflect.TypeOf(complex128(0))
-	case typeString:
+	case coroutinev1.Kind_KIND_STRING:
 		return reflect.TypeOf("")
-	case typeInterface:
+	case coroutinev1.Kind_KIND_INTERFACE:
 		return typeof[interface{}]()
-	case typePointer:
+	case coroutinev1.Kind_KIND_POINTER:
 		return reflect.PointerTo(tm.ToReflect(t.elem))
-	case typeUnsafePointer:
+	case coroutinev1.Kind_KIND_UNSAFE_POINTER:
 		return reflect.TypeOf(unsafe.Pointer(nil))
-	case typeMap:
+	case coroutinev1.Kind_KIND_MAP:
 		return reflect.MapOf(tm.ToReflect(t.key), tm.ToReflect(t.elem))
-	case typeArray:
+	case coroutinev1.Kind_KIND_ARRAY:
 		return reflect.ArrayOf(t.len, tm.ToReflect(t.elem))
-	case typeSlice:
+	case coroutinev1.Kind_KIND_SLICE:
 		return reflect.SliceOf(tm.ToReflect(t.elem))
-	case typeStruct:
+	case coroutinev1.Kind_KIND_STRUCT:
 		fields := make([]reflect.StructField, len(t.fields))
 		for i, f := range t.fields {
 			fields[i].Name = f.name
@@ -156,7 +118,7 @@ func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 			fields[i].Type = tm.ToReflect(f.typ)
 		}
 		return reflect.StructOf(fields)
-	case typeFunc:
+	case coroutinev1.Kind_KIND_FUNC:
 		params := make([]reflect.Type, len(t.params))
 		for i, t := range t.params {
 			params[i] = tm.ToReflect(t)
@@ -166,19 +128,22 @@ func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 			results[i] = tm.ToReflect(t)
 		}
 		return reflect.FuncOf(params, results, t.variadic)
-	case typeChan:
+	case coroutinev1.Kind_KIND_CHAN:
 		var dir reflect.ChanDir
 		switch t.dir {
-		case recvDir:
+		case coroutinev1.ChanDir_CHAN_DIR_RECV:
 			dir = reflect.RecvDir
-		case sendDir:
+		case coroutinev1.ChanDir_CHAN_DIR_SEND:
 			dir = reflect.SendDir
-		case bothDir:
+		case coroutinev1.ChanDir_CHAN_DIR_BOTH:
 			dir = reflect.BothDir
+		default:
+			panic("invalid chan dir: " + t.dir.String())
 		}
 		return reflect.ChanOf(dir, tm.ToReflect(t.elem))
+	default:
+		panic("invalid type kind: " + t.kind.String())
 	}
-	panic(fmt.Errorf("unknown typekind: %d", t.kind))
 }
 
 func (m *typemap) ToReflect(t *typeinfo) reflect.Type {
@@ -196,7 +161,7 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 	}
 
 	if t == nil {
-		return m.cache.add(t, &typeinfo{kind: typeNone})
+		return m.cache.add(t, &typeinfo{kind: coroutinev1.Kind_KIND_NIL})
 	}
 
 	var offset namedTypeOffset
@@ -218,56 +183,56 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 	case reflect.Invalid:
 		panic("can't handle reflect.Invalid")
 	case reflect.Bool:
-		ti.kind = typeBool
+		ti.kind = coroutinev1.Kind_KIND_BOOL
 	case reflect.Int:
-		ti.kind = typeInt
+		ti.kind = coroutinev1.Kind_KIND_INT
 	case reflect.Int8:
-		ti.kind = typeInt8
+		ti.kind = coroutinev1.Kind_KIND_INT8
 	case reflect.Int16:
-		ti.kind = typeInt16
+		ti.kind = coroutinev1.Kind_KIND_INT16
 	case reflect.Int32:
-		ti.kind = typeInt32
+		ti.kind = coroutinev1.Kind_KIND_INT32
 	case reflect.Int64:
-		ti.kind = typeInt64
+		ti.kind = coroutinev1.Kind_KIND_INT64
 	case reflect.Uint:
-		ti.kind = typeUint
+		ti.kind = coroutinev1.Kind_KIND_UINT
 	case reflect.Uint8:
-		ti.kind = typeUint8
+		ti.kind = coroutinev1.Kind_KIND_UINT8
 	case reflect.Uint16:
-		ti.kind = typeUint16
+		ti.kind = coroutinev1.Kind_KIND_UINT16
 	case reflect.Uint32:
-		ti.kind = typeUint32
+		ti.kind = coroutinev1.Kind_KIND_UINT32
 	case reflect.Uint64:
-		ti.kind = typeUint64
+		ti.kind = coroutinev1.Kind_KIND_UINT64
 	case reflect.Uintptr:
-		ti.kind = typeUintptr
+		ti.kind = coroutinev1.Kind_KIND_UINTPTR
 	case reflect.Float32:
-		ti.kind = typeFloat32
+		ti.kind = coroutinev1.Kind_KIND_FLOAT32
 	case reflect.Float64:
-		ti.kind = typeFloat64
+		ti.kind = coroutinev1.Kind_KIND_FLOAT64
 	case reflect.Complex64:
-		ti.kind = typeComplex64
+		ti.kind = coroutinev1.Kind_KIND_COMPLEX64
 	case reflect.Complex128:
-		ti.kind = typeComplex128
+		ti.kind = coroutinev1.Kind_KIND_COMPLEX128
 	case reflect.String:
-		ti.kind = typeString
+		ti.kind = coroutinev1.Kind_KIND_STRING
 	case reflect.Interface:
-		ti.kind = typeInterface
+		ti.kind = coroutinev1.Kind_KIND_INTERFACE
 	case reflect.Array:
-		ti.kind = typeArray
+		ti.kind = coroutinev1.Kind_KIND_ARRAY
 		ti.len = t.Len()
 		ti.elem = m.ToType(t.Elem())
 	case reflect.Map:
-		ti.kind = typeMap
+		ti.kind = coroutinev1.Kind_KIND_MAP
 		ti.key = m.ToType(t.Key())
 		ti.elem = m.ToType(t.Elem())
 	case reflect.Pointer:
-		ti.kind = typePointer
+		ti.kind = coroutinev1.Kind_KIND_POINTER
 		ti.elem = m.ToType(t.Elem())
 	case reflect.UnsafePointer:
-		ti.kind = typeUnsafePointer
+		ti.kind = coroutinev1.Kind_KIND_UNSAFE_POINTER
 	case reflect.Slice:
-		ti.kind = typeSlice
+		ti.kind = coroutinev1.Kind_KIND_SLICE
 		ti.elem = m.ToType(t.Elem())
 	case reflect.Struct:
 		n := t.NumField()
@@ -284,7 +249,7 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 			fields[i].tag = string(f.Tag)
 			fields[i].typ = m.ToType(f.Type)
 		}
-		ti.kind = typeStruct
+		ti.kind = coroutinev1.Kind_KIND_STRUCT
 		ti.fields = fields
 	case reflect.Func:
 		params := make([]*typeinfo, t.NumIn())
@@ -295,20 +260,20 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 		for i := range results {
 			results[i] = m.ToType(t.Out(i))
 		}
-		ti.kind = typeFunc
+		ti.kind = coroutinev1.Kind_KIND_FUNC
 		ti.params = params
 		ti.results = results
 		ti.variadic = t.IsVariadic()
 	case reflect.Chan:
-		ti.kind = typeChan
+		ti.kind = coroutinev1.Kind_KIND_CHAN
 		ti.elem = m.ToType(t.Elem())
 		switch t.ChanDir() {
 		case reflect.RecvDir:
-			ti.dir = recvDir
+			ti.dir = coroutinev1.ChanDir_CHAN_DIR_RECV
 		case reflect.SendDir:
-			ti.dir = sendDir
+			ti.dir = coroutinev1.ChanDir_CHAN_DIR_SEND
 		case reflect.BothDir:
-			ti.dir = bothDir
+			ti.dir = coroutinev1.ChanDir_CHAN_DIR_BOTH
 		}
 	default:
 		panic(fmt.Errorf("unsupported reflect.Kind (%s)", t.Kind()))
