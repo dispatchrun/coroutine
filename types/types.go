@@ -31,7 +31,7 @@ func (m *typemap) register(t *coroutinev1.Type) typeid {
 }
 
 func (m *typemap) lookup(id typeid) *coroutinev1.Type {
-	if id == 0 || id >= uint32(len(m.types)) {
+	if id == 0 || id > uint32(len(m.types)) {
 		return nil
 	}
 	return m.types[id-1]
