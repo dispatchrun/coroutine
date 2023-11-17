@@ -48,17 +48,18 @@ type typeinfo struct {
 	// Only present for named types. See documentation of [namedTypeOffset].
 	offset namedTypeOffset
 
-	// - typeFunc uses it to store the number of input arguments
-	val int
-
-	// typeArray, typeSlice, typePointer, typeChan and typeMap use this field to
-	// store the information about the type they contain.
+	// elem is the type of element for array, slice, pointer, chan and map types
 	elem *typeinfo
 
-	key    *typeinfo   // typeMap only
-	fields []Field     // typeStruct only
-	args   []*typeinfo // typeFunc only
-	dir    chanDir     // typeChan only
+	// key is key type for a map type
+	key *typeinfo
+
+	// fields is the set of fields for a struct type
+	fields []Field
+
+	// params/results are the inputs and outputs for a function type
+	params  []*typeinfo
+	results []*typeinfo
 
 	// len is the length of an array type
 	len int
@@ -68,6 +69,18 @@ type typeinfo struct {
 
 	// custom is true if a custom serializer has been registered for this type
 	custom bool
+
+	// dir is the direction of a channel type
+	dir chanDir
+}
+
+type Field struct {
+	name   string
+	typ    *typeinfo
+	index  []int
+	offset uintptr
+	anon   bool
+	tag    string
 }
 
 type chanDir int
@@ -144,12 +157,15 @@ func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 		}
 		return reflect.StructOf(fields)
 	case typeFunc:
-		in := t.val
-		insouts := make([]reflect.Type, len(t.args))
-		for i, t := range t.args {
-			insouts[i] = tm.ToReflect(t)
+		params := make([]reflect.Type, len(t.params))
+		for i, t := range t.params {
+			params[i] = tm.ToReflect(t)
 		}
-		return reflect.FuncOf(insouts[:in], insouts[in:], t.variadic)
+		results := make([]reflect.Type, len(t.results))
+		for i, t := range t.results {
+			results[i] = tm.ToReflect(t)
+		}
+		return reflect.FuncOf(params, results, t.variadic)
 	case typeChan:
 		var dir reflect.ChanDir
 		switch t.dir {
@@ -163,15 +179,6 @@ func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 		return reflect.ChanOf(dir, tm.ToReflect(t.elem))
 	}
 	panic(fmt.Errorf("unknown typekind: %d", t.kind))
-}
-
-type Field struct {
-	name   string
-	typ    *typeinfo
-	index  []int
-	offset uintptr
-	anon   bool
-	tag    string
 }
 
 func (m *typemap) ToReflect(t *typeinfo) reflect.Type {
@@ -193,7 +200,7 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 	}
 
 	var offset namedTypeOffset
-	if named(t) {
+	if t.Name() != "" {
 		offset = offsetForType(t)
 		// Technically types with an offset do not need more information
 		// than that. However for debugging purposes also generate the
@@ -280,19 +287,18 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 		ti.kind = typeStruct
 		ti.fields = fields
 	case reflect.Func:
-		nin := t.NumIn()
-		nout := t.NumOut()
-		types := make([]*typeinfo, nin+nout)
-		for i := 0; i < nin; i++ {
-			types[i] = m.ToType(t.In(i))
+		params := make([]*typeinfo, t.NumIn())
+		for i := range params {
+			params[i] = m.ToType(t.In(i))
 		}
-		for i := 0; i < nout; i++ {
-			types[nin+i] = m.ToType(t.Out(i))
+		results := make([]*typeinfo, t.NumOut())
+		for i := range results {
+			results[i] = m.ToType(t.Out(i))
 		}
 		ti.kind = typeFunc
-		ti.val = nin
+		ti.params = params
+		ti.results = results
 		ti.variadic = t.IsVariadic()
-		ti.args = types
 	case reflect.Chan:
 		ti.kind = typeChan
 		ti.elem = m.ToType(t.Elem())
@@ -308,15 +314,4 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 		panic(fmt.Errorf("unsupported reflect.Kind (%s)", t.Kind()))
 	}
 	return ti
-}
-
-func boolint(x bool) int {
-	if x {
-		return 1
-	}
-	return 0
-}
-
-func named(t reflect.Type) bool {
-	return t.Name() != ""
 }
