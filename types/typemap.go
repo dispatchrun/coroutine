@@ -7,8 +7,8 @@ import (
 	"unsafe"
 )
 
-// Global type register.
-var types *typemap = newTypemap()
+// Global serde register.
+var serdes *serdemap = newSerdeMap()
 
 // SerializerFunc is the signature of custom serializer functions. Use the
 // [Serialize] function to drive the [Serializer]. Returning an error results in
@@ -44,10 +44,10 @@ type DeserializerFunc[T any] func(*Deserializer, *T) error
 func Register[T any](
 	serializer SerializerFunc[T],
 	deserializer DeserializerFunc[T]) {
-	registerSerde[T](types, serializer, deserializer)
+	registerSerde[T](serdes, serializer, deserializer)
 }
 
-func registerSerde[T any](tm *typemap,
+func registerSerde[T any](serdes *serdemap,
 	serializer func(*Serializer, *T) error,
 	deserializer func(*Deserializer, *T) error) {
 
@@ -82,7 +82,7 @@ func registerSerde[T any](tm *typemap,
 		}
 	}
 
-	tm.attach(t, s, d)
+	serdes.attach(t, s, d)
 }
 
 type serializerFunc func(*Serializer, reflect.Type, unsafe.Pointer)
@@ -94,20 +94,18 @@ type serde struct {
 	des deserializerFunc
 }
 
-type typemap struct {
-	cache      doublemap[reflect.Type, *typeinfo]
+type serdemap struct {
 	serdes     map[reflect.Type]serde
 	interfaces []serde
 }
 
-func newTypemap() *typemap {
-	m := &typemap{
+func newSerdeMap() *serdemap {
+	return &serdemap{
 		serdes: make(map[reflect.Type]serde),
 	}
-	return m
 }
 
-func (m *typemap) attach(t reflect.Type, ser serializerFunc, des deserializerFunc) {
+func (m *serdemap) attach(t reflect.Type, ser serializerFunc, des deserializerFunc) {
 	if ser == nil || des == nil {
 		panic("both serializer and deserializer need to be provided")
 	}
@@ -123,7 +121,7 @@ func (m *typemap) attach(t reflect.Type, ser serializerFunc, des deserializerFun
 	}
 }
 
-func (m *typemap) serdeOf(x reflect.Type) (serde, bool) {
+func (m *serdemap) serdeOf(x reflect.Type) (serde, bool) {
 	s, ok := m.serdes[x]
 	if ok {
 		return s, true
@@ -135,6 +133,15 @@ func (m *typemap) serdeOf(x reflect.Type) (serde, bool) {
 		}
 	}
 	return serde{}, false
+}
+
+type typemap struct {
+	serdes *serdemap
+	cache  doublemap[reflect.Type, *typeinfo]
+}
+
+func newTypeMap(serdes *serdemap) *typemap {
+	return &typemap{serdes: serdes}
 }
 
 type doublemap[K, V comparable] struct {

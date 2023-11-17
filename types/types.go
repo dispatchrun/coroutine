@@ -186,7 +186,7 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 
 	ti := &typeinfo{offset: offset}
 
-	if _, ok := m.serdes[t]; ok {
+	if _, ok := m.serdes.serdeOf(t); ok {
 		ti.custom = true
 	}
 
