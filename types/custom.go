@@ -3,7 +3,6 @@ package types
 import (
 	"fmt"
 	"reflect"
-	"sync"
 	"unsafe"
 )
 
@@ -133,49 +132,4 @@ func (m *serdemap) serdeOf(x reflect.Type) (serde, bool) {
 		}
 	}
 	return serde{}, false
-}
-
-type typemap struct {
-	serdes *serdemap
-	cache  doublemap[reflect.Type, *typeinfo]
-}
-
-func newTypeMap(serdes *serdemap) *typemap {
-	return &typemap{serdes: serdes}
-}
-
-type doublemap[K, V comparable] struct {
-	fromK map[K]V
-	fromV map[V]K
-
-	mu sync.Mutex
-}
-
-func (m *doublemap[K, V]) getK(k K) (V, bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	v, ok := m.fromK[k]
-	return v, ok
-}
-
-func (m *doublemap[K, V]) getV(v V) (K, bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	k, ok := m.fromV[v]
-	return k, ok
-}
-
-func (m *doublemap[K, V]) add(k K, v V) V {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.fromK == nil {
-		m.fromK = make(map[K]V)
-		m.fromV = make(map[V]K)
-	}
-	m.fromK[k] = v
-	m.fromV[v] = k
-	return v
 }
