@@ -58,8 +58,13 @@ func (m *Type) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x68
 	}
-	if m.MemoryOffset != 0 {
-		i = encodeVarint(dAtA, i, uint64(m.MemoryOffset))
+	if m.Variadic {
+		i--
+		if m.Variadic {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
 		i--
 		dAtA[i] = 0x60
 	}
@@ -68,13 +73,8 @@ func (m *Type) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x58
 	}
-	if m.Variadic {
-		i--
-		if m.Variadic {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
+	if m.MemoryOffset != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.MemoryOffset))
 		i--
 		dAtA[i] = 0x50
 	}
@@ -321,14 +321,14 @@ func (m *Type) SizeVT() (n int) {
 	if m.Length != 0 {
 		n += 1 + sov(uint64(m.Length))
 	}
-	if m.Variadic {
-		n += 2
+	if m.MemoryOffset != 0 {
+		n += 1 + sov(uint64(m.MemoryOffset))
 	}
 	if m.ChanDir != 0 {
 		n += 1 + sov(uint64(m.ChanDir))
 	}
-	if m.MemoryOffset != 0 {
-		n += 1 + sov(uint64(m.MemoryOffset))
+	if m.Variadic {
+		n += 2
 	}
 	if m.CustomSerializer {
 		n += 2
@@ -738,9 +738,9 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 			}
 		case 10:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Variadic", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field MemoryOffset", wireType)
 			}
-			var v int
+			m.MemoryOffset = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -750,12 +750,11 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= int(b&0x7F) << shift
+				m.MemoryOffset |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			m.Variadic = bool(v != 0)
 		case 11:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ChanDir", wireType)
@@ -777,9 +776,9 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 			}
 		case 12:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MemoryOffset", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Variadic", wireType)
 			}
-			m.MemoryOffset = 0
+			var v int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -789,11 +788,12 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.MemoryOffset |= uint64(b&0x7F) << shift
+				v |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
+			m.Variadic = bool(v != 0)
 		case 13:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field CustomSerializer", wireType)

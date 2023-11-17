@@ -37,15 +37,15 @@ message Type {
   // Length is the length of an array type.
   int64 length = 9;
 
-  // Variadic is true for function types with a variadic argument.
-  bool variadic = 10;
+  // MemoryOffset is an optional field that encodes the type's location
+  // in memory.
+  uint64 memory_offset = 10;
 
   // ChanDir is the direction of a channel type.
   ChanDir chan_dir = 11;
 
-  // MemoryOffset is an optional field that encodes the type's location
-  // in memory.
-  uint64 memory_offset = 12;
+  // Variadic is true for function types with a variadic argument.
+  bool variadic = 12;
 
   // CustomSerializer is true if the type has a custom serializer registered.
   bool custom_serializer = 13;
