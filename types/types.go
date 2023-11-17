@@ -10,14 +10,32 @@ type typekind int
 
 const (
 	typeNone typekind = iota
-	typeBasic
-	typePointer
-	typeMap
+	typeBool
+	typeInt
+	typeInt8
+	typeInt16
+	typeInt32
+	typeInt64
+	typeUint
+	typeUint8
+	typeUint16
+	typeUint32
+	typeUint64
+	typeUintptr
+	typeFloat32
+	typeFloat64
+	typeComplex64
+	typeComplex128
 	typeArray
-	typeSlice
-	typeStruct
-	typeFunc
 	typeChan
+	typeFunc
+	typeInterface
+	typeMap
+	typePointer
+	typeSlice
+	typeString
+	typeStruct
+	typeUnsafePointer
 )
 
 // typeinfo represents a type in the serialization format. It is a
@@ -30,14 +48,15 @@ type typeinfo struct {
 	// Only present for named types. See documentation of [namedTypeOffset].
 	offset namedTypeOffset
 
-	// - typeBasic uses it to store the reflect.Kind it represents.
 	// - typeArray stores its length
 	// - typeFunc uses it to store the number of input arguments and whether
 	//   its variadic as the first bit
 	val int
+
 	// typeArray, typeSlice, typePointer, typeChan and typeMap use this field to
 	// store the information about the type they contain.
-	elem   *typeinfo
+	elem *typeinfo
+
 	key    *typeinfo   // typeMap only
 	fields []Field     // typeStruct only
 	args   []*typeinfo // typeFunc only
@@ -63,52 +82,46 @@ func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 	switch t.kind {
 	case typeNone:
 		return nil
-	case typeBasic:
-		switch reflect.Kind(t.val) {
-		case reflect.Bool:
-			return reflect.TypeOf(false)
-		case reflect.Int:
-			return reflect.TypeOf(int(0))
-		case reflect.Int64:
-			return reflect.TypeOf(int64(0))
-		case reflect.Int32:
-			return reflect.TypeOf(int32(0))
-		case reflect.Int16:
-			return reflect.TypeOf(int16(0))
-		case reflect.Int8:
-			return reflect.TypeOf(int8(0))
-		case reflect.Uint:
-			return reflect.TypeOf(uint(0))
-		case reflect.Uint64:
-			return reflect.TypeOf(uint64(0))
-		case reflect.Uint32:
-			return reflect.TypeOf(uint32(0))
-		case reflect.Uint16:
-			return reflect.TypeOf(uint16(0))
-		case reflect.Uint8:
-			return reflect.TypeOf(uint8(0))
-		case reflect.Uintptr:
-			return reflect.TypeOf(uintptr(0))
-		case reflect.Float64:
-			return reflect.TypeOf(float64(0))
-		case reflect.Float32:
-			return reflect.TypeOf(float32(0))
-		case reflect.Complex64:
-			return reflect.TypeOf(complex64(0))
-		case reflect.Complex128:
-			return reflect.TypeOf(complex128(0))
-		case reflect.String:
-			return reflect.TypeOf("")
-		case reflect.Interface:
-			return typeof[interface{}]()
-		default:
-			panic("Basic type unknown")
-		}
+	case typeBool:
+		return reflect.TypeOf(false)
+	case typeInt:
+		return reflect.TypeOf(int(0))
+	case typeInt8:
+		return reflect.TypeOf(int8(0))
+	case typeInt16:
+		return reflect.TypeOf(int16(0))
+	case typeInt32:
+		return reflect.TypeOf(int32(0))
+	case typeInt64:
+		return reflect.TypeOf(int64(0))
+	case typeUint:
+		return reflect.TypeOf(uint(0))
+	case typeUint8:
+		return reflect.TypeOf(uint8(0))
+	case typeUint16:
+		return reflect.TypeOf(uint16(0))
+	case typeUint32:
+		return reflect.TypeOf(uint32(0))
+	case typeUint64:
+		return reflect.TypeOf(uint64(0))
+	case typeUintptr:
+		return reflect.TypeOf(uintptr(0))
+	case typeFloat32:
+		return reflect.TypeOf(float32(0))
+	case typeFloat64:
+		return reflect.TypeOf(float64(0))
+	case typeComplex64:
+		return reflect.TypeOf(complex64(0))
+	case typeComplex128:
+		return reflect.TypeOf(complex128(0))
+	case typeString:
+		return reflect.TypeOf("")
+	case typeInterface:
+		return typeof[interface{}]()
 	case typePointer:
-		if t.elem == nil {
-			return reflect.TypeOf(unsafe.Pointer(nil))
-		}
 		return reflect.PointerTo(tm.ToReflect(t.elem))
+	case typeUnsafePointer:
+		return reflect.TypeOf(unsafe.Pointer(nil))
 	case typeMap:
 		return reflect.MapOf(tm.ToReflect(t.key), tm.ToReflect(t.elem))
 	case typeArray:
@@ -194,26 +207,42 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic("can't handle reflect.Invalid")
-	case reflect.Bool,
-		reflect.Int,
-		reflect.Int64,
-		reflect.Int32,
-		reflect.Int16,
-		reflect.Int8,
-		reflect.Uint,
-		reflect.Uint64,
-		reflect.Uint32,
-		reflect.Uint16,
-		reflect.Uint8,
-		reflect.Uintptr,
-		reflect.Float64,
-		reflect.Float32,
-		reflect.Complex64,
-		reflect.Complex128,
-		reflect.String,
-		reflect.Interface:
-		ti.kind = typeBasic
-		ti.val = int(t.Kind())
+	case reflect.Bool:
+		ti.kind = typeBool
+	case reflect.Int:
+		ti.kind = typeInt
+	case reflect.Int8:
+		ti.kind = typeInt8
+	case reflect.Int16:
+		ti.kind = typeInt16
+	case reflect.Int32:
+		ti.kind = typeInt32
+	case reflect.Int64:
+		ti.kind = typeInt64
+	case reflect.Uint:
+		ti.kind = typeUint
+	case reflect.Uint8:
+		ti.kind = typeUint8
+	case reflect.Uint16:
+		ti.kind = typeUint16
+	case reflect.Uint32:
+		ti.kind = typeUint32
+	case reflect.Uint64:
+		ti.kind = typeUint64
+	case reflect.Uintptr:
+		ti.kind = typeUintptr
+	case reflect.Float32:
+		ti.kind = typeFloat32
+	case reflect.Float64:
+		ti.kind = typeFloat64
+	case reflect.Complex64:
+		ti.kind = typeComplex64
+	case reflect.Complex128:
+		ti.kind = typeComplex128
+	case reflect.String:
+		ti.kind = typeString
+	case reflect.Interface:
+		ti.kind = typeInterface
 	case reflect.Array:
 		ti.kind = typeArray
 		ti.val = t.Len()
@@ -226,8 +255,7 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 		ti.kind = typePointer
 		ti.elem = m.ToType(t.Elem())
 	case reflect.UnsafePointer:
-		ti.kind = typePointer
-		ti.elem = nil
+		ti.kind = typeUnsafePointer
 	case reflect.Slice:
 		ti.kind = typeSlice
 		ti.elem = m.ToType(t.Elem())
