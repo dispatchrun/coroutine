@@ -15,7 +15,7 @@ func serializeType(s *Serializer, t reflect.Type) {
 
 func deserializeType(d *Deserializer) reflect.Type {
 	t := deserializePointedAt(d, typeinfoT).Interface().(*typeinfo)
-	return t.reflectType(d.types)
+	return d.types.ToReflect(t)
 }
 
 func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {

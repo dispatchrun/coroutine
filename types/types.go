@@ -9,51 +9,6 @@ import (
 	coroutinev1 "github.com/stealthrocket/coroutine/gen/proto/go/coroutine/v1"
 )
 
-type typemap struct {
-	serdes *serdemap
-	cache  doublemap[reflect.Type, *typeinfo]
-}
-
-func newTypeMap(serdes *serdemap) *typemap {
-	return &typemap{serdes: serdes}
-}
-
-type doublemap[K, V comparable] struct {
-	fromK map[K]V
-	fromV map[V]K
-
-	mu sync.Mutex
-}
-
-func (m *doublemap[K, V]) getK(k K) (V, bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	v, ok := m.fromK[k]
-	return v, ok
-}
-
-func (m *doublemap[K, V]) getV(v V) (K, bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	k, ok := m.fromV[v]
-	return k, ok
-}
-
-func (m *doublemap[K, V]) add(k K, v V) V {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.fromK == nil {
-		m.fromK = make(map[K]V)
-		m.fromV = make(map[V]K)
-	}
-	m.fromK[k] = v
-	m.fromV[v] = k
-	return v
-}
-
 // typeinfo represents a type in the serialization format. It is a
 // one-size-fits-all struct that contains everything needed to reconstruct a
 // reflect.Type. This is because an interface-based approach is more difficult
@@ -104,60 +59,72 @@ type Field struct {
 	tag     string
 }
 
-func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
+type typemap struct {
+	serdes *serdemap
+	cache  doublemap[reflect.Type, *typeinfo]
+}
+
+func newTypeMap(serdes *serdemap) *typemap {
+	return &typemap{serdes: serdes}
+}
+
+func (m *typemap) ToReflect(t *typeinfo) reflect.Type {
 	if t.offset != 0 {
 		return typeForOffset(t.offset)
 	}
+	if x, ok := m.cache.getV(t); ok {
+		return x
+	}
 
+	var x reflect.Type
 	switch t.kind {
 	case coroutinev1.Kind_KIND_NIL:
-		return nil
 	case coroutinev1.Kind_KIND_BOOL:
-		return reflect.TypeOf(false)
+		x = reflect.TypeOf(false)
 	case coroutinev1.Kind_KIND_INT:
-		return reflect.TypeOf(int(0))
+		x = reflect.TypeOf(int(0))
 	case coroutinev1.Kind_KIND_INT8:
-		return reflect.TypeOf(int8(0))
+		x = reflect.TypeOf(int8(0))
 	case coroutinev1.Kind_KIND_INT16:
-		return reflect.TypeOf(int16(0))
+		x = reflect.TypeOf(int16(0))
 	case coroutinev1.Kind_KIND_INT32:
-		return reflect.TypeOf(int32(0))
+		x = reflect.TypeOf(int32(0))
 	case coroutinev1.Kind_KIND_INT64:
-		return reflect.TypeOf(int64(0))
+		x = reflect.TypeOf(int64(0))
 	case coroutinev1.Kind_KIND_UINT:
-		return reflect.TypeOf(uint(0))
+		x = reflect.TypeOf(uint(0))
 	case coroutinev1.Kind_KIND_UINT8:
-		return reflect.TypeOf(uint8(0))
+		x = reflect.TypeOf(uint8(0))
 	case coroutinev1.Kind_KIND_UINT16:
-		return reflect.TypeOf(uint16(0))
+		x = reflect.TypeOf(uint16(0))
 	case coroutinev1.Kind_KIND_UINT32:
-		return reflect.TypeOf(uint32(0))
+		x = reflect.TypeOf(uint32(0))
 	case coroutinev1.Kind_KIND_UINT64:
-		return reflect.TypeOf(uint64(0))
+		x = reflect.TypeOf(uint64(0))
 	case coroutinev1.Kind_KIND_UINTPTR:
-		return reflect.TypeOf(uintptr(0))
+		x = reflect.TypeOf(uintptr(0))
 	case coroutinev1.Kind_KIND_FLOAT32:
-		return reflect.TypeOf(float32(0))
+		x = reflect.TypeOf(float32(0))
 	case coroutinev1.Kind_KIND_FLOAT64:
-		return reflect.TypeOf(float64(0))
+		x = reflect.TypeOf(float64(0))
 	case coroutinev1.Kind_KIND_COMPLEX64:
-		return reflect.TypeOf(complex64(0))
+		x = reflect.TypeOf(complex64(0))
 	case coroutinev1.Kind_KIND_COMPLEX128:
-		return reflect.TypeOf(complex128(0))
+		x = reflect.TypeOf(complex128(0))
 	case coroutinev1.Kind_KIND_STRING:
-		return reflect.TypeOf("")
+		x = reflect.TypeOf("")
 	case coroutinev1.Kind_KIND_INTERFACE:
-		return typeof[interface{}]()
+		x = typeof[interface{}]()
 	case coroutinev1.Kind_KIND_POINTER:
-		return reflect.PointerTo(tm.ToReflect(t.elem))
+		x = reflect.PointerTo(m.ToReflect(t.elem))
 	case coroutinev1.Kind_KIND_UNSAFE_POINTER:
-		return reflect.TypeOf(unsafe.Pointer(nil))
+		x = reflect.TypeOf(unsafe.Pointer(nil))
 	case coroutinev1.Kind_KIND_MAP:
-		return reflect.MapOf(tm.ToReflect(t.key), tm.ToReflect(t.elem))
+		x = reflect.MapOf(m.ToReflect(t.key), m.ToReflect(t.elem))
 	case coroutinev1.Kind_KIND_ARRAY:
-		return reflect.ArrayOf(t.len, tm.ToReflect(t.elem))
+		x = reflect.ArrayOf(t.len, m.ToReflect(t.elem))
 	case coroutinev1.Kind_KIND_SLICE:
-		return reflect.SliceOf(tm.ToReflect(t.elem))
+		x = reflect.SliceOf(m.ToReflect(t.elem))
 	case coroutinev1.Kind_KIND_STRUCT:
 		fields := make([]reflect.StructField, len(t.fields))
 		for i, f := range t.fields {
@@ -167,19 +134,19 @@ func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 			fields[i].Index = f.index
 			fields[i].Offset = f.offset
 			fields[i].Anonymous = f.anon
-			fields[i].Type = tm.ToReflect(f.typ)
+			fields[i].Type = m.ToReflect(f.typ)
 		}
-		return reflect.StructOf(fields)
+		x = reflect.StructOf(fields)
 	case coroutinev1.Kind_KIND_FUNC:
 		params := make([]reflect.Type, len(t.params))
 		for i, t := range t.params {
-			params[i] = tm.ToReflect(t)
+			params[i] = m.ToReflect(t)
 		}
 		results := make([]reflect.Type, len(t.results))
 		for i, t := range t.results {
-			results[i] = tm.ToReflect(t)
+			results[i] = m.ToReflect(t)
 		}
-		return reflect.FuncOf(params, results, t.variadic)
+		x = reflect.FuncOf(params, results, t.variadic)
 	case coroutinev1.Kind_KIND_CHAN:
 		var dir reflect.ChanDir
 		switch t.dir {
@@ -192,17 +159,11 @@ func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 		default:
 			panic("invalid chan dir: " + t.dir.String())
 		}
-		return reflect.ChanOf(dir, tm.ToReflect(t.elem))
+		x = reflect.ChanOf(dir, m.ToReflect(t.elem))
 	default:
 		panic("invalid type kind: " + t.kind.String())
 	}
-}
 
-func (m *typemap) ToReflect(t *typeinfo) reflect.Type {
-	if x, ok := m.cache.getV(t); ok {
-		return x
-	}
-	x := t.reflectType(m)
 	m.cache.add(x, t)
 	return x
 }
@@ -216,20 +177,14 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 		return m.cache.add(t, &typeinfo{kind: coroutinev1.Kind_KIND_NIL})
 	}
 
-	var offset namedTypeOffset
-	if t.Name() != "" {
-		offset = offsetForType(t)
-		// Technically types with an offset do not need more information
-		// than that. However for debugging purposes also generate the
-		// rest of the type information.
-	}
-
 	ti := &typeinfo{
 		name:    t.Name(),
 		pkgPath: t.PkgPath(),
-		offset:  offset,
 	}
 
+	if t.Name() != "" {
+		ti.offset = offsetForType(t)
+	}
 	if _, ok := m.serdes.serdeOf(t); ok {
 		ti.custom = true
 	}
@@ -295,7 +250,7 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 		fields := make([]Field, n)
 		for i := 0; i < n; i++ {
 			f := t.Field(i)
-			if !f.IsExported() && offset == 0 {
+			if !f.IsExported() && ti.offset == 0 {
 				ti.offset = offsetForType(t)
 			}
 			fields[i].name = f.Name
@@ -335,4 +290,40 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 		panic(fmt.Errorf("unsupported reflect.Kind (%s)", t.Kind()))
 	}
 	return ti
+}
+
+type doublemap[K, V comparable] struct {
+	fromK map[K]V
+	fromV map[V]K
+
+	mu sync.Mutex
+}
+
+func (m *doublemap[K, V]) getK(k K) (V, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	v, ok := m.fromK[k]
+	return v, ok
+}
+
+func (m *doublemap[K, V]) getV(v V) (K, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	k, ok := m.fromV[v]
+	return k, ok
+}
+
+func (m *doublemap[K, V]) add(k K, v V) V {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.fromK == nil {
+		m.fromK = make(map[K]V)
+		m.fromV = make(map[V]K)
+	}
+	m.fromK[k] = v
+	m.fromV[v] = k
+	return v
 }
