@@ -55,6 +55,7 @@ func Serialize(x any) ([]byte, error) {
 	state := &coroutinev1.State{
 		State: s.b,
 		Build: buildInfo,
+		Types: s.types.types,
 	}
 	return state.MarshalVT()
 }
@@ -69,7 +70,7 @@ func Deserialize(b []byte) (interface{}, error) {
 		return nil, fmt.Errorf("%w: got %v, expect %v", ErrBuildIDMismatch, state.Build.Id, buildInfo.Id)
 	}
 
-	d := newDeserializer(state.State)
+	d := newDeserializer(state.State, state.Types)
 	var x interface{}
 	px := &x
 	t := reflect.TypeOf(px).Elem()
@@ -93,10 +94,10 @@ type Deserializer struct {
 	b []byte
 }
 
-func newDeserializer(b []byte) *Deserializer {
+func newDeserializer(b []byte, types []*coroutinev1.Type) *Deserializer {
 	return &Deserializer{
 		serdes: serdes,
-		types:  newTypeMap(serdes),
+		types:  newTypeMap(serdes, types),
 		ptrs:   make(map[sID]unsafe.Pointer),
 		b:      b,
 	}
@@ -168,7 +169,7 @@ type Serializer struct {
 func newSerializer() *Serializer {
 	return &Serializer{
 		serdes:   serdes,
-		types:    newTypeMap(serdes),
+		types:    newTypeMap(serdes, nil),
 		ptrs:     make(map[unsafe.Pointer]sID),
 		scanptrs: make(map[reflect.Value]struct{}),
 		b:        make([]byte, 0, 128),

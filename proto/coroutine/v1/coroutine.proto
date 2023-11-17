@@ -2,10 +2,13 @@ syntax = "proto3";
 
 package coroutine.v1;
 
+import "coroutine/v1/type.proto";
+
 // State is durable coroutine state.
 message State {
   Build build = 1;
   bytes state = 2;
+  repeated Type types = 3;
 }
 
 // Build is info about the build in which a durable coroutine
