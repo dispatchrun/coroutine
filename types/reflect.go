@@ -614,47 +614,37 @@ func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	// memory location starting with the address of the function, hence the
 	// double indirection here.
 	p = *(*unsafe.Pointer)(p)
-	if p == nil { // nil function value
-		serializeBool(s, false)
+	if p == nil {
+		// Function IDs start at 1; use 0 to represent nil ptr.
+		serializeVarint(s, 0)
 		return
 	}
-	serializeBool(s, true)
 
 	addr := *(*uintptr)(p)
-	fn := FuncByAddr(addr)
-	if fn == nil {
-		panic(fmt.Sprintf("function not found at address %v", addr))
-	}
-	serializeString(s, &fn.Name)
+	id, closure := s.funcs.RegisterAddr(addr)
+	serializeVarint(s, int(id))
 
-	if fn.Closure != nil {
-		t := fn.Closure
-		serializeStructFields(s, p, t.NumField()-1, func(i int) reflect.StructField {
-			return t.Field(i + 1)
+	if closure != nil {
+		// Skip the first field, which is the function ptr.
+		serializeStructFields(s, p, closure.NumField()-1, func(i int) reflect.StructField {
+			return closure.Field(i + 1)
 		})
 	}
 }
 
 func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	var ok bool
-	deserializeBool(d, &ok)
-	if !ok {
+	id := deserializeVarint(d)
+	if id == 0 {
 		*(**Func)(p) = nil
 		return
 	}
 
-	var name string
-	deserializeString(d, &name)
-
-	fn := FuncByName(name)
-	if fn == nil {
-		panic(name + ": function symbol not found in the program")
-	}
+	fn := d.funcs.ToFunc(funcid(id))
 	if fn.Type == nil {
-		panic(name + ": function type is missing")
+		panic(fn.Name + ": function type is missing")
 	}
 	if !t.AssignableTo(fn.Type) {
-		panic(name + ": function type mismatch: " + fn.Type.String() + " != " + t.String())
+		panic(fn.Name + ": function type mismatch: " + fn.Type.String() + " != " + t.String())
 	}
 
 	if fn.Closure != nil {
