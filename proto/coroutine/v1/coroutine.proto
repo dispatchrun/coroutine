@@ -2,13 +2,25 @@ syntax = "proto3";
 
 package coroutine.v1;
 
+import "coroutine/v1/function.proto";
 import "coroutine/v1/type.proto";
 
 // State is durable coroutine state.
 message State {
+  // Build is information about the build in which the coruotine state
+  // was generated.
   Build build = 1;
+
+  // State is a serialized representation of the objects in the program
+  // that are reachable from the coroutine stack.
   bytes state = 2;
+
+  // Types is the set of types used by the object graph.
   repeated Type types = 3;
+
+  // Functions is the set of functions, methods and closures referenced
+  // by the object graph.
+  repeated Function functions = 4;
 }
 
 // Build is info about the build in which a durable coroutine
