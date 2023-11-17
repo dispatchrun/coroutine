@@ -89,14 +89,12 @@ type serializerFunc func(*Serializer, reflect.Type, unsafe.Pointer)
 type deserializerFunc func(*Deserializer, reflect.Type, unsafe.Pointer)
 
 type serde struct {
-	id  int
-	t   reflect.Type
+	typ reflect.Type
 	ser serializerFunc
 	des deserializerFunc
 }
 
 type typemap struct {
-	custom     []reflect.Type
 	cache      doublemap[reflect.Type, *typeinfo]
 	serdes     map[reflect.Type]serde
 	interfaces []serde
@@ -114,15 +112,10 @@ func (m *typemap) attach(t reflect.Type, ser serializerFunc, des deserializerFun
 		panic("both serializer and deserializer need to be provided")
 	}
 
-	s, exists := m.serdes[t]
-	if !exists {
-		s.id = len(m.custom)
-		m.custom = append(m.custom, t)
-	}
-	s.t = t
+	s := m.serdes[t]
+	s.typ = t
 	s.ser = ser
 	s.des = des
-
 	m.serdes[t] = s
 
 	if t.Kind() == reflect.Interface {
@@ -137,7 +130,7 @@ func (m *typemap) serdeOf(x reflect.Type) (serde, bool) {
 	}
 	for i := range m.interfaces {
 		s := m.interfaces[i]
-		if x.Implements(s.t) {
+		if x.Implements(s.typ) {
 			return s, true
 		}
 	}

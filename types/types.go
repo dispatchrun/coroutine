@@ -10,7 +10,6 @@ type typekind int
 
 const (
 	typeNone typekind = iota
-	typeCustom
 	typeBasic
 	typePointer
 	typeMap
@@ -31,12 +30,10 @@ type typeinfo struct {
 	// Only present for named types. See documentation of [namedTypeOffset].
 	offset namedTypeOffset
 
-	// - typeCustom uses this field to store the index in the typemap of the
-	//   custom type it represents.
 	// - typeBasic uses it to store the reflect.Kind it represents.
 	// - typeArray stores its length
 	// - typeFunc uses it to store the number of input arguments and whether
-	//   its variadic as the first bit.
+	//   its variadic as the first bit
 	val int
 	// typeArray, typeSlice, typePointer, typeChan and typeMap use this field to
 	// store the information about the type they contain.
@@ -45,6 +42,9 @@ type typeinfo struct {
 	fields []Field     // typeStruct only
 	args   []*typeinfo // typeFunc only
 	dir    chanDir     // typeChan only
+
+	// custom is true if a custom serializer has been registered for this type
+	custom bool
 }
 
 type chanDir int
@@ -63,8 +63,6 @@ func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 	switch t.kind {
 	case typeNone:
 		return nil
-	case typeCustom:
-		return tm.custom[t.val]
 	case typeBasic:
 		switch reflect.Kind(t.val) {
 		case reflect.Bool:
@@ -186,15 +184,12 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 		// rest of the type information.
 	}
 
-	if s, ok := m.serdes[t]; ok {
-		return m.cache.add(t, &typeinfo{
-			kind:   typeCustom,
-			offset: offset,
-			val:    s.id,
-		})
+	ti := &typeinfo{offset: offset}
+
+	if _, ok := m.serdes[t]; ok {
+		ti.custom = true
 	}
 
-	ti := &typeinfo{offset: offset}
 	m.cache.add(t, ti) // add now for recursion
 	switch t.Kind() {
 	case reflect.Invalid:
