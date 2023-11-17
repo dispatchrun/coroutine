@@ -48,7 +48,6 @@ type typeinfo struct {
 	// Only present for named types. See documentation of [namedTypeOffset].
 	offset namedTypeOffset
 
-	// - typeArray stores its length
 	// - typeFunc uses it to store the number of input arguments
 	val int
 
@@ -60,6 +59,9 @@ type typeinfo struct {
 	fields []Field     // typeStruct only
 	args   []*typeinfo // typeFunc only
 	dir    chanDir     // typeChan only
+
+	// len is the length of an array type
+	len int
 
 	// variadic is true if the type represents a function with a variadic argument
 	variadic bool
@@ -127,7 +129,7 @@ func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 	case typeMap:
 		return reflect.MapOf(tm.ToReflect(t.key), tm.ToReflect(t.elem))
 	case typeArray:
-		return reflect.ArrayOf(t.val, tm.ToReflect(t.elem))
+		return reflect.ArrayOf(t.len, tm.ToReflect(t.elem))
 	case typeSlice:
 		return reflect.SliceOf(tm.ToReflect(t.elem))
 	case typeStruct:
@@ -246,7 +248,7 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 		ti.kind = typeInterface
 	case reflect.Array:
 		ti.kind = typeArray
-		ti.val = t.Len()
+		ti.len = t.Len()
 		ti.elem = m.ToType(t.Elem())
 	case reflect.Map:
 		ti.kind = typeMap
