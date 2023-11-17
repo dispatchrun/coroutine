@@ -15,6 +15,10 @@ import (
 type typeinfo struct {
 	kind coroutinev1.Kind
 
+	name string
+
+	pkgPath string
+
 	// Only present for named types. See documentation of [namedTypeOffset].
 	offset namedTypeOffset
 
@@ -45,12 +49,13 @@ type typeinfo struct {
 }
 
 type Field struct {
-	name   string
-	typ    *typeinfo
-	index  []int
-	offset uintptr
-	anon   bool
-	tag    string
+	name    string
+	pkgPath string
+	typ     *typeinfo
+	index   []int
+	offset  uintptr
+	anon    bool
+	tag     string
 }
 
 func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
@@ -111,6 +116,7 @@ func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
 		fields := make([]reflect.StructField, len(t.fields))
 		for i, f := range t.fields {
 			fields[i].Name = f.name
+			fields[i].PkgPath = f.pkgPath
 			fields[i].Tag = reflect.StructTag(f.tag)
 			fields[i].Index = f.index
 			fields[i].Offset = f.offset
@@ -172,7 +178,11 @@ func (m *typemap) ToType(t reflect.Type) *typeinfo {
 		// rest of the type information.
 	}
 
-	ti := &typeinfo{offset: offset}
+	ti := &typeinfo{
+		name:    t.Name(),
+		pkgPath: t.PkgPath(),
+		offset:  offset,
+	}
 
 	if _, ok := m.serdes.serdeOf(t); ok {
 		ti.custom = true
