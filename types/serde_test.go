@@ -64,138 +64,136 @@ type funcType func(int) error
 func identity(v int) int { return v }
 
 func TestReflect(t *testing.T) {
-	withBlankTypeMap(func() {
-		intv := int(100)
-		intp := &intv
-		intpp := &intp
-		type ctxKey1 struct{}
+	intv := int(100)
+	intp := &intv
+	intpp := &intp
+	type ctxKey1 struct{}
 
-		RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/types.identity")
+	RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/types.identity")
 
-		var emptyMap map[string]struct{}
+	var emptyMap map[string]struct{}
 
-		cases := []any{
-			map[string]*EasyStruct{"a": {A: 30}},
-			map[string]map[string]*EasyStruct{"a": {"b": {A: 30}}},
-			map[string][1]*EasyStruct{"a": {{A: 30}}},
-			"foo",
-			true,
-			int(42),
-			int64(11),
-			int32(10),
-			int16(9),
-			int8(8),
-			uint(42),
-			uint64(11),
-			uint32(10),
-			uint16(9),
-			uint8(8),
-			intp,
-			intpp,
-			[2]int{1, 2},
-			[]int{1, 2, 3},
-			map[string]int{"one": 1, "two": 2},
-			emptyMap,
-			EasyStruct{
-				A: 52,
-				B: "test",
-			},
-			[]any{},
-			*new([]any),
-			[]any{nil, nil, nil},
-			[]any{nil, 42, nil},
-			struct{ a *int }{intp},
-			struct{ a, b int }{a: 1, b: 2},
-			[1][2]int{{1, 2}},
+	cases := []any{
+		map[string]*EasyStruct{"a": {A: 30}},
+		map[string]map[string]*EasyStruct{"a": {"b": {A: 30}}},
+		map[string][1]*EasyStruct{"a": {{A: 30}}},
+		"foo",
+		true,
+		int(42),
+		int64(11),
+		int32(10),
+		int16(9),
+		int8(8),
+		uint(42),
+		uint64(11),
+		uint32(10),
+		uint16(9),
+		uint8(8),
+		intp,
+		intpp,
+		[2]int{1, 2},
+		[]int{1, 2, 3},
+		map[string]int{"one": 1, "two": 2},
+		emptyMap,
+		EasyStruct{
+			A: 52,
+			B: "test",
+		},
+		[]any{},
+		*new([]any),
+		[]any{nil, nil, nil},
+		[]any{nil, 42, nil},
+		struct{ a *int }{intp},
+		struct{ a, b int }{a: 1, b: 2},
+		[1][2]int{{1, 2}},
 
-			[]any{(*int)(nil)},
+		[]any{(*int)(nil)},
 
-			funcType(nil),
+		funcType(nil),
 
-			func() {},
-			func(int) int { return 42 },
+		func() {},
+		func(int) int { return 42 },
 
-			[1]*int{intp},
+		[1]*int{intp},
 
-			context.Background(),
-			context.TODO(),
-			context.WithValue(context.Background(), ctxKey1{}, "hello"),
+		context.Background(),
+		context.TODO(),
+		context.WithValue(context.Background(), ctxKey1{}, "hello"),
 
-			"",
-			struct{}{},
-			errors.New("test"),
-			unsafe.Pointer(nil),
+		"",
+		struct{}{},
+		errors.New("test"),
+		unsafe.Pointer(nil),
 
-			// Primitives
-			reflect.ValueOf("foo"),
-			reflect.ValueOf(true),
-			reflect.ValueOf(int(1)),
-			reflect.ValueOf(int8(math.MaxInt8)),
-			reflect.ValueOf(int16(-math.MaxInt16)),
-			reflect.ValueOf(int32(math.MaxInt32)),
-			reflect.ValueOf(int64(-math.MaxInt64)),
-			reflect.ValueOf(uint(1)),
-			reflect.ValueOf(uint8(math.MaxUint8)),
-			reflect.ValueOf(uint16(math.MaxUint16)),
-			reflect.ValueOf(uint32(math.MaxUint8)),
-			reflect.ValueOf(uint64(math.MaxUint64)),
-			reflect.ValueOf(float32(3.14)),
-			reflect.ValueOf(float64(math.MaxFloat64)),
+		// Primitives
+		reflect.ValueOf("foo"),
+		reflect.ValueOf(true),
+		reflect.ValueOf(int(1)),
+		reflect.ValueOf(int8(math.MaxInt8)),
+		reflect.ValueOf(int16(-math.MaxInt16)),
+		reflect.ValueOf(int32(math.MaxInt32)),
+		reflect.ValueOf(int64(-math.MaxInt64)),
+		reflect.ValueOf(uint(1)),
+		reflect.ValueOf(uint8(math.MaxUint8)),
+		reflect.ValueOf(uint16(math.MaxUint16)),
+		reflect.ValueOf(uint32(math.MaxUint8)),
+		reflect.ValueOf(uint64(math.MaxUint64)),
+		reflect.ValueOf(float32(3.14)),
+		reflect.ValueOf(float64(math.MaxFloat64)),
 
-			// Arrays
-			reflect.ValueOf([32]byte{0: 1, 15: 2, 31: 3}),
+		// Arrays
+		reflect.ValueOf([32]byte{0: 1, 15: 2, 31: 3}),
 
-			// Slices
-			reflect.ValueOf([]byte("foo")),
-			reflect.ValueOf([][]byte{[]byte("foo"), []byte("bar")}),
-			reflect.ValueOf([]string{"foo", "bar"}),
-			reflect.ValueOf([]int{}),
-			reflect.ValueOf([]int(nil)),
+		// Slices
+		reflect.ValueOf([]byte("foo")),
+		reflect.ValueOf([][]byte{[]byte("foo"), []byte("bar")}),
+		reflect.ValueOf([]string{"foo", "bar"}),
+		reflect.ValueOf([]int{}),
+		reflect.ValueOf([]int(nil)),
 
-			// Maps
-			reflect.ValueOf(map[string]string{"foo": "bar", "abc": "xyz"}),
-			reflect.ValueOf(http.Header{"Content-Length": []string{"11"}, "X-Forwarded-For": []string{"1.1.1.1", "2.2.2.2"}}),
-			reflect.ValueOf(emptyMap),
+		// Maps
+		reflect.ValueOf(map[string]string{"foo": "bar", "abc": "xyz"}),
+		reflect.ValueOf(http.Header{"Content-Length": []string{"11"}, "X-Forwarded-For": []string{"1.1.1.1", "2.2.2.2"}}),
+		reflect.ValueOf(emptyMap),
 
-			// Structs
-			reflect.ValueOf(struct{ A, B int }{1, 2}),
+		// Structs
+		reflect.ValueOf(struct{ A, B int }{1, 2}),
 
-			// Pointers
-			reflect.ValueOf(errors.New("fail")),
+		// Pointers
+		reflect.ValueOf(errors.New("fail")),
 
-			// Funcs
-			reflect.ValueOf(identity),
-			reflect.ValueOf(funcType(nil)),
-		}
+		// Funcs
+		reflect.ValueOf(identity),
+		reflect.ValueOf(funcType(nil)),
+	}
 
-		for _, x := range cases {
-			t := reflect.TypeOf(x)
+	for _, x := range cases {
+		t := reflect.TypeOf(x)
 
-			if t.Kind() == reflect.Func {
-				a := FuncAddr(x)
-				if f := FuncByAddr(a); f != nil {
-					f.Type = t
-				}
+		if t.Kind() == reflect.Func {
+			a := FuncAddr(x)
+			if f := FuncByAddr(a); f != nil {
+				f.Type = t
 			}
 		}
+	}
 
-		for i, x := range cases {
-			x := x
-			typ := reflect.TypeOf(x)
-			t.Run(fmt.Sprintf("%d-%s", i, typ), func(t *testing.T) {
-				b, err := Serialize(x)
-				if err != nil {
-					t.Fatal(err)
-				}
-				out, err := Deserialize(b)
-				if err != nil {
-					t.Fatal(err)
-				}
+	for i, x := range cases {
+		x := x
+		typ := reflect.TypeOf(x)
+		t.Run(fmt.Sprintf("%d-%s", i, typ), func(t *testing.T) {
+			b, err := Serialize(x)
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, err := Deserialize(b)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-				assertEqual(t, x, out)
-			})
-		}
-	})
+			assertEqual(t, x, out)
+		})
+	}
 }
 
 func TestReflectUnsafePointer(t *testing.T) {
@@ -885,19 +883,7 @@ func assertRoundTrip[T any](t *testing.T, orig T) T {
 	return out.(T)
 }
 
-func withBlankTypeMap(f func()) {
-	oldtm := types
-	types = newTypemap()
-	defer func() { types = oldtm }()
-
-	f()
-}
-
 func testReflect(t *testing.T, name string, f func(t *testing.T)) {
 	t.Helper()
-	t.Run(name, func(t *testing.T) {
-		withBlankTypeMap(func() {
-			f(t)
-		})
-	})
+	t.Run(name, f)
 }

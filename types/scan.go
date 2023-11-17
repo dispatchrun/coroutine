@@ -245,7 +245,7 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 
 	// Don't scan types where custom serialization routines
 	// have been registered.
-	if _, ok := types.serdeOf(t); ok {
+	if _, ok := s.serdes.serdeOf(t); ok {
 		return
 	}
 

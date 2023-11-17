@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package coroutine.v1;
+
+// Type is a data type.
+//
+// Types may reference other types internally (including themselves).
+// To encode the graph of types in a program, a Type is expected to be
+// stored alongside all other Types in an array. The index of each Type
+// in the array becomes its unique identifier, and internal references
+// to other types are simply an int32 index.
+message Type {
+  // Name is the name of the type within the package it was defined,
+  string name = 1;
+
+  // Package is the name of the package that defines the type.
+  string package = 2;
+
+  // Kind is the underlying type.
+  Kind kind = 3;
+
+  // Elem is the type of an array, slice, pointer, chan, or map's element.
+  int32 elem = 4;
+
+  // Key is the key type for map types.
+  int32 key = 5;
+
+  // Fields is the set of fields defined in a struct type.
+  repeated Field fields = 6;
+
+  // Params are the types of params for a function type.
+  repeated int32 params = 7;
+
+  // Results are the types of results for a function type.
+  repeated int32 results = 8;
+
+  // Length is the length of an array type.
+  int64 length = 9;
+
+  // MemoryOffset is an optional field that encodes the type's location
+  // in memory.
+  uint64 memory_offset = 10;
+
+  // ChanDir is the direction of a channel type.
+  ChanDir chan_dir = 11;
+
+  // Variadic is true for function types with a variadic argument.
+  bool variadic = 12;
+
+  // CustomSerializer is true if the type has a custom serializer registered.
+  bool custom_serializer = 13;
+}
+
+message Field {
+  // Name is the name of the field.
+  string name = 1;
+
+  // Package is the package path that qualifies a lower case (unexported)
+  // field name. It is empty for upper case (exported) field names.
+  string package = 2;
+
+  // Type is the type of the field.
+  int32 type = 3;
+
+  // Offset is the offset of the field within its struct, in bytes.
+  uint64 offset = 4;
+
+  // Index is a sequence used by (reflect.Type).FieldByIndex.
+  repeated int32 index = 5;
+
+  // Anonymous indicates whether the field is an embedded field (with a name
+  // derived from its type).
+  bool anonymous = 6;
+
+  // Tag contains field metadata.
+  string tag = 7;
+}
+
+enum Kind {
+  KIND_UNSPECIFIED = 0;
+  KIND_NIL = 1;
+  KIND_BOOL = 2;
+  KIND_INT = 3;
+  KIND_INT8 = 4;
+  KIND_INT16 = 5;
+  KIND_INT32 = 6;
+  KIND_INT64 = 7;
+  KIND_UINT = 8;
+  KIND_UINT8 = 9;
+  KIND_UINT16 = 10;
+  KIND_UINT32 = 11;
+  KIND_UINT64 = 12;
+  KIND_UINTPTR = 13;
+  KIND_FLOAT32 = 14;
+  KIND_FLOAT64 = 15;
+  KIND_COMPLEX64 = 16;
+  KIND_COMPLEX128 = 17;
+  KIND_ARRAY = 18;
+  KIND_CHAN = 19;
+  KIND_FUNC = 20;
+  KIND_INTERFACE = 21;
+  KIND_MAP = 22;
+  KIND_POINTER = 23;
+  KIND_SLICE = 24;
+  KIND_STRING = 25;
+  KIND_STRUCT = 26;
+  KIND_UNSAFE_POINTER = 27;
+}
+
+enum ChanDir {
+  CHAN_DIR_UNSPECIFIED = 0;
+  CHAN_DIR_RECV = 1;
+  CHAN_DIR_SEND = 2;
+  CHAN_DIR_BOTH = 3;
+}

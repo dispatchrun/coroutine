@@ -4,292 +4,359 @@ import (
 	"fmt"
 	"reflect"
 	"unsafe"
+
+	coroutinev1 "github.com/stealthrocket/coroutine/gen/proto/go/coroutine/v1"
 )
 
-type typekind int
+type typeid = uint32
 
-const (
-	typeNone typekind = iota
-	typeCustom
-	typeBasic
-	typePointer
-	typeMap
-	typeArray
-	typeSlice
-	typeStruct
-	typeFunc
-	typeChan
-)
+type typemap struct {
+	serdes *serdemap
 
-// typeinfo represents a type in the serialization format. It is a
-// one-size-fits-all struct that contains everything needed to reconstruct a
-// reflect.Type. This is because an interface-based approach is more difficult
-// to get right, and we will be revamping serde anyway.
-type typeinfo struct {
-	kind typekind
-
-	// Only present for named types. See documentation of [namedTypeOffset].
-	offset namedTypeOffset
-
-	// - typeCustom uses this field to store the index in the typemap of the
-	//   custom type it represents.
-	// - typeBasic uses it to store the reflect.Kind it represents.
-	// - typeArray stores its length
-	// - typeFunc uses it to store the number of input arguments and whether
-	//   its variadic as the first bit.
-	val int
-	// typeArray, typeSlice, typePointer, typeChan and typeMap use this field to
-	// store the information about the type they contain.
-	elem   *typeinfo
-	key    *typeinfo   // typeMap only
-	fields []Field     // typeStruct only
-	args   []*typeinfo // typeFunc only
-	dir    chanDir     // typeChan only
+	types []*coroutinev1.Type
+	cache doublemap[typeid, reflect.Type]
 }
 
-type chanDir int
-
-const (
-	recvDir chanDir             = 1 << iota // <-chan
-	sendDir                                 // chan<-
-	bothDir = recvDir | sendDir             // chan
-)
-
-func (t *typeinfo) reflectType(tm *typemap) reflect.Type {
-	if t.offset != 0 {
-		return typeForOffset(t.offset)
+func newTypeMap(serdes *serdemap, types []*coroutinev1.Type) *typemap {
+	return &typemap{
+		serdes: serdes,
+		types:  types,
 	}
+}
 
-	switch t.kind {
-	case typeNone:
+func (m *typemap) register(t *coroutinev1.Type) typeid {
+	m.types = append(m.types, t)
+	id := typeid(len(m.types)) // note that IDs start at 1
+	return id
+}
+
+func (m *typemap) lookup(id typeid) *coroutinev1.Type {
+	if id == 0 || id > uint32(len(m.types)) {
 		return nil
-	case typeCustom:
-		return tm.custom[t.val]
-	case typeBasic:
-		switch reflect.Kind(t.val) {
-		case reflect.Bool:
-			return reflect.TypeOf(false)
-		case reflect.Int:
-			return reflect.TypeOf(int(0))
-		case reflect.Int64:
-			return reflect.TypeOf(int64(0))
-		case reflect.Int32:
-			return reflect.TypeOf(int32(0))
-		case reflect.Int16:
-			return reflect.TypeOf(int16(0))
-		case reflect.Int8:
-			return reflect.TypeOf(int8(0))
-		case reflect.Uint:
-			return reflect.TypeOf(uint(0))
-		case reflect.Uint64:
-			return reflect.TypeOf(uint64(0))
-		case reflect.Uint32:
-			return reflect.TypeOf(uint32(0))
-		case reflect.Uint16:
-			return reflect.TypeOf(uint16(0))
-		case reflect.Uint8:
-			return reflect.TypeOf(uint8(0))
-		case reflect.Uintptr:
-			return reflect.TypeOf(uintptr(0))
-		case reflect.Float64:
-			return reflect.TypeOf(float64(0))
-		case reflect.Float32:
-			return reflect.TypeOf(float32(0))
-		case reflect.Complex64:
-			return reflect.TypeOf(complex64(0))
-		case reflect.Complex128:
-			return reflect.TypeOf(complex128(0))
-		case reflect.String:
-			return reflect.TypeOf("")
-		case reflect.Interface:
-			return typeof[interface{}]()
-		default:
-			panic("Basic type unknown")
-		}
-	case typePointer:
-		if t.elem == nil {
-			return reflect.TypeOf(unsafe.Pointer(nil))
-		}
-		return reflect.PointerTo(tm.ToReflect(t.elem))
-	case typeMap:
-		return reflect.MapOf(tm.ToReflect(t.key), tm.ToReflect(t.elem))
-	case typeArray:
-		return reflect.ArrayOf(t.val, tm.ToReflect(t.elem))
-	case typeSlice:
-		return reflect.SliceOf(tm.ToReflect(t.elem))
-	case typeStruct:
-		fields := make([]reflect.StructField, len(t.fields))
-		for i, f := range t.fields {
-			fields[i].Name = f.name
-			fields[i].Tag = reflect.StructTag(f.tag)
-			fields[i].Index = f.index
-			fields[i].Offset = f.offset
-			fields[i].Anonymous = f.anon
-			fields[i].Type = tm.ToReflect(f.typ)
-		}
-		return reflect.StructOf(fields)
-	case typeFunc:
-		variadic := (t.val & 1) > 0
-		in := t.val >> 1
-		insouts := make([]reflect.Type, len(t.args))
-		for i, t := range t.args {
-			insouts[i] = tm.ToReflect(t)
-		}
-		return reflect.FuncOf(insouts[:in], insouts[in:], variadic)
-	case typeChan:
-		var dir reflect.ChanDir
-		switch t.dir {
-		case recvDir:
-			dir = reflect.RecvDir
-		case sendDir:
-			dir = reflect.SendDir
-		case bothDir:
-			dir = reflect.BothDir
-		}
-		return reflect.ChanOf(dir, tm.ToReflect(t.elem))
 	}
-	panic(fmt.Errorf("unknown typekind: %d", t.kind))
+	return m.types[id-1]
 }
 
-type Field struct {
-	name   string
-	typ    *typeinfo
-	index  []int
-	offset uintptr
-	anon   bool
-	tag    string
-}
-
-func (m *typemap) ToReflect(t *typeinfo) reflect.Type {
-	if x, ok := m.cache.getV(t); ok {
+func (m *typemap) ToReflect(id typeid) reflect.Type {
+	if x, ok := m.cache.getK(id); ok {
 		return x
 	}
-	x := t.reflectType(m)
-	m.cache.add(x, t)
+
+	t := m.lookup(id)
+	if t == nil {
+		panic(fmt.Sprintf("type %d not found", id))
+	}
+
+	if t.MemoryOffset != 0 {
+		return typeForOffset(namedTypeOffset(t.MemoryOffset))
+	}
+
+	var x reflect.Type
+	switch t.Kind {
+	case coroutinev1.Kind_KIND_NIL:
+		x = nil
+
+	case coroutinev1.Kind_KIND_BOOL:
+		x = reflect.TypeOf(false)
+
+	case coroutinev1.Kind_KIND_INT:
+		x = reflect.TypeOf(int(0))
+
+	case coroutinev1.Kind_KIND_INT8:
+		x = reflect.TypeOf(int8(0))
+
+	case coroutinev1.Kind_KIND_INT16:
+		x = reflect.TypeOf(int16(0))
+
+	case coroutinev1.Kind_KIND_INT32:
+		x = reflect.TypeOf(int32(0))
+
+	case coroutinev1.Kind_KIND_INT64:
+		x = reflect.TypeOf(int64(0))
+
+	case coroutinev1.Kind_KIND_UINT:
+		x = reflect.TypeOf(uint(0))
+
+	case coroutinev1.Kind_KIND_UINT8:
+		x = reflect.TypeOf(uint8(0))
+
+	case coroutinev1.Kind_KIND_UINT16:
+		x = reflect.TypeOf(uint16(0))
+
+	case coroutinev1.Kind_KIND_UINT32:
+		x = reflect.TypeOf(uint32(0))
+
+	case coroutinev1.Kind_KIND_UINT64:
+		x = reflect.TypeOf(uint64(0))
+
+	case coroutinev1.Kind_KIND_UINTPTR:
+		x = reflect.TypeOf(uintptr(0))
+
+	case coroutinev1.Kind_KIND_FLOAT32:
+		x = reflect.TypeOf(float32(0))
+
+	case coroutinev1.Kind_KIND_FLOAT64:
+		x = reflect.TypeOf(float64(0))
+
+	case coroutinev1.Kind_KIND_COMPLEX64:
+		x = reflect.TypeOf(complex64(0))
+
+	case coroutinev1.Kind_KIND_COMPLEX128:
+		x = reflect.TypeOf(complex128(0))
+
+	case coroutinev1.Kind_KIND_STRING:
+		x = reflect.TypeOf("")
+
+	case coroutinev1.Kind_KIND_INTERFACE:
+		x = typeof[interface{}]()
+
+	case coroutinev1.Kind_KIND_POINTER:
+		x = reflect.PointerTo(m.ToReflect(typeid(t.Elem)))
+
+	case coroutinev1.Kind_KIND_UNSAFE_POINTER:
+		x = reflect.TypeOf(unsafe.Pointer(nil))
+
+	case coroutinev1.Kind_KIND_MAP:
+		x = reflect.MapOf(m.ToReflect(typeid(t.Key)), m.ToReflect(typeid(t.Elem)))
+
+	case coroutinev1.Kind_KIND_ARRAY:
+		x = reflect.ArrayOf(int(t.Length), m.ToReflect(typeid(t.Elem)))
+
+	case coroutinev1.Kind_KIND_SLICE:
+		x = reflect.SliceOf(m.ToReflect(typeid(t.Elem)))
+
+	case coroutinev1.Kind_KIND_STRUCT:
+		fields := make([]reflect.StructField, len(t.Fields))
+		for i, f := range t.Fields {
+			fields[i].Name = f.Name
+			fields[i].PkgPath = f.Package
+			fields[i].Tag = reflect.StructTag(f.Tag)
+
+			index := make([]int, len(f.Index))
+			for i, idx := range f.Index {
+				index[i] = int(idx)
+			}
+			fields[i].Index = index
+			fields[i].Offset = uintptr(f.Offset)
+			fields[i].Anonymous = f.Anonymous
+			fields[i].Type = m.ToReflect(typeid(f.Type))
+		}
+		x = reflect.StructOf(fields)
+
+	case coroutinev1.Kind_KIND_FUNC:
+		params := make([]reflect.Type, len(t.Params))
+		for i, t := range t.Params {
+			params[i] = m.ToReflect(typeid(t))
+		}
+		results := make([]reflect.Type, len(t.Results))
+		for i, t := range t.Results {
+			results[i] = m.ToReflect(typeid(t))
+		}
+		x = reflect.FuncOf(params, results, t.Variadic)
+
+	case coroutinev1.Kind_KIND_CHAN:
+		var dir reflect.ChanDir
+		switch t.ChanDir {
+		case coroutinev1.ChanDir_CHAN_DIR_RECV:
+			dir = reflect.RecvDir
+		case coroutinev1.ChanDir_CHAN_DIR_SEND:
+			dir = reflect.SendDir
+		case coroutinev1.ChanDir_CHAN_DIR_BOTH:
+			dir = reflect.BothDir
+		default:
+			panic("invalid chan dir: " + t.ChanDir.String())
+		}
+		x = reflect.ChanOf(dir, m.ToReflect(typeid(t.Elem)))
+
+	default:
+		panic("invalid type kind: " + t.Kind.String())
+	}
+
+	m.cache.add(id, x)
 	return x
 }
 
-func (m *typemap) ToType(t reflect.Type) *typeinfo {
-	if x, ok := m.cache.getK(t); ok {
+func (m *typemap) ToType(t reflect.Type) typeid {
+	if x, ok := m.cache.getV(t); ok {
 		return x
 	}
 
 	if t == nil {
-		return m.cache.add(t, &typeinfo{kind: typeNone})
+		id := m.register(&coroutinev1.Type{Kind: coroutinev1.Kind_KIND_NIL})
+		m.cache.add(id, t)
+		return id
 	}
 
-	var offset namedTypeOffset
-	if named(t) {
-		offset = offsetForType(t)
-		// Technically types with an offset do not need more information
-		// than that. However for debugging purposes also generate the
-		// rest of the type information.
+	ti := &coroutinev1.Type{
+		Name:    t.Name(),
+		Package: t.PkgPath(),
 	}
 
-	if s, ok := m.serdes[t]; ok {
-		return m.cache.add(t, &typeinfo{
-			kind:   typeCustom,
-			offset: offset,
-			val:    s.id,
-		})
+	if t.Name() != "" {
+		ti.MemoryOffset = uint64(offsetForType(t))
+	}
+	if _, ok := m.serdes.serdeOf(t); ok {
+		ti.CustomSerializer = true
 	}
 
-	ti := &typeinfo{offset: offset}
-	m.cache.add(t, ti) // add now for recursion
+	// Register the incomplete type now before recursing,
+	// in case the type references itself.
+	id := m.register(ti)
+	m.cache.add(id, t)
+
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic("can't handle reflect.Invalid")
-	case reflect.Bool,
-		reflect.Int,
-		reflect.Int64,
-		reflect.Int32,
-		reflect.Int16,
-		reflect.Int8,
-		reflect.Uint,
-		reflect.Uint64,
-		reflect.Uint32,
-		reflect.Uint16,
-		reflect.Uint8,
-		reflect.Uintptr,
-		reflect.Float64,
-		reflect.Float32,
-		reflect.Complex64,
-		reflect.Complex128,
-		reflect.String,
-		reflect.Interface:
-		ti.kind = typeBasic
-		ti.val = int(t.Kind())
+
+	case reflect.Bool:
+		ti.Kind = coroutinev1.Kind_KIND_BOOL
+
+	case reflect.Int:
+		ti.Kind = coroutinev1.Kind_KIND_INT
+
+	case reflect.Int8:
+		ti.Kind = coroutinev1.Kind_KIND_INT8
+
+	case reflect.Int16:
+		ti.Kind = coroutinev1.Kind_KIND_INT16
+
+	case reflect.Int32:
+		ti.Kind = coroutinev1.Kind_KIND_INT32
+
+	case reflect.Int64:
+		ti.Kind = coroutinev1.Kind_KIND_INT64
+
+	case reflect.Uint:
+		ti.Kind = coroutinev1.Kind_KIND_UINT
+
+	case reflect.Uint8:
+		ti.Kind = coroutinev1.Kind_KIND_UINT8
+
+	case reflect.Uint16:
+		ti.Kind = coroutinev1.Kind_KIND_UINT16
+
+	case reflect.Uint32:
+		ti.Kind = coroutinev1.Kind_KIND_UINT32
+
+	case reflect.Uint64:
+		ti.Kind = coroutinev1.Kind_KIND_UINT64
+
+	case reflect.Uintptr:
+		ti.Kind = coroutinev1.Kind_KIND_UINTPTR
+
+	case reflect.Float32:
+		ti.Kind = coroutinev1.Kind_KIND_FLOAT32
+
+	case reflect.Float64:
+		ti.Kind = coroutinev1.Kind_KIND_FLOAT64
+
+	case reflect.Complex64:
+		ti.Kind = coroutinev1.Kind_KIND_COMPLEX64
+
+	case reflect.Complex128:
+		ti.Kind = coroutinev1.Kind_KIND_COMPLEX128
+
+	case reflect.String:
+		ti.Kind = coroutinev1.Kind_KIND_STRING
+
+	case reflect.Interface:
+		ti.Kind = coroutinev1.Kind_KIND_INTERFACE
+
 	case reflect.Array:
-		ti.kind = typeArray
-		ti.val = t.Len()
-		ti.elem = m.ToType(t.Elem())
+		ti.Kind = coroutinev1.Kind_KIND_ARRAY
+		ti.Length = int64(t.Len())
+		ti.Elem = int32(m.ToType(t.Elem()))
+
 	case reflect.Map:
-		ti.kind = typeMap
-		ti.key = m.ToType(t.Key())
-		ti.elem = m.ToType(t.Elem())
+		ti.Kind = coroutinev1.Kind_KIND_MAP
+		ti.Key = int32(m.ToType(t.Key()))
+		ti.Elem = int32(m.ToType(t.Elem()))
+
 	case reflect.Pointer:
-		ti.kind = typePointer
-		ti.elem = m.ToType(t.Elem())
+		ti.Kind = coroutinev1.Kind_KIND_POINTER
+		ti.Elem = int32(m.ToType(t.Elem()))
+
 	case reflect.UnsafePointer:
-		ti.kind = typePointer
-		ti.elem = nil
+		ti.Kind = coroutinev1.Kind_KIND_UNSAFE_POINTER
+
 	case reflect.Slice:
-		ti.kind = typeSlice
-		ti.elem = m.ToType(t.Elem())
+		ti.Kind = coroutinev1.Kind_KIND_SLICE
+		ti.Elem = int32(m.ToType(t.Elem()))
+
 	case reflect.Struct:
-		n := t.NumField()
-		fields := make([]Field, n)
-		for i := 0; i < n; i++ {
+		ti.Kind = coroutinev1.Kind_KIND_STRUCT
+		ti.Fields = make([]*coroutinev1.Field, t.NumField())
+		for i := range ti.Fields {
 			f := t.Field(i)
-			if !f.IsExported() && offset == 0 {
-				ti.offset = offsetForType(t)
+			if !f.IsExported() && ti.MemoryOffset == 0 {
+				ti.MemoryOffset = uint64(offsetForType(t))
 			}
-			fields[i].name = f.Name
-			fields[i].anon = f.Anonymous
-			fields[i].index = f.Index
-			fields[i].offset = f.Offset
-			fields[i].tag = string(f.Tag)
-			fields[i].typ = m.ToType(f.Type)
+			index := make([]int32, len(f.Index))
+			for j := range index {
+				index[j] = int32(f.Index[j])
+			}
+			ti.Fields[i] = &coroutinev1.Field{
+				Name:      f.Name,
+				Package:   f.PkgPath,
+				Offset:    uint64(f.Offset),
+				Anonymous: f.Anonymous,
+				Tag:       string(f.Tag),
+				Type:      int32(m.ToType(f.Type)),
+				Index:     index,
+			}
 		}
-		ti.kind = typeStruct
-		ti.fields = fields
+
 	case reflect.Func:
-		nin := t.NumIn()
-		nout := t.NumOut()
-		types := make([]*typeinfo, nin+nout)
-		for i := 0; i < nin; i++ {
-			types[i] = m.ToType(t.In(i))
+		ti.Kind = coroutinev1.Kind_KIND_FUNC
+		ti.Params = make([]int32, t.NumIn())
+		for i := range ti.Params {
+			ti.Params[i] = int32(m.ToType(t.In(i)))
 		}
-		for i := 0; i < nout; i++ {
-			types[nin+i] = m.ToType(t.Out(i))
+		ti.Results = make([]int32, t.NumOut())
+		for i := range ti.Results {
+			ti.Results[i] = int32(m.ToType(t.Out(i)))
 		}
-		ti.kind = typeFunc
-		ti.val = nin<<1 | boolint(t.IsVariadic())
-		ti.args = types
+		ti.Variadic = t.IsVariadic()
+
 	case reflect.Chan:
-		ti.kind = typeChan
-		ti.elem = m.ToType(t.Elem())
+		ti.Kind = coroutinev1.Kind_KIND_CHAN
+		ti.Elem = int32(m.ToType(t.Elem()))
 		switch t.ChanDir() {
 		case reflect.RecvDir:
-			ti.dir = recvDir
+			ti.ChanDir = coroutinev1.ChanDir_CHAN_DIR_RECV
 		case reflect.SendDir:
-			ti.dir = sendDir
+			ti.ChanDir = coroutinev1.ChanDir_CHAN_DIR_SEND
 		case reflect.BothDir:
-			ti.dir = bothDir
+			ti.ChanDir = coroutinev1.ChanDir_CHAN_DIR_BOTH
 		}
+
 	default:
 		panic(fmt.Errorf("unsupported reflect.Kind (%s)", t.Kind()))
 	}
-	return ti
+	return id
 }
 
-func boolint(x bool) int {
-	if x {
-		return 1
+type doublemap[K, V comparable] struct {
+	fromK map[K]V
+	fromV map[V]K
+}
+
+func (m *doublemap[K, V]) getK(k K) (V, bool) {
+	v, ok := m.fromK[k]
+	return v, ok
+}
+
+func (m *doublemap[K, V]) getV(v V) (K, bool) {
+	k, ok := m.fromV[v]
+	return k, ok
+}
+
+func (m *doublemap[K, V]) add(k K, v V) V {
+	if m.fromK == nil {
+		m.fromK = make(map[K]V)
+		m.fromV = make(map[V]K)
 	}
-	return 0
-}
-
-func named(t reflect.Type) bool {
-	return t.Name() != ""
+	m.fromK[k] = v
+	m.fromV[v] = k
+	return v
 }

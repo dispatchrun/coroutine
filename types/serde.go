@@ -55,6 +55,7 @@ func Serialize(x any) ([]byte, error) {
 	state := &coroutinev1.State{
 		State: s.b,
 		Build: buildInfo,
+		Types: s.types.types,
 	}
 	return state.MarshalVT()
 }
@@ -69,7 +70,7 @@ func Deserialize(b []byte) (interface{}, error) {
 		return nil, fmt.Errorf("%w: got %v, expect %v", ErrBuildIDMismatch, state.Build.Id, buildInfo.Id)
 	}
 
-	d := newDeserializer(state.State)
+	d := newDeserializer(state.State, state.Types)
 	var x interface{}
 	px := &x
 	t := reflect.TypeOf(px).Elem()
@@ -82,6 +83,9 @@ func Deserialize(b []byte) (interface{}, error) {
 }
 
 type Deserializer struct {
+	serdes *serdemap
+	types  *typemap
+
 	// TODO: make it a slice since pointer ids is the sequence of integers
 	// starting at 1.
 	ptrs map[sID]unsafe.Pointer
@@ -90,10 +94,12 @@ type Deserializer struct {
 	b []byte
 }
 
-func newDeserializer(b []byte) *Deserializer {
+func newDeserializer(b []byte, types []*coroutinev1.Type) *Deserializer {
 	return &Deserializer{
-		ptrs: make(map[sID]unsafe.Pointer),
-		b:    b,
+		serdes: serdes,
+		types:  newTypeMap(serdes, types),
+		ptrs:   make(map[sID]unsafe.Pointer),
+		b:      b,
 	}
 }
 
@@ -148,6 +154,8 @@ func (d *Deserializer) store(i sID, p unsafe.Pointer) {
 // shared memory. Only outermost containers are serialized. All pointers either
 // point to a container, or an offset into that container.
 type Serializer struct {
+	serdes     *serdemap
+	types      *typemap
 	ptrs       map[unsafe.Pointer]sID
 	containers containers
 
@@ -160,6 +168,8 @@ type Serializer struct {
 
 func newSerializer() *Serializer {
 	return &Serializer{
+		serdes:   serdes,
+		types:    newTypeMap(serdes, nil),
 		ptrs:     make(map[unsafe.Pointer]sID),
 		scanptrs: make(map[reflect.Value]struct{}),
 		b:        make([]byte, 0, 128),
