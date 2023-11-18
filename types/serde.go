@@ -46,9 +46,8 @@ func Serialize(x any) ([]byte, error) {
 	p := wr.UnsafePointer() // *interface{}
 	t := wr.Elem().Type()   // what x contains
 
-	scan(s, t, p)
-	// scan dirties s.scanptrs, so clean it up.
-	clear(s.scanptrs)
+	// Scan pointers to collect memory regions.
+	s.scan(t, p)
 
 	serializeAny(s, t, p)
 
@@ -164,9 +163,6 @@ type Serializer struct {
 	ptrs       map[unsafe.Pointer]sID
 	containers containers
 
-	// TODO: move out. just used temporarily by scan
-	scanptrs map[reflect.Value]struct{}
-
 	// Output
 	b []byte
 }
@@ -175,12 +171,11 @@ func newSerializer() *Serializer {
 	types := newTypeMap(serdes, nil)
 
 	return &Serializer{
-		serdes:   serdes,
-		types:    types,
-		funcs:    newFuncMap(types, nil),
-		ptrs:     make(map[unsafe.Pointer]sID),
-		scanptrs: make(map[reflect.Value]struct{}),
-		b:        make([]byte, 0, 128),
+		serdes: serdes,
+		types:  types,
+		funcs:  newFuncMap(types, nil),
+		ptrs:   make(map[unsafe.Pointer]sID),
+		b:      make([]byte, 0, 128),
 	}
 }
 
