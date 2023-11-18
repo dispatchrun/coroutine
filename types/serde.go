@@ -49,13 +49,19 @@ func Serialize(x any) ([]byte, error) {
 	// Scan pointers to collect memory regions.
 	s.scan(t, p)
 
+	rootType := reflect.TypeOf(wr.Elem().Interface())
+	rootTypeID := s.types.ToType(rootType)
+
 	serializeAny(s, t, p)
 
 	state := &coroutinev1.State{
-		State:     s.b,
 		Build:     buildInfo,
 		Types:     s.types.types,
 		Functions: s.funcs.funcs,
+		Root: &coroutinev1.Region{
+			Type: int32(rootTypeID),
+			Data: s.b,
+		},
 	}
 	return state.MarshalVT()
 }
@@ -70,12 +76,14 @@ func Deserialize(b []byte) (interface{}, error) {
 		return nil, fmt.Errorf("%w: got %v, expect %v", ErrBuildIDMismatch, state.Build.Id, buildInfo.Id)
 	}
 
-	d := newDeserializer(state.State, state.Types, state.Functions)
+	d := newDeserializer(state.Root.Data, state.Types, state.Functions)
+
 	var x interface{}
 	px := &x
 	t := reflect.TypeOf(px).Elem()
 	p := unsafe.Pointer(px)
 	deserializeInterface(d, t, p)
+
 	if len(d.b) != 0 {
 		return nil, errors.New("trailing bytes")
 	}
