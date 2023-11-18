@@ -47,6 +47,18 @@ func (m *State) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if len(m.Functions) > 0 {
+		for iNdEx := len(m.Functions) - 1; iNdEx >= 0; iNdEx-- {
+			size, err := m.Functions[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarint(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0x22
+		}
+	}
 	if len(m.Types) > 0 {
 		for iNdEx := len(m.Types) - 1; iNdEx >= 0; iNdEx-- {
 			size, err := m.Types[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
@@ -149,6 +161,12 @@ func (m *State) SizeVT() (n int) {
 	}
 	if len(m.Types) > 0 {
 		for _, e := range m.Types {
+			l = e.SizeVT()
+			n += 1 + l + sov(uint64(l))
+		}
+	}
+	if len(m.Functions) > 0 {
+		for _, e := range m.Functions {
 			l = e.SizeVT()
 			n += 1 + l + sov(uint64(l))
 		}
@@ -309,6 +327,40 @@ func (m *State) UnmarshalVT(dAtA []byte) error {
 			}
 			m.Types = append(m.Types, &Type{})
 			if err := m.Types[len(m.Types)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Functions", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Functions = append(m.Functions, &Function{})
+			if err := m.Functions[len(m.Functions)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

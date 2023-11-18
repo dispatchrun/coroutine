@@ -53,9 +53,10 @@ func Serialize(x any) ([]byte, error) {
 	serializeAny(s, t, p)
 
 	state := &coroutinev1.State{
-		State: s.b,
-		Build: buildInfo,
-		Types: s.types.types,
+		State:     s.b,
+		Build:     buildInfo,
+		Types:     s.types.types,
+		Functions: s.funcs.funcs,
 	}
 	return state.MarshalVT()
 }
@@ -70,7 +71,7 @@ func Deserialize(b []byte) (interface{}, error) {
 		return nil, fmt.Errorf("%w: got %v, expect %v", ErrBuildIDMismatch, state.Build.Id, buildInfo.Id)
 	}
 
-	d := newDeserializer(state.State, state.Types)
+	d := newDeserializer(state.State, state.Types, state.Functions)
 	var x interface{}
 	px := &x
 	t := reflect.TypeOf(px).Elem()
@@ -85,6 +86,7 @@ func Deserialize(b []byte) (interface{}, error) {
 type Deserializer struct {
 	serdes *serdemap
 	types  *typemap
+	funcs  *funcmap
 
 	// TODO: make it a slice since pointer ids is the sequence of integers
 	// starting at 1.
@@ -94,10 +96,12 @@ type Deserializer struct {
 	b []byte
 }
 
-func newDeserializer(b []byte, types []*coroutinev1.Type) *Deserializer {
+func newDeserializer(b []byte, ctypes []*coroutinev1.Type, cfuncs []*coroutinev1.Function) *Deserializer {
+	types := newTypeMap(serdes, ctypes)
 	return &Deserializer{
 		serdes: serdes,
-		types:  newTypeMap(serdes, types),
+		types:  types,
+		funcs:  newFuncMap(types, cfuncs),
 		ptrs:   make(map[sID]unsafe.Pointer),
 		b:      b,
 	}
@@ -156,6 +160,7 @@ func (d *Deserializer) store(i sID, p unsafe.Pointer) {
 type Serializer struct {
 	serdes     *serdemap
 	types      *typemap
+	funcs      *funcmap
 	ptrs       map[unsafe.Pointer]sID
 	containers containers
 
@@ -167,9 +172,12 @@ type Serializer struct {
 }
 
 func newSerializer() *Serializer {
+	types := newTypeMap(serdes, nil)
+
 	return &Serializer{
 		serdes:   serdes,
-		types:    newTypeMap(serdes, nil),
+		types:    types,
+		funcs:    newFuncMap(types, nil),
 		ptrs:     make(map[unsafe.Pointer]sID),
 		scanptrs: make(map[reflect.Value]struct{}),
 		b:        make([]byte, 0, 128),

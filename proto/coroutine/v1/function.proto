@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package coroutine.v1;
+
+// Function represents a function, method or closure in the program.
+message Function {
+  // Name is the name of the function.
+  string name = 1;
+
+  // Type is an identifier for the function's type.
+  int32 type = 2;
+
+  // Closure is an identifier for a struct type that represents the
+  // memory layout of the closure.
+  int32 closure = 3;
+}

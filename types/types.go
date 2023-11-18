@@ -336,6 +336,70 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 	return id
 }
 
+type funcid = uint32
+
+type funcmap struct {
+	types *typemap
+
+	funcs []*coroutinev1.Function
+	cache doublemap[typeid, *Func]
+}
+
+func newFuncMap(types *typemap, funcs []*coroutinev1.Function) *funcmap {
+	return &funcmap{
+		types: types,
+		funcs: funcs,
+	}
+}
+
+func (m *funcmap) register(f *coroutinev1.Function) typeid {
+	m.funcs = append(m.funcs, f)
+	id := funcid(len(m.funcs)) // note that IDs start at 1
+	return id
+}
+
+func (m *funcmap) lookup(id funcid) *coroutinev1.Function {
+	if id == 0 || id > uint32(len(m.funcs)) {
+		return nil
+	}
+	return m.funcs[id-1]
+}
+
+func (m *funcmap) ToFunc(id funcid) *Func {
+	if x, ok := m.cache.getK(id); ok {
+		return x
+	}
+	cf := m.lookup(id)
+	if cf == nil {
+		panic(fmt.Sprintf("function ID %d not found", id))
+	}
+	f := FuncByName(cf.Name)
+	if f == nil {
+		panic(fmt.Sprintf("function %s not found", cf.Name))
+	}
+	return f
+}
+
+func (m *funcmap) RegisterAddr(addr unsafe.Pointer) (id funcid, closureType reflect.Type) {
+	f := FuncByAddr(uintptr(addr))
+	if f == nil {
+		panic(fmt.Sprintf("function not found at address %v", addr))
+	}
+
+	var closureTypeID typeid
+	if f.Closure != nil {
+		closureTypeID = m.types.ToType(f.Closure)
+	}
+
+	id = m.register(&coroutinev1.Function{
+		Name:    f.Name,
+		Type:    int32(m.types.ToType(f.Type)),
+		Closure: int32(closureTypeID),
+	})
+
+	return id, f.Closure
+}
+
 type doublemap[K, V comparable] struct {
 	fromK map[K]V
 	fromV map[V]K
