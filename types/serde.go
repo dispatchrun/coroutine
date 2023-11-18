@@ -58,6 +58,7 @@ func Serialize(x any) ([]byte, error) {
 		Build:     buildInfo,
 		Types:     s.types.types,
 		Functions: s.funcs.funcs,
+		Regions:   s.regions,
 		Root: &coroutinev1.Region{
 			Type: int32(rootTypeID),
 			Data: s.b,
@@ -76,7 +77,7 @@ func Deserialize(b []byte) (interface{}, error) {
 		return nil, fmt.Errorf("%w: got %v, expect %v", ErrBuildIDMismatch, state.Build.Id, buildInfo.Id)
 	}
 
-	d := newDeserializer(state.Root.Data, state.Types, state.Functions)
+	d := newDeserializer(state.Root.Data, state.Types, state.Functions, state.Regions)
 
 	var x interface{}
 	px := &x
@@ -91,44 +92,39 @@ func Deserialize(b []byte) (interface{}, error) {
 }
 
 type Deserializer struct {
-	serdes *serdemap
-	types  *typemap
-	funcs  *funcmap
-
-	// TODO: make it a slice since pointer ids is the sequence of integers
-	// starting at 1.
-	ptrs map[sID]unsafe.Pointer
+	*deserializerContext
 
 	// input
 	b []byte
 }
 
-func newDeserializer(b []byte, ctypes []*coroutinev1.Type, cfuncs []*coroutinev1.Function) *Deserializer {
+type deserializerContext struct {
+	serdes  *serdemap
+	types   *typemap
+	funcs   *funcmap
+	regions []*coroutinev1.Region
+	ptrs    map[sID]unsafe.Pointer
+}
+
+func newDeserializer(b []byte, ctypes []*coroutinev1.Type, cfuncs []*coroutinev1.Function, regions []*coroutinev1.Region) *Deserializer {
 	types := newTypeMap(serdes, ctypes)
 	return &Deserializer{
-		serdes: serdes,
-		types:  types,
-		funcs:  newFuncMap(types, cfuncs),
-		ptrs:   make(map[sID]unsafe.Pointer),
-		b:      b,
+		&deserializerContext{
+			serdes:  serdes,
+			types:   types,
+			funcs:   newFuncMap(types, cfuncs),
+			regions: regions,
+			ptrs:    make(map[sID]unsafe.Pointer),
+		},
+		b,
 	}
 }
 
-func (d *Deserializer) readPtr() (unsafe.Pointer, sID) {
-	x, n := binary.Varint(d.b)
-	d.b = d.b[n:]
-
-	// pointer into static uint64 table
-	if x == -1 {
-		x, n = binary.Varint(d.b)
-		d.b = d.b[n:]
-		p := staticPointer(int(x))
-		return p, 0
+func (d *Deserializer) fork(b []byte) *Deserializer {
+	return &Deserializer{
+		d.deserializerContext,
+		b,
 	}
-
-	i := sID(x)
-	p := d.ptrs[i]
-	return p, i
 }
 
 func (d *Deserializer) store(i sID, p unsafe.Pointer) {
@@ -165,25 +161,39 @@ func (d *Deserializer) store(i sID, p unsafe.Pointer) {
 // shared memory. Only outermost containers are serialized. All pointers either
 // point to a container, or an offset into that container.
 type Serializer struct {
+	*serializerContext
+
+	// Output
+	b []byte
+}
+
+type serializerContext struct {
 	serdes     *serdemap
 	types      *typemap
 	funcs      *funcmap
 	ptrs       map[unsafe.Pointer]sID
+	regions    []*coroutinev1.Region
 	containers containers
-
-	// Output
-	b []byte
 }
 
 func newSerializer() *Serializer {
 	types := newTypeMap(serdes, nil)
 
 	return &Serializer{
-		serdes: serdes,
-		types:  types,
-		funcs:  newFuncMap(types, nil),
-		ptrs:   make(map[unsafe.Pointer]sID),
-		b:      make([]byte, 0, 128),
+		&serializerContext{
+			serdes: serdes,
+			types:  types,
+			funcs:  newFuncMap(types, nil),
+			ptrs:   make(map[unsafe.Pointer]sID),
+		},
+		make([]byte, 0, 128),
+	}
+}
+
+func (s *Serializer) fork() *Serializer {
+	return &Serializer{
+		s.serializerContext,
+		make([]byte, 0, 128),
 	}
 }
 
