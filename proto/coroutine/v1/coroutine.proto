@@ -21,6 +21,12 @@ message State {
   // Functions is the set of functions, methods and closures referenced
   // by the object graph.
   repeated Function functions = 4;
+
+  // Regions are encoded regions of memory.
+  repeated Region regions = 5;
+
+  // Root is the root object.
+  Region root = 6;
 }
 
 // Build is info about the build in which a durable coroutine
@@ -29,4 +35,13 @@ message Build {
   string id = 1;
   string os = 2;
   string arch = 3;
+}
+
+// Region is an encoded region of memory.
+message Region {
+  // Type is the type of the region.
+  int32 type = 1;
+
+  // Data is the encoded contents of the memory region.
+  bytes data = 2;
 }
