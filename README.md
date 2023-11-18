@@ -255,10 +255,8 @@ func main() {
             if !errors.Is(err, fs.ErrNotExist) {
                 log.Fatal(err)
             }
-        } else {
-            if _, err := coro.Context().Unmarshal(b); err != nil {
-                log.Fatal(err)
-            }
+        } else if err := coro.Context().Unmarshal(b); err != nil {
+            log.Fatal(err)
         }
 
         defer func() {
@@ -308,7 +306,7 @@ More examples of how to use durable coroutines can be found in [examples](./exam
 
 #### Extend serialization
 
-`coroutine` is able to seamlessly serialized and deserialize most types by
+`coroutine` is able to seamlessly serialize and deserialize most types by
 default. However there are times when you may want to control the serialization
 of specific types. For example, `chan` values are not supported, or you may
 decide that some values need specific logic to be functional upon
