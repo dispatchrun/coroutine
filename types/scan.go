@@ -238,7 +238,11 @@ func (c *containers) insert(x container) int {
 // It uses s.scanptrs to track which pointers it has already visited to avoid
 // infinite loops. It does not clean it up after. I'm sure there is something
 // more useful we could do with that.
-func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
+func (s *Serializer) scan(t reflect.Type, p unsafe.Pointer) {
+	s.scan1(t, p, map[reflect.Value]struct{}{})
+}
+
+func (s *Serializer) scan1(t reflect.Type, p unsafe.Pointer, seen map[reflect.Value]struct{}) {
 	if p == nil {
 		return
 	}
@@ -250,10 +254,10 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	r := reflect.NewAt(t, p)
-	if _, ok := s.scanptrs[r]; ok {
+	if _, ok := seen[r]; ok {
 		return
 	}
-	s.scanptrs[r] = struct{}{}
+	seen[r] = struct{}{}
 
 	if r.IsNil() {
 		return
@@ -268,7 +272,7 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		es := int(et.Size())
 		for i := 0; i < t.Len(); i++ {
 			ep := unsafe.Add(p, es*i)
-			scan(s, et, ep)
+			s.scan1(et, ep, seen)
 		}
 	case reflect.Slice:
 		sr := r.Elem()
@@ -288,7 +292,7 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		s.containers.add(xt, ep)
 		for i := 0; i < sr.Len(); i++ {
 			ep := unsafe.Add(ep, es*i)
-			scan(s, et, ep)
+			s.scan1(et, ep, seen)
 		}
 	case reflect.Interface:
 		if r.Elem().IsNil() {
@@ -308,7 +312,7 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 			eptr = unsafe.Pointer(&xp)
 		}
 
-		scan(s, et, eptr)
+		s.scan1(et, eptr, seen)
 	case reflect.Struct:
 		s.containers.add(t, p)
 		n := t.NumField()
@@ -316,14 +320,14 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 			f := t.Field(i)
 			ft := f.Type
 			fp := unsafe.Add(p, f.Offset)
-			scan(s, ft, fp)
+			s.scan1(ft, fp, seen)
 		}
 	case reflect.Pointer:
 		if r.Elem().IsNil() {
 			return
 		}
 		ep := r.Elem().UnsafePointer()
-		scan(s, t.Elem(), ep)
+		s.scan1(t.Elem(), ep, seen)
 	case reflect.String:
 		str := *(*string)(p)
 		sp := unsafe.StringData(str)
@@ -344,7 +348,7 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		for iter.Next() {
 			k := iter.Key()
 			kp := (*iface)(unsafe.Pointer(&k)).ptr
-			scan(s, kt, kp)
+			s.scan1(kt, kp, seen)
 
 			v := iter.Value()
 			vp := (*iface)(unsafe.Pointer(&v)).ptr
@@ -353,7 +357,7 @@ func scan(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 				vp = unsafe.Pointer(&xp)
 			}
 
-			scan(s, vt, vp)
+			s.scan1(vt, vp, seen)
 		}
 	case reflect.Bool,
 		reflect.Int,

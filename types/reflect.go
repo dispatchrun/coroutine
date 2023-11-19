@@ -6,6 +6,8 @@ import (
 	"math"
 	"reflect"
 	"unsafe"
+
+	coroutinev1 "github.com/stealthrocket/coroutine/gen/proto/go/coroutine/v1"
 )
 
 func serializeType(s *Serializer, t reflect.Type) {
@@ -355,48 +357,43 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		return
 	}
 
-	id, new := s.assignPointerID(p)
-	serializeVarint(s, int(id))
-	if !new {
-		// This exact pointer has already been serialized. Write its ID
-		// and move on.
-		return
-	}
-
-	// Now, this is pointer that is seen for the first time.
-
 	// Check the region of this pointer.
 	r := s.containers.of(p)
 
-	// If this pointer does not belong to any region, write a negative
-	// offset to flag it is on its own, and write its data.
+	// If the pointer does not point to a known region encountered via
+	// scanning, create a new temporary region. This can occur when a
+	// custom serializer emits memory regions during serialization (and
+	// after the root object has been scanned). Note that we do not scan
+	// the memory region! This means it's not possible to alias this
+	// memory region (or other regions it points to that aren't known
+	// to the serializer). Scanning here might cause known regions to
+	// expand, invalidating those that have already been encoded.
 	if !r.valid() {
 		if t == nil {
 			panic("cannot serialize unsafe.Pointer pointing to region of unknown size")
 		}
-		serializeVarint(s, -1)
-		serializeAny(s, t, p)
-		return
+		r.addr = p
+		r.typ = t
 	}
 
-	// The pointer points into a memory region.
+	id, new := s.assignPointerID(r.addr)
+	serializeVarint(s, int(id))
+
 	offset := int(r.offset(p))
 	serializeVarint(s, offset)
 
-	// Write the type of the container.
-	serializeType(s, r.typ)
-
-	// Serialize the parent. If offset is zero, we reuse the id to store the
-	// parent. We could have a more compact representation here, but right
-	// now we need this since the pointers <> id map in the serializer does
-	// not discriminate between the container and the first element of it.
-	if offset == 0 {
-		serializeVarint(s, int(id))
-		serializeVarint(s, -1)
-		serializeAny(s, r.typ, r.addr)
+	if !new {
 		return
 	}
-	serializePointedAt(s, r.typ, r.addr)
+
+	region := &coroutinev1.Region{
+		Type: int32(s.types.ToType(r.typ)),
+	}
+	s.regions = append(s.regions, region)
+
+	regionSer := s.fork()
+	serializeAny(regionSer, r.typ, r.addr)
+	region.Data = regionSer.b
 }
 
 func deserializePointedAt(d *Deserializer, t reflect.Type) reflect.Value {
@@ -406,34 +403,38 @@ func deserializePointedAt(d *Deserializer, t reflect.Type) reflect.Value {
 	// reflect.Value that contains a *T (where T is given by the argument
 	// t).
 
-	ptr, id := d.readPtr()
-	if ptr != nil || id == 0 { // pointer already seen or nil
-		return reflect.NewAt(t, ptr)
+	id := deserializeVarint(d)
+	if id == 0 {
+		// Nil pointer.
+		return reflect.NewAt(t, unsafe.Pointer(nil))
 	}
 
 	offset := deserializeVarint(d)
-
-	// Negative offset means this is either a container or a standalone
-	// value.
-	if offset < 0 {
-		e := reflect.New(t)
-		ep := e.UnsafePointer()
-		d.store(id, ep)
-		deserializeAny(d, t, ep)
-		return e
+	if id == -1 {
+		// Pointer into static uint64 table.
+		p := staticPointer(offset)
+		return reflect.NewAt(t, p)
 	}
 
-	// This pointer points into a container. Deserialize that one first,
-	// then return the pointer itself with an offset.
-	ct := deserializeType(d)
+	p := d.ptrs[sID(id)]
+	if p == nil {
+		// Deserialize the region.
+		if int(id) > len(d.regions) {
+			panic(fmt.Sprintf("region %d not found", id))
+		}
+		region := d.regions[id-1]
 
-	// cp is a pointer to the container
-	cp := deserializePointedAt(d, ct)
+		regionType := d.types.ToReflect(typeid(region.Type))
+
+		regionDeser := d.fork(region.Data)
+		container := reflect.New(regionType)
+		p = container.UnsafePointer()
+		d.store(sID(id), p)
+		deserializeAny(regionDeser, regionType, p)
+	}
 
 	// Create the pointer with an offset into the container.
-	ep := unsafe.Add(cp.UnsafePointer(), offset)
-	r := reflect.NewAt(t, ep)
-	return r
+	return reflect.NewAt(t, unsafe.Add(p, offset))
 }
 
 func serializeMap(s *Serializer, t reflect.Type, p unsafe.Pointer) {
@@ -451,13 +452,20 @@ func serializeMapReflect(s *Serializer, t reflect.Type, r reflect.Value) {
 
 	id, new := s.assignPointerID(mapptr)
 	serializeVarint(s, int(id))
+
 	if !new {
 		return
 	}
 
 	size := r.Len()
 
-	serializeVarint(s, size)
+	region := &coroutinev1.Region{
+		Type: int32(s.types.ToType(t)),
+	}
+	s.regions = append(s.regions, region)
+
+	regionSer := s.fork()
+	serializeVarint(regionSer, size)
 
 	// TODO: allocs
 	iter := r.MapRange()
@@ -466,9 +474,11 @@ func serializeMapReflect(s *Serializer, t reflect.Type, r reflect.Value) {
 	for iter.Next() {
 		k.Set(iter.Key())
 		v.Set(iter.Value())
-		serializeAny(s, t.Key(), k.Addr().UnsafePointer())
-		serializeAny(s, t.Elem(), v.Addr().UnsafePointer())
+		serializeAny(regionSer, t.Key(), k.Addr().UnsafePointer())
+		serializeAny(regionSer, t.Elem(), v.Addr().UnsafePointer())
 	}
+
+	region.Data = regionSer.b
 }
 
 func deserializeMap(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
@@ -477,30 +487,38 @@ func deserializeMap(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func deserializeMapReflect(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.Pointer) {
-	ptr, id := d.readPtr()
+	id := deserializeVarint(d)
 	if id == 0 {
-		// nil map
+		r.SetZero()
 		return
 	}
+	ptr := d.ptrs[sID(id)]
 	if ptr != nil {
-		// already deserialized at ptr
 		existing := reflect.NewAt(t, ptr).Elem()
 		r.Set(existing)
 		return
 	}
 
-	n := deserializeVarint(d)
-	if n < 0 { // nil map
-		return
+	if id > len(d.regions) {
+		panic(fmt.Sprintf("region %d not found", id))
 	}
+	region := d.regions[id-1]
+
+	regionDeser := d.fork(region.Data)
+
+	n := deserializeVarint(regionDeser)
+	if n < 0 { // nil map
+		panic("invalid map size")
+	}
+
 	nv := reflect.MakeMapWithSize(t, n)
 	r.Set(nv)
-	d.store(id, p)
+	d.store(sID(id), p)
 	for i := 0; i < n; i++ {
 		k := reflect.New(t.Key())
-		deserializeAny(d, t.Key(), k.UnsafePointer())
+		deserializeAny(regionDeser, t.Key(), k.UnsafePointer())
 		v := reflect.New(t.Elem())
-		deserializeAny(d, t.Elem(), v.UnsafePointer())
+		deserializeAny(regionDeser, t.Elem(), v.UnsafePointer())
 		r.SetMapIndex(k.Elem(), v.Elem())
 	}
 }
@@ -522,8 +540,8 @@ func deserializeSlice(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	c := deserializeVarint(d)
 
 	at := reflect.ArrayOf(c, t.Elem())
-	ar := deserializePointedAt(d, at)
 
+	ar := deserializePointedAt(d, at)
 	if ar.IsNil() {
 		return
 	}
