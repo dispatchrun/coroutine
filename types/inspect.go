@@ -302,6 +302,9 @@ func (t *Type) Format(s fmt.State, v rune) {
 		if name == "" {
 			name = fmt.Sprintf("<anon %s>", t.Kind())
 		}
+		if t.typ.Kind == coroutinev1.Kind_KIND_POINTER {
+			name = "*" + name
+		}
 		s.Write([]byte(name))
 		return
 	}

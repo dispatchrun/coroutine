@@ -49,13 +49,20 @@ func (m *typemap) ToReflect(id typeid) reflect.Type {
 		panic(fmt.Sprintf("type %d not found", id))
 	}
 
-	if t.MemoryOffset != 0 {
-		return typeForOffset(namedTypeOffset(t.MemoryOffset))
-	}
-
 	if t.CustomSerializer > 0 {
+		if t.MemoryOffset != 0 {
+			et := typeForOffset(namedTypeOffset(t.MemoryOffset))
+			if t.Kind == coroutinev1.Kind_KIND_POINTER {
+				et = reflect.PointerTo(et)
+			}
+			return et
+		}
 		id := serdeid(t.CustomSerializer)
 		return m.serdes.serdeByID(id).typ
+	}
+
+	if t.MemoryOffset != 0 {
+		return typeForOffset(namedTypeOffset(t.MemoryOffset))
 	}
 
 	var x reflect.Type
@@ -205,6 +212,14 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 
 	// Types with custom serializers are opaque.
 	if s, ok := m.serdes.serdeByType(t); ok {
+		if t.Name() == "" && t.Kind() == reflect.Pointer {
+			if et := t.Elem(); et.Name() != "" {
+				ti.Kind = coroutinev1.Kind_KIND_POINTER
+				ti.MemoryOffset = uint64(offsetForType(et))
+				ti.Name = m.strings.Intern(et.Name())
+				ti.Package = m.strings.Intern(et.PkgPath())
+			}
+		}
 		ti.CustomSerializer = s.id
 		return id
 	}
