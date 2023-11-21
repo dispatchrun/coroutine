@@ -185,6 +185,14 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 		panic("nil reflect.Type")
 	}
 
+	// When a custom serializer has been registered for type T,
+	// store T only once (don't create opaque types for each
+	// implementation of T when T is an interface type).
+	custom, isCustom := m.serdes.serdeByType(t)
+	if isCustom {
+		t = custom.typ
+	}
+
 	if x, ok := m.cache.getV(t); ok {
 		return x
 	}
@@ -204,9 +212,9 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 	m.cache.add(id, t)
 
 	// Types with custom serializers registered are opaque.
-	if s, ok := m.serdes.serdeByType(t); ok {
+	if isCustom {
 		ti.Custom = true
-		ti.MemoryOffset = uint64(s.id)
+		ti.MemoryOffset = uint64(custom.id)
 		return id
 	}
 
