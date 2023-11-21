@@ -530,7 +530,10 @@ type Function struct {
 
 // Name is the name of the function.
 func (f *Function) Name() string {
-	return f.function.Name
+	if f.function.Name == 0 {
+		return ""
+	}
+	return f.state.String(int(f.function.Name - 1))
 }
 
 // Type is the type of the function.

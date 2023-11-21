@@ -114,7 +114,7 @@ func newDeserializer(b []byte, ctypes []*coroutinev1.Type, cfuncs []*coroutinev1
 		&deserializerContext{
 			serdes:  serdes,
 			types:   types,
-			funcs:   newFuncMap(types, cfuncs),
+			funcs:   newFuncMap(types, strings, cfuncs),
 			regions: regions,
 			ptrs:    make(map[sID]unsafe.Pointer),
 		},
@@ -188,7 +188,7 @@ func newSerializer() *Serializer {
 			serdes:  serdes,
 			types:   types,
 			strings: strings,
-			funcs:   newFuncMap(types, nil),
+			funcs:   newFuncMap(types, strings, nil),
 			ptrs:    make(map[unsafe.Pointer]sID),
 		},
 		make([]byte, 0, 128),

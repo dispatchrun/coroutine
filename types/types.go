@@ -345,16 +345,18 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 type funcid = uint32
 
 type funcmap struct {
-	types *typemap
+	types   *typemap
+	strings *stringmap
 
 	funcs []*coroutinev1.Function
 	cache doublemap[typeid, *Func]
 }
 
-func newFuncMap(types *typemap, funcs []*coroutinev1.Function) *funcmap {
+func newFuncMap(types *typemap, strings *stringmap, funcs []*coroutinev1.Function) *funcmap {
 	return &funcmap{
-		types: types,
-		funcs: funcs,
+		types:   types,
+		strings: strings,
+		funcs:   funcs,
 	}
 }
 
@@ -379,9 +381,10 @@ func (m *funcmap) ToFunc(id funcid) *Func {
 	if cf == nil {
 		panic(fmt.Sprintf("function ID %d not found", id))
 	}
-	f := FuncByName(cf.Name)
+	name := m.strings.Lookup(cf.Name)
+	f := FuncByName(name)
 	if f == nil {
-		panic(fmt.Sprintf("function %s not found", cf.Name))
+		panic(fmt.Sprintf("function %s not found", name))
 	}
 	return f
 }
@@ -398,7 +401,7 @@ func (m *funcmap) RegisterAddr(addr unsafe.Pointer) (id funcid, closureType refl
 	}
 
 	id = m.register(&coroutinev1.Function{
-		Name:    f.Name,
+		Name:    m.strings.Intern(f.Name),
 		Type:    m.types.ToType(f.Type),
 		Closure: closureTypeID,
 	})

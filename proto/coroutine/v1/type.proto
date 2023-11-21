@@ -14,7 +14,7 @@ message Type {
   // defined.
   uint32 name = 1;
 
-  // Package is the string ID the name of the package that defines the type.
+  // Package is the string ID of the name of the package that defines the type.
   uint32 package = 2;
 
   // Kind is the underlying type.

@@ -4,8 +4,8 @@ package coroutine.v1;
 
 // Function represents a function, method or closure in the program.
 message Function {
-  // Name is the name of the function.
-  string name = 1;
+  // Name is an identifier for the name of the function.
+  uint32 name = 1;
 
   // Type is an identifier for the function's type.
   uint32 type = 2;

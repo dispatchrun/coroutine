@@ -208,7 +208,7 @@ type Type struct {
 	// Name is the string ID of the name of the type within the package it was
 	// defined.
 	Name uint32 `protobuf:"varint,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Package is the string ID the name of the package that defines the type.
+	// Package is the string ID of the name of the package that defines the type.
 	Package uint32 `protobuf:"varint,2,opt,name=package,proto3" json:"package,omitempty"`
 	// Kind is the underlying type.
 	Kind Kind `protobuf:"varint,3,opt,name=kind,proto3,enum=coroutine.v1.Kind" json:"kind,omitempty"`
