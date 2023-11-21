@@ -135,8 +135,6 @@ func (t *Type) Package() string {
 // Kind is the underlying kind for this type.
 func (t *Type) Kind() reflect.Kind {
 	switch t.typ.Kind {
-	case coroutinev1.Kind_KIND_NIL:
-		return reflect.Kind(0)
 	case coroutinev1.Kind_KIND_BOOL:
 		return reflect.Bool
 	case coroutinev1.Kind_KIND_INT:
@@ -316,8 +314,6 @@ func (t *Type) Format(s fmt.State, v rune) {
 
 	var primitiveKind string
 	switch t.typ.Kind {
-	case coroutinev1.Kind_KIND_NIL:
-		primitiveKind = "nil"
 	case coroutinev1.Kind_KIND_BOOL:
 		primitiveKind = "bool"
 	case coroutinev1.Kind_KIND_INT:

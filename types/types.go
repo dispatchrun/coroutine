@@ -60,9 +60,6 @@ func (m *typemap) ToReflect(id typeid) reflect.Type {
 
 	var x reflect.Type
 	switch t.Kind {
-	case coroutinev1.Kind_KIND_NIL:
-		x = nil
-
 	case coroutinev1.Kind_KIND_BOOL:
 		x = reflect.TypeOf(false)
 
@@ -184,14 +181,12 @@ func (m *typemap) ToReflect(id typeid) reflect.Type {
 }
 
 func (m *typemap) ToType(t reflect.Type) typeid {
-	if x, ok := m.cache.getV(t); ok {
-		return x
+	if t == nil {
+		panic("nil reflect.Type")
 	}
 
-	if t == nil {
-		id := m.register(&coroutinev1.Type{Kind: coroutinev1.Kind_KIND_NIL})
-		m.cache.add(id, t)
-		return id
+	if x, ok := m.cache.getV(t); ok {
+		return x
 	}
 
 	ti := &coroutinev1.Type{

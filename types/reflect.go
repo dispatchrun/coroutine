@@ -690,9 +690,10 @@ func serializeInterface(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	i := (*iface)(p)
 
 	if i.typ == nil {
-		serializeType(s, nil)
+		serializeBool(s, false)
 		return
 	}
+	serializeBool(s, true)
 
 	et := reflect.TypeOf(reflect.NewAt(t, p).Elem().Interface())
 	serializeType(s, et)
@@ -708,11 +709,14 @@ func serializeInterface(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	// Deserialize the type
-	et := deserializeType(d)
-	if et == nil {
+	var ok bool
+	deserializeBool(d, &ok)
+	if !ok {
 		return
 	}
+
+	// Deserialize the type
+	et := deserializeType(d)
 
 	// Deserialize the pointer
 	ep := deserializePointedAt(d, et)
