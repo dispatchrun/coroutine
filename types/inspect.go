@@ -434,7 +434,7 @@ func (t *Type) Format(s fmt.State, v rune) {
 					s.Write([]byte(f.Name()))
 					s.Write([]byte(" "))
 				}
-				f.Type().Format(s, v)
+				f.Type().Format(withoutFlags{State: s}, v)
 			}
 			s.Write([]byte(" }"))
 		}
@@ -446,6 +446,10 @@ func (t *Type) Format(s fmt.State, v rune) {
 		s.Write([]byte(")"))
 	}
 }
+
+type withoutFlags struct{ fmt.State }
+
+func (withoutFlags) Flag(c int) bool { return false }
 
 // Field is a struct field.
 type Field struct {
