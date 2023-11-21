@@ -283,10 +283,11 @@ func (t *Type) Variadic() bool {
 	return t.typ.Variadic
 }
 
-// CustomSerializer is true for types that had a custom serializer registered
-// in the program that generated the coroutine state.
-func (t *Type) CustomSerializer() bool {
-	return t.typ.CustomSerializer
+// Custom is true for types that had a custom serializer registered
+// in the program that generated the coroutine state. Custom types
+// are opaque and cannot be inspected.
+func (t *Type) Custom() bool {
+	return t.typ.Custom
 }
 
 // Format implements fmt.Formatter.
@@ -297,6 +298,14 @@ func (t *Type) Format(s fmt.State, v rune) {
 			name = fmt.Sprintf("<anon %s>", t.Kind())
 		}
 		name = pkg + "." + name
+	}
+
+	if t.Custom() {
+		if name == "" {
+			name = fmt.Sprintf("<anon %s>", t.Kind())
+		}
+		s.Write([]byte(name))
+		return
 	}
 
 	verbose := s.Flag('+') || s.Flag('#')

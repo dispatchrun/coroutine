@@ -49,6 +49,11 @@ func (m *typemap) ToReflect(id typeid) reflect.Type {
 		panic(fmt.Sprintf("type %d not found", id))
 	}
 
+	if t.Custom {
+		id := serdeid(t.MemoryOffset)
+		return m.serdes.serdeByID(id).typ
+	}
+
 	if t.MemoryOffset != 0 {
 		return typeForOffset(namedTypeOffset(t.MemoryOffset))
 	}
@@ -197,14 +202,18 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 	if t.Name() != "" {
 		ti.MemoryOffset = uint64(offsetForType(t))
 	}
-	if _, ok := m.serdes.serdeOf(t); ok {
-		ti.CustomSerializer = true
-	}
 
 	// Register the incomplete type now before recursing,
 	// in case the type references itself.
 	id := m.register(ti)
 	m.cache.add(id, t)
+
+	// Types with custom serializers registered are opaque.
+	if s, ok := m.serdes.serdeByType(t); ok {
+		ti.Custom = true
+		ti.MemoryOffset = uint64(s.id)
+		return id
+	}
 
 	switch t.Kind() {
 	case reflect.Invalid:

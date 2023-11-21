@@ -31,7 +31,7 @@ func (m *stringmap) Intern(s string) stringid {
 }
 
 func (m *stringmap) Lookup(id stringid) string {
-	if id < 0 || int(id) > len(m.strings) {
+	if int(id) > len(m.strings) {
 		panic(fmt.Sprintf("string %d not found", id))
 	}
 	if id == 0 {

@@ -249,7 +249,7 @@ func (s *Serializer) scan1(t reflect.Type, p unsafe.Pointer, seen map[reflect.Va
 
 	// Don't scan types where custom serialization routines
 	// have been registered.
-	if _, ok := s.serdes.serdeOf(t); ok {
+	if _, ok := s.serdes.serdeByType(t); ok {
 		return
 	}
 

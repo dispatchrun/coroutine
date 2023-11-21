@@ -47,9 +47,9 @@ func (m *Type) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.CustomSerializer {
+	if m.Custom {
 		i--
-		if m.CustomSerializer {
+		if m.Custom {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -308,7 +308,7 @@ func (m *Type) SizeVT() (n int) {
 	if m.Variadic {
 		n += 2
 	}
-	if m.CustomSerializer {
+	if m.Custom {
 		n += 2
 	}
 	n += len(m.unknownFields)
@@ -740,7 +740,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 			m.Variadic = bool(v != 0)
 		case 13:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CustomSerializer", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Custom", wireType)
 			}
 			var v int
 			for shift := uint(0); ; shift += 7 {
@@ -757,7 +757,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 					break
 				}
 			}
-			m.CustomSerializer = bool(v != 0)
+			m.Custom = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skip(dAtA[iNdEx:])

@@ -48,8 +48,8 @@ message Type {
   // Variadic is true for function types with a variadic argument.
   bool variadic = 12;
 
-  // CustomSerializer is true if the type has a custom serializer registered.
-  bool custom_serializer = 13;
+  // Custom is true if the type is a custom opaque type.
+  bool custom = 13;
 }
 
 message Field {

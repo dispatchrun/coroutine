@@ -21,7 +21,7 @@ func deserializeType(d *Deserializer) reflect.Type {
 }
 
 func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	if serde, ok := s.serdes.serdeOf(t); ok {
+	if serde, ok := s.serdes.serdeByType(t); ok {
 		offset := len(s.b)
 		s.b = append(s.b, 0, 0, 0, 0, 0, 0, 0, 0) // store a 64-bit size placeholder
 		serde.ser(s, t, p)
@@ -97,7 +97,7 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	if serde, ok := d.serdes.serdeOf(t); ok {
+	if serde, ok := d.serdes.serdeByType(t); ok {
 		d.b = d.b[8:] // skip size prefix
 		serde.des(d, t, p)
 		return
