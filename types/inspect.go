@@ -89,6 +89,19 @@ func (s *State) Region(i int) *Region {
 	}
 }
 
+// NumString returns the number of strings referenced by types.
+func (s *State) NumString() int {
+	return len(s.state.Strings)
+}
+
+// String retrieves a string by index.
+func (s *State) String(i int) string {
+	if i < 0 || i >= len(s.state.Strings) {
+		panic(fmt.Sprintf("string %d not found", i))
+	}
+	return s.state.Strings[i]
+}
+
 // Root is the root object that was serialized.
 func (s *State) Root() *Region {
 	return &Region{
@@ -105,12 +118,18 @@ type Type struct {
 
 // Name is the name of the type within the package it was defined.
 func (t *Type) Name() string {
-	return t.typ.Name
+	if t.typ.Name == 0 {
+		return ""
+	}
+	return t.state.String(int(t.typ.Name - 1))
 }
 
 // Package is the name of the package that defines the type.
 func (t *Type) Package() string {
-	return t.typ.Package
+	if t.typ.Package == 0 {
+		return ""
+	}
+	return t.state.String(int(t.typ.Package - 1))
 }
 
 // Kind is the underlying kind for this type.
@@ -462,13 +481,19 @@ type Field struct {
 
 // Name is the name of the field.
 func (f *Field) Name() string {
-	return f.field.Name
+	if f.field.Name == 0 {
+		return ""
+	}
+	return f.state.String(int(f.field.Name - 1))
 }
 
 // Package is the package path that qualifies a lwer case (unexported)
 // field name. It is empty for upper case (exported) field names.
 func (f *Field) Package() string {
-	return f.field.Package
+	if f.field.Package == 0 {
+		return ""
+	}
+	return f.state.String(int(f.field.Package - 1))
 }
 
 // Type is the type of the field.

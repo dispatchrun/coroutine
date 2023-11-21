@@ -11,16 +11,18 @@ import (
 type typeid = uint32
 
 type typemap struct {
-	serdes *serdemap
+	serdes  *serdemap
+	strings *stringmap
 
 	types []*coroutinev1.Type
 	cache doublemap[typeid, reflect.Type]
 }
 
-func newTypeMap(serdes *serdemap, types []*coroutinev1.Type) *typemap {
+func newTypeMap(serdes *serdemap, strings *stringmap, types []*coroutinev1.Type) *typemap {
 	return &typemap{
-		serdes: serdes,
-		types:  types,
+		serdes:  serdes,
+		strings: strings,
+		types:   types,
 	}
 }
 
@@ -128,8 +130,8 @@ func (m *typemap) ToReflect(id typeid) reflect.Type {
 	case coroutinev1.Kind_KIND_STRUCT:
 		fields := make([]reflect.StructField, len(t.Fields))
 		for i, f := range t.Fields {
-			fields[i].Name = f.Name
-			fields[i].PkgPath = f.Package
+			fields[i].Name = m.strings.Lookup(stringid(f.Name))
+			fields[i].PkgPath = m.strings.Lookup(stringid(f.Package))
 			fields[i].Tag = reflect.StructTag(f.Tag)
 
 			index := make([]int, len(f.Index))
@@ -188,8 +190,8 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 	}
 
 	ti := &coroutinev1.Type{
-		Name:    t.Name(),
-		Package: t.PkgPath(),
+		Name:    int32(m.strings.Intern(t.Name())),
+		Package: int32(m.strings.Intern(t.PkgPath())),
 	}
 
 	if t.Name() != "" {
@@ -296,8 +298,8 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 				index[j] = int32(f.Index[j])
 			}
 			ti.Fields[i] = &coroutinev1.Field{
-				Name:      f.Name,
-				Package:   f.PkgPath,
+				Name:      int32(m.strings.Intern(f.Name)),
+				Package:   int32(m.strings.Intern(f.PkgPath)),
 				Offset:    uint64(f.Offset),
 				Anonymous: f.Anonymous,
 				Tag:       string(f.Tag),

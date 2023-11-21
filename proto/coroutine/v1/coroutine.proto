@@ -27,6 +27,9 @@ message State {
 
   // Root is the root object.
   Region root = 6;
+
+  // Strings is the string table.
+  repeated string strings = 7;
 }
 
 // Build is info about the build in which a durable coroutine
