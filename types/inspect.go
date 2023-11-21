@@ -78,6 +78,25 @@ func (s *State) NumRegion() int {
 	return len(s.state.Regions)
 }
 
+// Region retrieves a region by index.
+func (s *State) Region(i int) *Region {
+	if i < 0 || i >= len(s.state.Regions) {
+		panic(fmt.Sprintf("region %d not found", i))
+	}
+	return &Region{
+		state:  s,
+		region: s.state.Regions[i],
+	}
+}
+
+// Root is the root object that was serialized.
+func (s *State) Root() *Region {
+	return &Region{
+		state:  s,
+		region: s.state.Root,
+	}
+}
+
 // Type is a type referenced by a durable coroutine.
 type Type struct {
 	state *State
@@ -317,4 +336,15 @@ func (f *Function) ClosureType() *Type {
 		return nil
 	}
 	return f.state.Type(int(f.function.Closure - 1))
+}
+
+// Region is a region of memory referenced by the coroutine.
+type Region struct {
+	state  *State
+	region *coroutinev1.Region
+}
+
+// Type is the type of the region.
+func (r *Region) Type() *Type {
+	return r.state.Type(int(r.region.Type - 1))
 }
