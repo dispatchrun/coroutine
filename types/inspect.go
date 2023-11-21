@@ -61,6 +61,17 @@ func (s *State) NumFunction() int {
 	return len(s.state.Functions)
 }
 
+// Function returns a function by index.
+func (s *State) Function(i int) *Function {
+	if i < 0 || i >= len(s.state.Functions) {
+		panic(fmt.Sprintf("function %d not found", i))
+	}
+	return &Function{
+		state:    s,
+		function: s.state.Functions[i],
+	}
+}
+
 // NumRegion returns the number of memory regions referenced by the
 // coroutine.
 func (s *State) NumRegion() int {
@@ -276,4 +287,34 @@ func (f *Field) Anonymous() bool {
 // Tag contains struct field metadata.
 func (f *Field) Tag() reflect.StructTag {
 	return reflect.StructTag(f.field.Tag)
+}
+
+// Function is a function, method or closure referenced by the coroutine.
+type Function struct {
+	state    *State
+	function *coroutinev1.Function
+}
+
+// Name is the name of the function.
+func (f *Function) Name() string {
+	return f.function.Name
+}
+
+// Type is the type of the function.
+func (f *Function) Type() *Type {
+	return f.state.Type(int(f.function.Type - 1))
+}
+
+// ClosureType returns the memory layout for closure functions.
+//
+// The returned type is a struct where the first field is a function
+// pointer and the remaining fields are the variables from outer scopes
+// that are referenced by the closure.
+//
+// Nil is returned for functions that are not closures.
+func (f *Function) ClosureType() *Type {
+	if f.function.Closure == 0 {
+		return nil
+	}
+	return f.state.Type(int(f.function.Closure - 1))
 }
