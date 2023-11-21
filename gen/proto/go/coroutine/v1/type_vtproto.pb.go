@@ -89,8 +89,7 @@ func (m *Type) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		}
 		i -= pksize2
 		j1 := i
-		for _, num1 := range m.Results {
-			num := uint64(num1)
+		for _, num := range m.Results {
 			for num >= 1<<7 {
 				dAtA[j1] = uint8(uint64(num)&0x7f | 0x80)
 				num >>= 7
@@ -110,8 +109,7 @@ func (m *Type) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		}
 		i -= pksize4
 		j3 := i
-		for _, num1 := range m.Params {
-			num := uint64(num1)
+		for _, num := range m.Params {
 			for num >= 1<<7 {
 				dAtA[j3] = uint8(uint64(num)&0x7f | 0x80)
 				num >>= 7
@@ -394,7 +392,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Name |= int32(b&0x7F) << shift
+				m.Name |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -413,7 +411,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Package |= int32(b&0x7F) << shift
+				m.Package |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -451,7 +449,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Elem |= int32(b&0x7F) << shift
+				m.Elem |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -470,7 +468,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Key |= int32(b&0x7F) << shift
+				m.Key |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -511,7 +509,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 7:
 			if wireType == 0 {
-				var v int32
+				var v uint32
 				for shift := uint(0); ; shift += 7 {
 					if shift >= 64 {
 						return ErrIntOverflow
@@ -521,7 +519,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					v |= int32(b&0x7F) << shift
+					v |= uint32(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
@@ -562,10 +560,10 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 				}
 				elementCount = count
 				if elementCount != 0 && len(m.Params) == 0 {
-					m.Params = make([]int32, 0, elementCount)
+					m.Params = make([]uint32, 0, elementCount)
 				}
 				for iNdEx < postIndex {
-					var v int32
+					var v uint32
 					for shift := uint(0); ; shift += 7 {
 						if shift >= 64 {
 							return ErrIntOverflow
@@ -575,7 +573,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						v |= int32(b&0x7F) << shift
+						v |= uint32(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -587,7 +585,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 			}
 		case 8:
 			if wireType == 0 {
-				var v int32
+				var v uint32
 				for shift := uint(0); ; shift += 7 {
 					if shift >= 64 {
 						return ErrIntOverflow
@@ -597,7 +595,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					v |= int32(b&0x7F) << shift
+					v |= uint32(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
@@ -638,10 +636,10 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 				}
 				elementCount = count
 				if elementCount != 0 && len(m.Results) == 0 {
-					m.Results = make([]int32, 0, elementCount)
+					m.Results = make([]uint32, 0, elementCount)
 				}
 				for iNdEx < postIndex {
-					var v int32
+					var v uint32
 					for shift := uint(0); ; shift += 7 {
 						if shift >= 64 {
 							return ErrIntOverflow
@@ -651,7 +649,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						v |= int32(b&0x7F) << shift
+						v |= uint32(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -823,7 +821,7 @@ func (m *Field) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Name |= int32(b&0x7F) << shift
+				m.Name |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -842,7 +840,7 @@ func (m *Field) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Package |= int32(b&0x7F) << shift
+				m.Package |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -861,7 +859,7 @@ func (m *Field) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Type |= int32(b&0x7F) << shift
+				m.Type |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}

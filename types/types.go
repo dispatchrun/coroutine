@@ -190,8 +190,8 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 	}
 
 	ti := &coroutinev1.Type{
-		Name:    int32(m.strings.Intern(t.Name())),
-		Package: int32(m.strings.Intern(t.PkgPath())),
+		Name:    m.strings.Intern(t.Name()),
+		Package: m.strings.Intern(t.PkgPath()),
 	}
 
 	if t.Name() != "" {
@@ -271,23 +271,23 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 	case reflect.Array:
 		ti.Kind = coroutinev1.Kind_KIND_ARRAY
 		ti.Length = int64(t.Len())
-		ti.Elem = int32(m.ToType(t.Elem()))
+		ti.Elem = m.ToType(t.Elem())
 
 	case reflect.Map:
 		ti.Kind = coroutinev1.Kind_KIND_MAP
-		ti.Key = int32(m.ToType(t.Key()))
-		ti.Elem = int32(m.ToType(t.Elem()))
+		ti.Key = m.ToType(t.Key())
+		ti.Elem = m.ToType(t.Elem())
 
 	case reflect.Pointer:
 		ti.Kind = coroutinev1.Kind_KIND_POINTER
-		ti.Elem = int32(m.ToType(t.Elem()))
+		ti.Elem = m.ToType(t.Elem())
 
 	case reflect.UnsafePointer:
 		ti.Kind = coroutinev1.Kind_KIND_UNSAFE_POINTER
 
 	case reflect.Slice:
 		ti.Kind = coroutinev1.Kind_KIND_SLICE
-		ti.Elem = int32(m.ToType(t.Elem()))
+		ti.Elem = m.ToType(t.Elem())
 
 	case reflect.Struct:
 		ti.Kind = coroutinev1.Kind_KIND_STRUCT
@@ -302,31 +302,31 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 				index[j] = int32(f.Index[j])
 			}
 			ti.Fields[i] = &coroutinev1.Field{
-				Name:      int32(m.strings.Intern(f.Name)),
-				Package:   int32(m.strings.Intern(f.PkgPath)),
+				Name:      m.strings.Intern(f.Name),
+				Package:   m.strings.Intern(f.PkgPath),
 				Offset:    uint64(f.Offset),
 				Anonymous: f.Anonymous,
 				Tag:       string(f.Tag),
-				Type:      int32(m.ToType(f.Type)),
+				Type:      m.ToType(f.Type),
 				Index:     index,
 			}
 		}
 
 	case reflect.Func:
 		ti.Kind = coroutinev1.Kind_KIND_FUNC
-		ti.Params = make([]int32, t.NumIn())
+		ti.Params = make([]uint32, t.NumIn())
 		for i := range ti.Params {
-			ti.Params[i] = int32(m.ToType(t.In(i)))
+			ti.Params[i] = m.ToType(t.In(i))
 		}
-		ti.Results = make([]int32, t.NumOut())
+		ti.Results = make([]uint32, t.NumOut())
 		for i := range ti.Results {
-			ti.Results[i] = int32(m.ToType(t.Out(i)))
+			ti.Results[i] = m.ToType(t.Out(i))
 		}
 		ti.Variadic = t.IsVariadic()
 
 	case reflect.Chan:
 		ti.Kind = coroutinev1.Kind_KIND_CHAN
-		ti.Elem = int32(m.ToType(t.Elem()))
+		ti.Elem = m.ToType(t.Elem())
 		switch t.ChanDir() {
 		case reflect.RecvDir:
 			ti.ChanDir = coroutinev1.ChanDir_CHAN_DIR_RECV
@@ -399,8 +399,8 @@ func (m *funcmap) RegisterAddr(addr unsafe.Pointer) (id funcid, closureType refl
 
 	id = m.register(&coroutinev1.Function{
 		Name:    f.Name,
-		Type:    int32(m.types.ToType(f.Type)),
-		Closure: int32(closureTypeID),
+		Type:    m.types.ToType(f.Type),
+		Closure: closureTypeID,
 	})
 
 	return id, f.Closure

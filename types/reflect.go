@@ -391,7 +391,7 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	region := &coroutinev1.Region{
-		Type: int32(s.types.ToType(r.typ)),
+		Type: s.types.ToType(r.typ),
 	}
 	s.regions = append(s.regions, region)
 
@@ -464,7 +464,7 @@ func serializeMapReflect(s *Serializer, t reflect.Type, r reflect.Value) {
 	size := r.Len()
 
 	region := &coroutinev1.Region{
-		Type: int32(s.types.ToType(t)),
+		Type: s.types.ToType(t),
 	}
 	s.regions = append(s.regions, region)
 

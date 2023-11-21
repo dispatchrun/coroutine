@@ -12,28 +12,28 @@ package coroutine.v1;
 message Type {
   // Name is the string ID of the name of the type within the package it was
   // defined.
-  int32 name = 1;
+  uint32 name = 1;
 
   // Package is the string ID the name of the package that defines the type.
-  int32 package = 2;
+  uint32 package = 2;
 
   // Kind is the underlying type.
   Kind kind = 3;
 
   // Elem is the type of an array, slice, pointer, chan, or map's element.
-  int32 elem = 4;
+  uint32 elem = 4;
 
   // Key is the key type for map types.
-  int32 key = 5;
+  uint32 key = 5;
 
   // Fields is the set of fields defined in a struct type.
   repeated Field fields = 6;
 
   // Params are the types of params for a function type.
-  repeated int32 params = 7;
+  repeated uint32 params = 7;
 
   // Results are the types of results for a function type.
-  repeated int32 results = 8;
+  repeated uint32 results = 8;
 
   // Length is the length of an array type.
   int64 length = 9;
@@ -54,14 +54,14 @@ message Type {
 
 message Field {
   // Name is the string ID of the name of the field.
-  int32 name = 1;
+  uint32 name = 1;
 
   // Package is the string ID of package path that qualifies a lower case
   // (unexported) field name. It is empty for exported field names.
-  int32 package = 2;
+  uint32 package = 2;
 
   // Type is the type of the field.
-  int32 type = 3;
+  uint32 type = 3;
 
   // Offset is the offset of the field within its struct, in bytes.
   uint64 offset = 4;

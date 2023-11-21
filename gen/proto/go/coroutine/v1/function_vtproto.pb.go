@@ -180,7 +180,7 @@ func (m *Function) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Type |= int32(b&0x7F) << shift
+				m.Type |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -199,7 +199,7 @@ func (m *Function) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Closure |= int32(b&0x7F) << shift
+				m.Closure |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}

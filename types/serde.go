@@ -61,7 +61,7 @@ func Serialize(x any) ([]byte, error) {
 		Strings:   s.strings.strings,
 		Regions:   s.regions,
 		Root: &coroutinev1.Region{
-			Type: int32(rootTypeID),
+			Type: rootTypeID,
 			Data: s.b,
 		},
 	}

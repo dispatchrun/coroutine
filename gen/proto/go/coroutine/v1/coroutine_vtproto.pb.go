@@ -787,7 +787,7 @@ func (m *Region) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Type |= int32(b&0x7F) << shift
+				m.Type |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}

@@ -43,7 +43,7 @@ message Build {
 // Region is an encoded region of memory.
 message Region {
   // Type is the type of the region.
-  int32 type = 1;
+  uint32 type = 1;
 
   // Data is the encoded contents of the memory region.
   bytes data = 2;
