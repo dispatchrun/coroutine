@@ -222,7 +222,7 @@ func (t *Type) Param(i int) *Type {
 
 // NumResult is the number of results for function types.
 func (t *Type) NumResult() int {
-	return len(t.typ.Params)
+	return len(t.typ.Results)
 }
 
 // Result is the type of a function result with the specified index.
