@@ -87,20 +87,24 @@ func registerSerde[T any](serdes *serdemap,
 type serializerFunc func(*Serializer, reflect.Type, unsafe.Pointer)
 type deserializerFunc func(*Deserializer, reflect.Type, unsafe.Pointer)
 
+type serdeid = uint32
+
 type serde struct {
+	id  serdeid
 	typ reflect.Type
 	ser serializerFunc
 	des deserializerFunc
 }
 
 type serdemap struct {
-	serdes     map[reflect.Type]serde
+	serdes     []serde
+	serdesByT  map[reflect.Type]serde
 	interfaces []serde
 }
 
 func newSerdeMap() *serdemap {
 	return &serdemap{
-		serdes: make(map[reflect.Type]serde),
+		serdesByT: make(map[reflect.Type]serde),
 	}
 }
 
@@ -109,19 +113,21 @@ func (m *serdemap) attach(t reflect.Type, ser serializerFunc, des deserializerFu
 		panic("both serializer and deserializer need to be provided")
 	}
 
-	s := m.serdes[t]
+	s := m.serdesByT[t]
+	s.id = serdeid(len(m.serdes))
 	s.typ = t
 	s.ser = ser
 	s.des = des
-	m.serdes[t] = s
+	m.serdes = append(m.serdes, s)
+	m.serdesByT[t] = s
 
 	if t.Kind() == reflect.Interface {
 		m.interfaces = append(m.interfaces, s)
 	}
 }
 
-func (m *serdemap) serdeOf(x reflect.Type) (serde, bool) {
-	s, ok := m.serdes[x]
+func (m *serdemap) serdeByType(x reflect.Type) (serde, bool) {
+	s, ok := m.serdesByT[x]
 	if ok {
 		return s, true
 	}
@@ -132,4 +138,11 @@ func (m *serdemap) serdeOf(x reflect.Type) (serde, bool) {
 		}
 	}
 	return serde{}, false
+}
+
+func (m *serdemap) serdeByID(id serdeid) serde {
+	if int(id) >= len(m.serdes) {
+		panic(fmt.Sprintf("serde %d not found", id))
+	}
+	return m.serdes[id]
 }

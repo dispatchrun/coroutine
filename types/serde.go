@@ -58,9 +58,10 @@ func Serialize(x any) ([]byte, error) {
 		Build:     buildInfo,
 		Types:     s.types.types,
 		Functions: s.funcs.funcs,
+		Strings:   s.strings.strings,
 		Regions:   s.regions,
 		Root: &coroutinev1.Region{
-			Type: int32(rootTypeID),
+			Type: rootTypeID,
 			Data: s.b,
 		},
 	}
@@ -77,7 +78,7 @@ func Deserialize(b []byte) (interface{}, error) {
 		return nil, fmt.Errorf("%w: got %v, expect %v", ErrBuildIDMismatch, state.Build.Id, buildInfo.Id)
 	}
 
-	d := newDeserializer(state.Root.Data, state.Types, state.Functions, state.Regions)
+	d := newDeserializer(state.Root.Data, state.Types, state.Functions, state.Regions, state.Strings)
 
 	var x interface{}
 	px := &x
@@ -106,13 +107,14 @@ type deserializerContext struct {
 	ptrs    map[sID]unsafe.Pointer
 }
 
-func newDeserializer(b []byte, ctypes []*coroutinev1.Type, cfuncs []*coroutinev1.Function, regions []*coroutinev1.Region) *Deserializer {
-	types := newTypeMap(serdes, ctypes)
+func newDeserializer(b []byte, ctypes []*coroutinev1.Type, cfuncs []*coroutinev1.Function, regions []*coroutinev1.Region, cstrings []string) *Deserializer {
+	strings := newStringMap(cstrings)
+	types := newTypeMap(serdes, strings, ctypes)
 	return &Deserializer{
 		&deserializerContext{
 			serdes:  serdes,
 			types:   types,
-			funcs:   newFuncMap(types, cfuncs),
+			funcs:   newFuncMap(types, strings, cfuncs),
 			regions: regions,
 			ptrs:    make(map[sID]unsafe.Pointer),
 		},
@@ -171,20 +173,23 @@ type serializerContext struct {
 	serdes     *serdemap
 	types      *typemap
 	funcs      *funcmap
+	strings    *stringmap
 	ptrs       map[unsafe.Pointer]sID
 	regions    []*coroutinev1.Region
 	containers containers
 }
 
 func newSerializer() *Serializer {
-	types := newTypeMap(serdes, nil)
+	strings := newStringMap(nil)
+	types := newTypeMap(serdes, strings, nil)
 
 	return &Serializer{
 		&serializerContext{
-			serdes: serdes,
-			types:  types,
-			funcs:  newFuncMap(types, nil),
-			ptrs:   make(map[unsafe.Pointer]sID),
+			serdes:  serdes,
+			types:   types,
+			strings: strings,
+			funcs:   newFuncMap(types, strings, nil),
+			ptrs:    make(map[unsafe.Pointer]sID),
 		},
 		make([]byte, 0, 128),
 	}

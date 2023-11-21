@@ -47,6 +47,15 @@ func (m *State) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if len(m.Strings) > 0 {
+		for iNdEx := len(m.Strings) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Strings[iNdEx])
+			copy(dAtA[i:], m.Strings[iNdEx])
+			i = encodeVarint(dAtA, i, uint64(len(m.Strings[iNdEx])))
+			i--
+			dAtA[i] = 0x3a
+		}
+	}
 	if m.Root != nil {
 		size, err := m.Root.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
@@ -247,6 +256,12 @@ func (m *State) SizeVT() (n int) {
 	if m.Root != nil {
 		l = m.Root.SizeVT()
 		n += 1 + l + sov(uint64(l))
+	}
+	if len(m.Strings) > 0 {
+		for _, s := range m.Strings {
+			l = len(s)
+			n += 1 + l + sov(uint64(l))
+		}
 	}
 	n += len(m.unknownFields)
 	return n
@@ -528,6 +543,38 @@ func (m *State) UnmarshalVT(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Strings", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Strings = append(m.Strings, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skip(dAtA[iNdEx:])
@@ -740,7 +787,7 @@ func (m *Region) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Type |= int32(b&0x7F) << shift
+				m.Type |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}

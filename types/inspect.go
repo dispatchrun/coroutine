@@ -89,6 +89,19 @@ func (s *State) Region(i int) *Region {
 	}
 }
 
+// NumString returns the number of strings referenced by types.
+func (s *State) NumString() int {
+	return len(s.state.Strings)
+}
+
+// String retrieves a string by index.
+func (s *State) String(i int) string {
+	if i < 0 || i >= len(s.state.Strings) {
+		panic(fmt.Sprintf("string %d not found", i))
+	}
+	return s.state.Strings[i]
+}
+
 // Root is the root object that was serialized.
 func (s *State) Root() *Region {
 	return &Region{
@@ -105,19 +118,23 @@ type Type struct {
 
 // Name is the name of the type within the package it was defined.
 func (t *Type) Name() string {
-	return t.typ.Name
+	if t.typ.Name == 0 {
+		return ""
+	}
+	return t.state.String(int(t.typ.Name - 1))
 }
 
 // Package is the name of the package that defines the type.
 func (t *Type) Package() string {
-	return t.typ.Package
+	if t.typ.Package == 0 {
+		return ""
+	}
+	return t.state.String(int(t.typ.Package - 1))
 }
 
 // Kind is the underlying kind for this type.
 func (t *Type) Kind() reflect.Kind {
 	switch t.typ.Kind {
-	case coroutinev1.Kind_KIND_NIL:
-		return reflect.Kind(0)
 	case coroutinev1.Kind_KIND_BOOL:
 		return reflect.Bool
 	case coroutinev1.Kind_KIND_INT:
@@ -264,10 +281,11 @@ func (t *Type) Variadic() bool {
 	return t.typ.Variadic
 }
 
-// CustomSerializer is true for types that had a custom serializer registered
-// in the program that generated the coroutine state.
-func (t *Type) CustomSerializer() bool {
-	return t.typ.CustomSerializer
+// Custom is true for types that had a custom serializer registered
+// in the program that generated the coroutine state. Custom types
+// are opaque and cannot be inspected.
+func (t *Type) Custom() bool {
+	return t.typ.Custom
 }
 
 // Format implements fmt.Formatter.
@@ -280,6 +298,14 @@ func (t *Type) Format(s fmt.State, v rune) {
 		name = pkg + "." + name
 	}
 
+	if t.Custom() {
+		if name == "" {
+			name = fmt.Sprintf("<anon %s>", t.Kind())
+		}
+		s.Write([]byte(name))
+		return
+	}
+
 	verbose := s.Flag('+') || s.Flag('#')
 	if name != "" && !verbose {
 		s.Write([]byte(name))
@@ -288,8 +314,6 @@ func (t *Type) Format(s fmt.State, v rune) {
 
 	var primitiveKind string
 	switch t.typ.Kind {
-	case coroutinev1.Kind_KIND_NIL:
-		primitiveKind = "nil"
 	case coroutinev1.Kind_KIND_BOOL:
 		primitiveKind = "bool"
 	case coroutinev1.Kind_KIND_INT:
@@ -462,13 +486,19 @@ type Field struct {
 
 // Name is the name of the field.
 func (f *Field) Name() string {
-	return f.field.Name
+	if f.field.Name == 0 {
+		return ""
+	}
+	return f.state.String(int(f.field.Name - 1))
 }
 
 // Package is the package path that qualifies a lwer case (unexported)
 // field name. It is empty for upper case (exported) field names.
 func (f *Field) Package() string {
-	return f.field.Package
+	if f.field.Package == 0 {
+		return ""
+	}
+	return f.state.String(int(f.field.Package - 1))
 }
 
 // Type is the type of the field.
@@ -500,7 +530,10 @@ type Function struct {
 
 // Name is the name of the function.
 func (f *Function) Name() string {
-	return f.function.Name
+	if f.function.Name == 0 {
+		return ""
+	}
+	return f.state.String(int(f.function.Name - 1))
 }
 
 // Type is the type of the function.

@@ -21,7 +21,7 @@ func deserializeType(d *Deserializer) reflect.Type {
 }
 
 func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	if serde, ok := s.serdes.serdeOf(t); ok {
+	if serde, ok := s.serdes.serdeByType(t); ok {
 		offset := len(s.b)
 		s.b = append(s.b, 0, 0, 0, 0, 0, 0, 0, 0) // store a 64-bit size placeholder
 		serde.ser(s, t, p)
@@ -97,7 +97,7 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	if serde, ok := d.serdes.serdeOf(t); ok {
+	if serde, ok := d.serdes.serdeByType(t); ok {
 		d.b = d.b[8:] // skip size prefix
 		serde.des(d, t, p)
 		return
@@ -391,7 +391,7 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	region := &coroutinev1.Region{
-		Type: int32(s.types.ToType(r.typ)),
+		Type: s.types.ToType(r.typ),
 	}
 	s.regions = append(s.regions, region)
 
@@ -464,7 +464,7 @@ func serializeMapReflect(s *Serializer, t reflect.Type, r reflect.Value) {
 	size := r.Len()
 
 	region := &coroutinev1.Region{
-		Type: int32(s.types.ToType(t)),
+		Type: s.types.ToType(t),
 	}
 	s.regions = append(s.regions, region)
 
@@ -690,9 +690,10 @@ func serializeInterface(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	i := (*iface)(p)
 
 	if i.typ == nil {
-		serializeType(s, nil)
+		serializeBool(s, false)
 		return
 	}
+	serializeBool(s, true)
 
 	et := reflect.TypeOf(reflect.NewAt(t, p).Elem().Interface())
 	serializeType(s, et)
@@ -708,11 +709,14 @@ func serializeInterface(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	// Deserialize the type
-	et := deserializeType(d)
-	if et == nil {
+	var ok bool
+	deserializeBool(d, &ok)
+	if !ok {
 		return
 	}
+
+	// Deserialize the type
+	et := deserializeType(d)
 
 	// Deserialize the pointer
 	ep := deserializePointedAt(d, et)

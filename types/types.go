@@ -11,16 +11,18 @@ import (
 type typeid = uint32
 
 type typemap struct {
-	serdes *serdemap
+	serdes  *serdemap
+	strings *stringmap
 
 	types []*coroutinev1.Type
 	cache doublemap[typeid, reflect.Type]
 }
 
-func newTypeMap(serdes *serdemap, types []*coroutinev1.Type) *typemap {
+func newTypeMap(serdes *serdemap, strings *stringmap, types []*coroutinev1.Type) *typemap {
 	return &typemap{
-		serdes: serdes,
-		types:  types,
+		serdes:  serdes,
+		strings: strings,
+		types:   types,
 	}
 }
 
@@ -47,15 +49,17 @@ func (m *typemap) ToReflect(id typeid) reflect.Type {
 		panic(fmt.Sprintf("type %d not found", id))
 	}
 
+	if t.Custom {
+		id := serdeid(t.MemoryOffset)
+		return m.serdes.serdeByID(id).typ
+	}
+
 	if t.MemoryOffset != 0 {
 		return typeForOffset(namedTypeOffset(t.MemoryOffset))
 	}
 
 	var x reflect.Type
 	switch t.Kind {
-	case coroutinev1.Kind_KIND_NIL:
-		x = nil
-
 	case coroutinev1.Kind_KIND_BOOL:
 		x = reflect.TypeOf(false)
 
@@ -128,8 +132,8 @@ func (m *typemap) ToReflect(id typeid) reflect.Type {
 	case coroutinev1.Kind_KIND_STRUCT:
 		fields := make([]reflect.StructField, len(t.Fields))
 		for i, f := range t.Fields {
-			fields[i].Name = f.Name
-			fields[i].PkgPath = f.Package
+			fields[i].Name = m.strings.Lookup(stringid(f.Name))
+			fields[i].PkgPath = m.strings.Lookup(stringid(f.Package))
 			fields[i].Tag = reflect.StructTag(f.Tag)
 
 			index := make([]int, len(f.Index))
@@ -177,32 +181,42 @@ func (m *typemap) ToReflect(id typeid) reflect.Type {
 }
 
 func (m *typemap) ToType(t reflect.Type) typeid {
+	if t == nil {
+		panic("nil reflect.Type")
+	}
+
+	// When a custom serializer has been registered for type T,
+	// store T only once (don't create opaque types for each
+	// implementation of T when T is an interface type).
+	custom, isCustom := m.serdes.serdeByType(t)
+	if isCustom {
+		t = custom.typ
+	}
+
 	if x, ok := m.cache.getV(t); ok {
 		return x
 	}
 
-	if t == nil {
-		id := m.register(&coroutinev1.Type{Kind: coroutinev1.Kind_KIND_NIL})
-		m.cache.add(id, t)
-		return id
-	}
-
 	ti := &coroutinev1.Type{
-		Name:    t.Name(),
-		Package: t.PkgPath(),
+		Name:    m.strings.Intern(t.Name()),
+		Package: m.strings.Intern(t.PkgPath()),
 	}
 
 	if t.Name() != "" {
 		ti.MemoryOffset = uint64(offsetForType(t))
-	}
-	if _, ok := m.serdes.serdeOf(t); ok {
-		ti.CustomSerializer = true
 	}
 
 	// Register the incomplete type now before recursing,
 	// in case the type references itself.
 	id := m.register(ti)
 	m.cache.add(id, t)
+
+	// Types with custom serializers registered are opaque.
+	if isCustom {
+		ti.Custom = true
+		ti.MemoryOffset = uint64(custom.id)
+		return id
+	}
 
 	switch t.Kind() {
 	case reflect.Invalid:
@@ -265,23 +279,23 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 	case reflect.Array:
 		ti.Kind = coroutinev1.Kind_KIND_ARRAY
 		ti.Length = int64(t.Len())
-		ti.Elem = int32(m.ToType(t.Elem()))
+		ti.Elem = m.ToType(t.Elem())
 
 	case reflect.Map:
 		ti.Kind = coroutinev1.Kind_KIND_MAP
-		ti.Key = int32(m.ToType(t.Key()))
-		ti.Elem = int32(m.ToType(t.Elem()))
+		ti.Key = m.ToType(t.Key())
+		ti.Elem = m.ToType(t.Elem())
 
 	case reflect.Pointer:
 		ti.Kind = coroutinev1.Kind_KIND_POINTER
-		ti.Elem = int32(m.ToType(t.Elem()))
+		ti.Elem = m.ToType(t.Elem())
 
 	case reflect.UnsafePointer:
 		ti.Kind = coroutinev1.Kind_KIND_UNSAFE_POINTER
 
 	case reflect.Slice:
 		ti.Kind = coroutinev1.Kind_KIND_SLICE
-		ti.Elem = int32(m.ToType(t.Elem()))
+		ti.Elem = m.ToType(t.Elem())
 
 	case reflect.Struct:
 		ti.Kind = coroutinev1.Kind_KIND_STRUCT
@@ -296,31 +310,31 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 				index[j] = int32(f.Index[j])
 			}
 			ti.Fields[i] = &coroutinev1.Field{
-				Name:      f.Name,
-				Package:   f.PkgPath,
+				Name:      m.strings.Intern(f.Name),
+				Package:   m.strings.Intern(f.PkgPath),
 				Offset:    uint64(f.Offset),
 				Anonymous: f.Anonymous,
 				Tag:       string(f.Tag),
-				Type:      int32(m.ToType(f.Type)),
+				Type:      m.ToType(f.Type),
 				Index:     index,
 			}
 		}
 
 	case reflect.Func:
 		ti.Kind = coroutinev1.Kind_KIND_FUNC
-		ti.Params = make([]int32, t.NumIn())
+		ti.Params = make([]uint32, t.NumIn())
 		for i := range ti.Params {
-			ti.Params[i] = int32(m.ToType(t.In(i)))
+			ti.Params[i] = m.ToType(t.In(i))
 		}
-		ti.Results = make([]int32, t.NumOut())
+		ti.Results = make([]uint32, t.NumOut())
 		for i := range ti.Results {
-			ti.Results[i] = int32(m.ToType(t.Out(i)))
+			ti.Results[i] = m.ToType(t.Out(i))
 		}
 		ti.Variadic = t.IsVariadic()
 
 	case reflect.Chan:
 		ti.Kind = coroutinev1.Kind_KIND_CHAN
-		ti.Elem = int32(m.ToType(t.Elem()))
+		ti.Elem = m.ToType(t.Elem())
 		switch t.ChanDir() {
 		case reflect.RecvDir:
 			ti.ChanDir = coroutinev1.ChanDir_CHAN_DIR_RECV
@@ -339,16 +353,18 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 type funcid = uint32
 
 type funcmap struct {
-	types *typemap
+	types   *typemap
+	strings *stringmap
 
 	funcs []*coroutinev1.Function
 	cache doublemap[typeid, *Func]
 }
 
-func newFuncMap(types *typemap, funcs []*coroutinev1.Function) *funcmap {
+func newFuncMap(types *typemap, strings *stringmap, funcs []*coroutinev1.Function) *funcmap {
 	return &funcmap{
-		types: types,
-		funcs: funcs,
+		types:   types,
+		strings: strings,
+		funcs:   funcs,
 	}
 }
 
@@ -373,9 +389,10 @@ func (m *funcmap) ToFunc(id funcid) *Func {
 	if cf == nil {
 		panic(fmt.Sprintf("function ID %d not found", id))
 	}
-	f := FuncByName(cf.Name)
+	name := m.strings.Lookup(cf.Name)
+	f := FuncByName(name)
 	if f == nil {
-		panic(fmt.Sprintf("function %s not found", cf.Name))
+		panic(fmt.Sprintf("function %s not found", name))
 	}
 	return f
 }
@@ -392,9 +409,9 @@ func (m *funcmap) RegisterAddr(addr unsafe.Pointer) (id funcid, closureType refl
 	}
 
 	id = m.register(&coroutinev1.Function{
-		Name:    f.Name,
-		Type:    int32(m.types.ToType(f.Type)),
-		Closure: int32(closureTypeID),
+		Name:    m.strings.Intern(f.Name),
+		Type:    m.types.ToType(f.Type),
+		Closure: closureTypeID,
 	})
 
 	return id, f.Closure

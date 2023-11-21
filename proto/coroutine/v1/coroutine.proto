@@ -27,6 +27,9 @@ message State {
 
   // Root is the root object.
   Region root = 6;
+
+  // Strings is the string table.
+  repeated string strings = 7;
 }
 
 // Build is info about the build in which a durable coroutine
@@ -40,7 +43,7 @@ message Build {
 // Region is an encoded region of memory.
 message Region {
   // Type is the type of the region.
-  int32 type = 1;
+  uint32 type = 1;
 
   // Data is the encoded contents of the memory region.
   bytes data = 2;

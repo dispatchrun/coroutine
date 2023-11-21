@@ -47,9 +47,9 @@ func (m *Type) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.CustomSerializer {
+	if m.Custom {
 		i--
-		if m.CustomSerializer {
+		if m.Custom {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -89,8 +89,7 @@ func (m *Type) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		}
 		i -= pksize2
 		j1 := i
-		for _, num1 := range m.Results {
-			num := uint64(num1)
+		for _, num := range m.Results {
 			for num >= 1<<7 {
 				dAtA[j1] = uint8(uint64(num)&0x7f | 0x80)
 				num >>= 7
@@ -110,8 +109,7 @@ func (m *Type) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		}
 		i -= pksize4
 		j3 := i
-		for _, num1 := range m.Params {
-			num := uint64(num1)
+		for _, num := range m.Params {
 			for num >= 1<<7 {
 				dAtA[j3] = uint8(uint64(num)&0x7f | 0x80)
 				num >>= 7
@@ -151,19 +149,15 @@ func (m *Type) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x18
 	}
-	if len(m.Package) > 0 {
-		i -= len(m.Package)
-		copy(dAtA[i:], m.Package)
-		i = encodeVarint(dAtA, i, uint64(len(m.Package)))
+	if m.Package != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.Package))
 		i--
-		dAtA[i] = 0x12
+		dAtA[i] = 0x10
 	}
-	if len(m.Name) > 0 {
-		i -= len(m.Name)
-		copy(dAtA[i:], m.Name)
-		i = encodeVarint(dAtA, i, uint64(len(m.Name)))
+	if m.Name != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.Name))
 		i--
-		dAtA[i] = 0xa
+		dAtA[i] = 0x8
 	}
 	return len(dAtA) - i, nil
 }
@@ -246,19 +240,15 @@ func (m *Field) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x18
 	}
-	if len(m.Package) > 0 {
-		i -= len(m.Package)
-		copy(dAtA[i:], m.Package)
-		i = encodeVarint(dAtA, i, uint64(len(m.Package)))
+	if m.Package != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.Package))
 		i--
-		dAtA[i] = 0x12
+		dAtA[i] = 0x10
 	}
-	if len(m.Name) > 0 {
-		i -= len(m.Name)
-		copy(dAtA[i:], m.Name)
-		i = encodeVarint(dAtA, i, uint64(len(m.Name)))
+	if m.Name != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.Name))
 		i--
-		dAtA[i] = 0xa
+		dAtA[i] = 0x8
 	}
 	return len(dAtA) - i, nil
 }
@@ -269,13 +259,11 @@ func (m *Type) SizeVT() (n int) {
 	}
 	var l int
 	_ = l
-	l = len(m.Name)
-	if l > 0 {
-		n += 1 + l + sov(uint64(l))
+	if m.Name != 0 {
+		n += 1 + sov(uint64(m.Name))
 	}
-	l = len(m.Package)
-	if l > 0 {
-		n += 1 + l + sov(uint64(l))
+	if m.Package != 0 {
+		n += 1 + sov(uint64(m.Package))
 	}
 	if m.Kind != 0 {
 		n += 1 + sov(uint64(m.Kind))
@@ -318,7 +306,7 @@ func (m *Type) SizeVT() (n int) {
 	if m.Variadic {
 		n += 2
 	}
-	if m.CustomSerializer {
+	if m.Custom {
 		n += 2
 	}
 	n += len(m.unknownFields)
@@ -331,13 +319,11 @@ func (m *Field) SizeVT() (n int) {
 	}
 	var l int
 	_ = l
-	l = len(m.Name)
-	if l > 0 {
-		n += 1 + l + sov(uint64(l))
+	if m.Name != 0 {
+		n += 1 + sov(uint64(m.Name))
 	}
-	l = len(m.Package)
-	if l > 0 {
-		n += 1 + l + sov(uint64(l))
+	if m.Package != 0 {
+		n += 1 + sov(uint64(m.Package))
 	}
 	if m.Type != 0 {
 		n += 1 + sov(uint64(m.Type))
@@ -393,10 +379,10 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 		}
 		switch fieldNum {
 		case 1:
-			if wireType != 2 {
+			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
 			}
-			var stringLen uint64
+			m.Name = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -406,29 +392,16 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
+				m.Name |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLength
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Name = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
 		case 2:
-			if wireType != 2 {
+			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Package", wireType)
 			}
-			var stringLen uint64
+			m.Package = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -438,24 +411,11 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
+				m.Package |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLength
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Package = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
 		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Kind", wireType)
@@ -489,7 +449,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Elem |= int32(b&0x7F) << shift
+				m.Elem |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -508,7 +468,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Key |= int32(b&0x7F) << shift
+				m.Key |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -549,7 +509,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 7:
 			if wireType == 0 {
-				var v int32
+				var v uint32
 				for shift := uint(0); ; shift += 7 {
 					if shift >= 64 {
 						return ErrIntOverflow
@@ -559,7 +519,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					v |= int32(b&0x7F) << shift
+					v |= uint32(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
@@ -600,10 +560,10 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 				}
 				elementCount = count
 				if elementCount != 0 && len(m.Params) == 0 {
-					m.Params = make([]int32, 0, elementCount)
+					m.Params = make([]uint32, 0, elementCount)
 				}
 				for iNdEx < postIndex {
-					var v int32
+					var v uint32
 					for shift := uint(0); ; shift += 7 {
 						if shift >= 64 {
 							return ErrIntOverflow
@@ -613,7 +573,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						v |= int32(b&0x7F) << shift
+						v |= uint32(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -625,7 +585,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 			}
 		case 8:
 			if wireType == 0 {
-				var v int32
+				var v uint32
 				for shift := uint(0); ; shift += 7 {
 					if shift >= 64 {
 						return ErrIntOverflow
@@ -635,7 +595,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					v |= int32(b&0x7F) << shift
+					v |= uint32(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
@@ -676,10 +636,10 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 				}
 				elementCount = count
 				if elementCount != 0 && len(m.Results) == 0 {
-					m.Results = make([]int32, 0, elementCount)
+					m.Results = make([]uint32, 0, elementCount)
 				}
 				for iNdEx < postIndex {
-					var v int32
+					var v uint32
 					for shift := uint(0); ; shift += 7 {
 						if shift >= 64 {
 							return ErrIntOverflow
@@ -689,7 +649,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 						}
 						b := dAtA[iNdEx]
 						iNdEx++
-						v |= int32(b&0x7F) << shift
+						v |= uint32(b&0x7F) << shift
 						if b < 0x80 {
 							break
 						}
@@ -778,7 +738,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 			m.Variadic = bool(v != 0)
 		case 13:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CustomSerializer", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Custom", wireType)
 			}
 			var v int
 			for shift := uint(0); ; shift += 7 {
@@ -795,7 +755,7 @@ func (m *Type) UnmarshalVT(dAtA []byte) error {
 					break
 				}
 			}
-			m.CustomSerializer = bool(v != 0)
+			m.Custom = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skip(dAtA[iNdEx:])
@@ -848,10 +808,10 @@ func (m *Field) UnmarshalVT(dAtA []byte) error {
 		}
 		switch fieldNum {
 		case 1:
-			if wireType != 2 {
+			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
 			}
-			var stringLen uint64
+			m.Name = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -861,29 +821,16 @@ func (m *Field) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
+				m.Name |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLength
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Name = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
 		case 2:
-			if wireType != 2 {
+			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Package", wireType)
 			}
-			var stringLen uint64
+			m.Package = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -893,24 +840,11 @@ func (m *Field) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
+				m.Package |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLength
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Package = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
 		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
@@ -925,7 +859,7 @@ func (m *Field) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Type |= int32(b&0x7F) << shift
+				m.Type |= uint32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
