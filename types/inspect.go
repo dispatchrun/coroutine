@@ -531,6 +531,11 @@ func (r *Region) Type() *Type {
 	return r.state.Type(int(r.region.Type - 1))
 }
 
+// Size is the size of the region in bytes.
+func (r *Region) Size() int64 {
+	return int64(len(r.region.Data))
+}
+
 // String is a summary of the region in string form.
 func (r *Region) String() string {
 	return fmt.Sprintf("Region(%d byte(s), %#v)", len(r.region.Data), r.Type())
