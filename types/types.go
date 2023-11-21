@@ -49,13 +49,13 @@ func (m *typemap) ToReflect(id typeid) reflect.Type {
 		panic(fmt.Sprintf("type %d not found", id))
 	}
 
-	if t.Custom {
-		id := serdeid(t.MemoryOffset)
-		return m.serdes.serdeByID(id).typ
-	}
-
 	if t.MemoryOffset != 0 {
 		return typeForOffset(namedTypeOffset(t.MemoryOffset))
+	}
+
+	if t.CustomSerializer > 0 {
+		id := serdeid(t.CustomSerializer)
+		return m.serdes.serdeByID(id).typ
 	}
 
 	var x reflect.Type
@@ -185,14 +185,6 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 		panic("nil reflect.Type")
 	}
 
-	// When a custom serializer has been registered for type T,
-	// store T only once (don't create opaque types for each
-	// implementation of T when T is an interface type).
-	custom, isCustom := m.serdes.serdeByType(t)
-	if isCustom {
-		t = custom.typ
-	}
-
 	if x, ok := m.cache.getV(t); ok {
 		return x
 	}
@@ -211,10 +203,9 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 	id := m.register(ti)
 	m.cache.add(id, t)
 
-	// Types with custom serializers registered are opaque.
-	if isCustom {
-		ti.Custom = true
-		ti.MemoryOffset = uint64(custom.id)
+	// Types with custom serializers are opaque.
+	if s, ok := m.serdes.serdeByType(t); ok {
+		ti.CustomSerializer = s.id
 		return id
 	}
 

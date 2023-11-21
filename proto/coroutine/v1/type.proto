@@ -45,11 +45,14 @@ message Type {
   // ChanDir is the direction of a channel type.
   ChanDir chan_dir = 11;
 
-  // Variadic is true for function types with a variadic argument.
-  bool variadic = 12;
+  // Custom serializer is an identifier for a custom serialization
+  // routine registered for this type. A value of zero indicates
+  // that no custom serializer has been registered. Types with
+  // custom serializers are opaque.
+  uint32 custom_serializer = 12;
 
-  // Custom is true if the type is a custom opaque type.
-  bool custom = 13;
+  // Variadic is true for function types with a variadic argument.
+  bool variadic = 13;
 }
 
 message Field {

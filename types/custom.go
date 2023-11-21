@@ -114,7 +114,7 @@ func (m *serdemap) attach(t reflect.Type, ser serializerFunc, des deserializerFu
 	}
 
 	s := m.serdesByT[t]
-	s.id = serdeid(len(m.serdes))
+	s.id = serdeid(len(m.serdes)) + 1 // IDs start at 1
 	s.typ = t
 	s.ser = ser
 	s.des = des
@@ -141,8 +141,8 @@ func (m *serdemap) serdeByType(x reflect.Type) (serde, bool) {
 }
 
 func (m *serdemap) serdeByID(id serdeid) serde {
-	if int(id) >= len(m.serdes) {
+	if id == 0 || int(id) > len(m.serdes) {
 		panic(fmt.Sprintf("serde %d not found", id))
 	}
-	return m.serdes[id]
+	return m.serdes[id-1]
 }
