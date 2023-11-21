@@ -372,7 +372,7 @@ func (t *Type) Format(s fmt.State, v rune) {
 			elemPrefix = fmt.Sprintf("(%s=%s", name, elemPrefix)
 		}
 		s.Write([]byte(elemPrefix))
-		t.Elem().Format(s, v)
+		t.Elem().Format(withoutFlags{s}, v)
 		if name != "" {
 			s.Write([]byte(")"))
 		}
@@ -393,10 +393,13 @@ func (t *Type) Format(s fmt.State, v rune) {
 			if i == paramCount-1 && t.Variadic() {
 				s.Write([]byte("..."))
 			}
-			t.Param(i).Format(s, v)
+			t.Param(i).Format(withoutFlags{s}, v)
 		}
 		s.Write([]byte(")"))
 		n := t.NumResult()
+		if n > 0 {
+			s.Write([]byte(" "))
+		}
 		if n > 1 {
 			s.Write([]byte("("))
 		}
@@ -404,7 +407,7 @@ func (t *Type) Format(s fmt.State, v rune) {
 			if i > 0 {
 				s.Write([]byte(", "))
 			}
-			t.Result(i).Format(s, v)
+			t.Result(i).Format(withoutFlags{s}, v)
 		}
 		if n > 1 {
 			s.Write([]byte(")"))
@@ -415,9 +418,9 @@ func (t *Type) Format(s fmt.State, v rune) {
 
 	case coroutinev1.Kind_KIND_MAP:
 		s.Write([]byte("map["))
-		t.Key().Format(s, v)
+		t.Key().Format(withoutFlags{s}, v)
 		s.Write([]byte("]"))
-		t.Elem().Format(s, v)
+		t.Elem().Format(withoutFlags{s}, v)
 
 	case coroutinev1.Kind_KIND_STRUCT:
 		n := t.NumField()
