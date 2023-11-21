@@ -270,6 +270,183 @@ func (t *Type) CustomSerializer() bool {
 	return t.typ.CustomSerializer
 }
 
+// Format implements fmt.Formatter.
+func (t *Type) Format(s fmt.State, v rune) {
+	name := t.Name()
+	if pkg := t.Package(); pkg != "" {
+		if name == "" {
+			name = fmt.Sprintf("<anon %s>", t.Kind())
+		}
+		name = pkg + "." + name
+	}
+
+	verbose := s.Flag('+') || s.Flag('#')
+	if name != "" && !verbose {
+		s.Write([]byte(name))
+		return
+	}
+
+	var primitiveKind string
+	switch t.typ.Kind {
+	case coroutinev1.Kind_KIND_NIL:
+		primitiveKind = "nil"
+	case coroutinev1.Kind_KIND_BOOL:
+		primitiveKind = "bool"
+	case coroutinev1.Kind_KIND_INT:
+		primitiveKind = "int"
+	case coroutinev1.Kind_KIND_INT8:
+		primitiveKind = "int8"
+	case coroutinev1.Kind_KIND_INT16:
+		primitiveKind = "int16"
+	case coroutinev1.Kind_KIND_INT32:
+		primitiveKind = "int32"
+	case coroutinev1.Kind_KIND_INT64:
+		primitiveKind = "int64"
+	case coroutinev1.Kind_KIND_UINT:
+		primitiveKind = "uint"
+	case coroutinev1.Kind_KIND_UINT8:
+		primitiveKind = "uint8"
+	case coroutinev1.Kind_KIND_UINT16:
+		primitiveKind = "uint16"
+	case coroutinev1.Kind_KIND_UINT32:
+		primitiveKind = "uint32"
+	case coroutinev1.Kind_KIND_UINT64:
+		primitiveKind = "uint64"
+	case coroutinev1.Kind_KIND_UINTPTR:
+		primitiveKind = "uintptr"
+	case coroutinev1.Kind_KIND_FLOAT32:
+		primitiveKind = "float32"
+	case coroutinev1.Kind_KIND_FLOAT64:
+		primitiveKind = "float64"
+	case coroutinev1.Kind_KIND_COMPLEX64:
+		primitiveKind = "complex64"
+	case coroutinev1.Kind_KIND_COMPLEX128:
+		primitiveKind = "complex128"
+	case coroutinev1.Kind_KIND_STRING:
+		primitiveKind = "string"
+	case coroutinev1.Kind_KIND_INTERFACE:
+		primitiveKind = "interface"
+	case coroutinev1.Kind_KIND_UNSAFE_POINTER:
+		primitiveKind = "unsafe.Pointer"
+	}
+	if primitiveKind != "" {
+		if name == primitiveKind {
+			name = ""
+		}
+		var result string
+		switch {
+		case (name == "error" && primitiveKind == "interface") ||
+			(name == "any" && primitiveKind == "interface") ||
+			(name == "byte" && primitiveKind == "uint8") ||
+			(name == "rune" && primitiveKind == "int32"):
+			result = name
+		case name != "":
+			result = fmt.Sprintf("(%s=%s)", name, primitiveKind)
+		default:
+			result = primitiveKind
+		}
+		s.Write([]byte(result))
+		return
+	}
+
+	var elemPrefix string
+	switch t.typ.Kind {
+	case coroutinev1.Kind_KIND_ARRAY:
+		elemPrefix = fmt.Sprintf("[%d]", t.Len())
+	case coroutinev1.Kind_KIND_CHAN:
+		switch t.typ.ChanDir {
+		case coroutinev1.ChanDir_CHAN_DIR_RECV:
+			elemPrefix = "<-chan "
+		case coroutinev1.ChanDir_CHAN_DIR_SEND:
+			elemPrefix = "chan<- "
+		default:
+			elemPrefix = "chan "
+		}
+	case coroutinev1.Kind_KIND_POINTER:
+		elemPrefix = "*"
+	case coroutinev1.Kind_KIND_SLICE:
+		elemPrefix = "[]"
+	}
+	if elemPrefix != "" {
+		if name != "" {
+			elemPrefix = fmt.Sprintf("(%s=%s", name, elemPrefix)
+		}
+		s.Write([]byte(elemPrefix))
+		t.Elem().Format(s, v)
+		if name != "" {
+			s.Write([]byte(")"))
+		}
+		return
+	}
+
+	if name != "" {
+		s.Write([]byte(fmt.Sprintf("(%s=", name)))
+	}
+	switch t.typ.Kind {
+	case coroutinev1.Kind_KIND_FUNC:
+		s.Write([]byte("func("))
+		paramCount := t.NumParam()
+		for i := 0; i < paramCount; i++ {
+			if i > 0 {
+				s.Write([]byte(", "))
+			}
+			if i == paramCount-1 && t.Variadic() {
+				s.Write([]byte("..."))
+			}
+			t.Param(i).Format(s, v)
+		}
+		s.Write([]byte(")"))
+		n := t.NumResult()
+		if n > 1 {
+			s.Write([]byte("("))
+		}
+		for i := 0; i < n; i++ {
+			if i > 0 {
+				s.Write([]byte(", "))
+			}
+			t.Result(i).Format(s, v)
+		}
+		if n > 1 {
+			s.Write([]byte(")"))
+		}
+		if name != "" {
+			s.Write([]byte(")"))
+		}
+
+	case coroutinev1.Kind_KIND_MAP:
+		s.Write([]byte("map["))
+		t.Key().Format(s, v)
+		s.Write([]byte("]"))
+		t.Elem().Format(s, v)
+
+	case coroutinev1.Kind_KIND_STRUCT:
+		n := t.NumField()
+		if n == 0 {
+			s.Write([]byte("struct{}"))
+		} else {
+			s.Write([]byte("struct{ "))
+			for i := 0; i < n; i++ {
+				if i > 0 {
+					s.Write([]byte("; "))
+				}
+				f := t.Field(i)
+				if !f.Anonymous() {
+					s.Write([]byte(f.Name()))
+					s.Write([]byte(" "))
+				}
+				f.Type().Format(s, v)
+			}
+			s.Write([]byte(" }"))
+		}
+
+	default:
+		s.Write([]byte("invalid"))
+	}
+	if name != "" {
+		s.Write([]byte(")"))
+	}
+}
+
 // Field is a struct field.
 type Field struct {
 	state *State
@@ -338,6 +515,11 @@ func (f *Function) ClosureType() *Type {
 	return f.state.Type(int(f.function.Closure - 1))
 }
 
+// String is the name of the function.
+func (f *Function) String() string {
+	return f.Name()
+}
+
 // Region is a region of memory referenced by the coroutine.
 type Region struct {
 	state  *State
@@ -347,4 +529,9 @@ type Region struct {
 // Type is the type of the region.
 func (r *Region) Type() *Type {
 	return r.state.Type(int(r.region.Type - 1))
+}
+
+// String is a summary of the region in string form.
+func (r *Region) String() string {
+	return fmt.Sprintf("Region(%d byte(s), %#v)", len(r.region.Data), r.Type())
 }
