@@ -52,6 +52,7 @@ func (s *State) Type(i int) *Type {
 	return &Type{
 		state: s,
 		typ:   s.state.Types[i],
+		index: i,
 	}
 }
 
@@ -69,6 +70,7 @@ func (s *State) Function(i int) *Function {
 	return &Function{
 		state:    s,
 		function: s.state.Functions[i],
+		index:    i,
 	}
 }
 
@@ -86,6 +88,7 @@ func (s *State) Region(i int) *Region {
 	return &Region{
 		state:  s,
 		region: s.state.Regions[i],
+		index:  i,
 	}
 }
 
@@ -107,6 +110,7 @@ func (s *State) Root() *Region {
 	return &Region{
 		state:  s,
 		region: s.state.Root,
+		index:  -1,
 	}
 }
 
@@ -114,6 +118,12 @@ func (s *State) Root() *Region {
 type Type struct {
 	state *State
 	typ   *coroutinev1.Type
+	index int
+}
+
+// Index is the index of the type in the serialized state.
+func (t *Type) Index() int {
+	return t.index
 }
 
 // Name is the name of the type within the package it was defined.
@@ -529,6 +539,7 @@ func (f *Field) Tag() reflect.StructTag {
 type Function struct {
 	state    *State
 	function *coroutinev1.Function
+	index    int
 }
 
 // Name is the name of the function.
@@ -537,6 +548,11 @@ func (f *Function) Name() string {
 		return ""
 	}
 	return f.state.String(int(f.function.Name - 1))
+}
+
+// Index is the index of the function in the serialized state.
+func (f *Function) Index() int {
+	return f.index
 }
 
 // Type is the type of the function.
@@ -567,6 +583,13 @@ func (f *Function) String() string {
 type Region struct {
 	state  *State
 	region *coroutinev1.Region
+	index  int
+}
+
+// Index is the index of the region in the serialized state,
+// or -1 if this is the root region.
+func (t *Region) Index() int {
+	return t.index
 }
 
 // Type is the type of the region.
