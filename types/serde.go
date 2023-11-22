@@ -49,9 +49,6 @@ func Serialize(x any) ([]byte, error) {
 	// Scan pointers to collect memory regions.
 	s.scan(t, p)
 
-	rootType := reflect.TypeOf(wr.Elem().Interface())
-	rootTypeID := s.types.ToType(rootType)
-
 	serializeAny(s, t, p)
 
 	state := &coroutinev1.State{
@@ -61,7 +58,7 @@ func Serialize(x any) ([]byte, error) {
 		Strings:   s.strings.strings,
 		Regions:   s.regions,
 		Root: &coroutinev1.Region{
-			Type: rootTypeID,
+			Type: s.types.ToType(t),
 			Data: s.b,
 		},
 	}
