@@ -727,7 +727,10 @@ func (s *Scanner) Next() bool {
 
 		case scancustom:
 			if uint64(s.pos) < last.customtil {
-				return s.readTypedAny(len(s.stack))
+				if !s.readType() {
+					return false
+				}
+				return s.readAny(s.typ, len(s.stack))
 			}
 			if uint64(s.pos) > last.customtil {
 				s.err = fmt.Errorf("invalid custom object size")
@@ -951,13 +954,29 @@ func (s *Scanner) readAny(t *Type, depth int) (ok bool) {
 	}
 }
 
-func (s *Scanner) readTypedAny(depth int) (ok bool) {
+func (s *Scanner) readType() (ok bool) {
 	id, ok := s.getVarint()
 	if !ok {
 		return false
 	}
 	t := s.state.Type(int(id - 1))
-	return s.readAny(t, depth)
+	len, ok := s.getVarint()
+	if !ok {
+		return false
+	}
+	if len >= 0 {
+		t = &Type{
+			state: s.state,
+			typ: &coroutinev1.Type{
+				Kind:   coroutinev1.Kind_KIND_ARRAY,
+				Length: len,
+				Elem:   t.typ.Elem,
+			},
+			index: -1,
+		}
+	}
+	s.typ = t
+	return true
 }
 
 func (s *Scanner) readUint8() (ok bool) {
@@ -1110,13 +1129,9 @@ func (s *Scanner) readInterface() (ok bool) {
 		s.nil = true
 		return true
 	}
-
-	typeid, ok := s.getVarint()
-	if !ok {
+	if !s.readType() {
 		return false
 	}
-	s.typ = s.state.Type(int(typeid - 1))
-
 	return s.readRegionPointer()
 }
 

@@ -11,13 +11,23 @@ import (
 )
 
 func serializeType(s *Serializer, t reflect.Type) {
-	x := s.types.ToType(t)
-	serializeVarint(s, int(x))
+	if t != nil && t.Kind() == reflect.Array {
+		id := s.types.ToType(t.Elem())
+		serializeVarint(s, int(id))
+		serializeVarint(s, t.Len())
+	} else {
+		id := s.types.ToType(t)
+		serializeVarint(s, int(id))
+		serializeVarint(s, -1)
+	}
+
 }
 
-func deserializeType(d *Deserializer) reflect.Type {
+func deserializeType(d *Deserializer) (reflect.Type, int) {
 	id := deserializeVarint(d)
-	return d.types.ToReflect(typeid(id))
+	length := deserializeVarint(d)
+	t := d.types.ToReflect(typeid(id))
+	return t, length
 }
 
 func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
@@ -105,7 +115,10 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 
 	switch t {
 	case reflectValueType:
-		rt := deserializeType(d)
+		rt, length := deserializeType(d)
+		if length >= 0 {
+			rt = reflect.ArrayOf(length, rt)
+		}
 		v := deserializeReflectValue(d, rt)
 		reflect.NewAt(reflectValueType, p).Elem().Set(reflect.ValueOf(v))
 		return
@@ -731,7 +744,13 @@ func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	// Deserialize the type
-	et := deserializeType(d)
+	et, length := deserializeType(d)
+	if et == nil {
+		return
+	}
+	if length >= 0 {
+		et = reflect.ArrayOf(length, et)
+	}
 
 	// Deserialize the pointer
 	ep := deserializePointedAt(d, et)
