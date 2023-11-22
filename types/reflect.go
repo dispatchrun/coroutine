@@ -380,6 +380,11 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		r.typ = t
 	}
 
+	if r.typ.Kind() == reflect.Map {
+		serializeMap(s, r.typ, r.addr)
+		return
+	}
+
 	id, new := s.assignPointerID(r.addr)
 	serializeVarint(s, int(id))
 
@@ -406,6 +411,12 @@ func deserializePointedAt(d *Deserializer, t reflect.Type) reflect.Value {
 	// instead of taking an unsafe.Pointer as an input, it returns a
 	// reflect.Value that contains a *T (where T is given by the argument
 	// t).
+
+	if t.Kind() == reflect.Map {
+		m := reflect.New(t)
+		deserializeMapReflect(d, t, m.Elem(), m.UnsafePointer())
+		return m
+	}
 
 	id := deserializeVarint(d)
 	if id == 0 {
@@ -456,6 +467,7 @@ func serializeMapReflect(s *Serializer, t reflect.Type, r reflect.Value) {
 
 	id, new := s.assignPointerID(mapptr)
 	serializeVarint(s, int(id))
+	serializeVarint(s, 0) // offset, for compat with other region references
 
 	if !new {
 		return
@@ -496,6 +508,9 @@ func deserializeMapReflect(d *Deserializer, t reflect.Type, r reflect.Value, p u
 		r.SetZero()
 		return
 	}
+
+	_ = deserializeVarint(d) // offset
+
 	ptr := d.ptrs[sID(id)]
 	if ptr != nil {
 		existing := reflect.NewAt(t, ptr).Elem()
