@@ -1,7 +1,10 @@
 package types
 
 import (
+	"encoding/binary"
 	"fmt"
+	"io"
+	"math"
 	"reflect"
 
 	coroutinev1 "github.com/stealthrocket/coroutine/gen/proto/go/coroutine/v1"
@@ -605,4 +608,508 @@ func (r *Region) Size() int64 {
 // String is a summary of the region in string form.
 func (r *Region) String() string {
 	return fmt.Sprintf("Region(%d byte(s), %#v)", len(r.region.Data), r.Type())
+}
+
+// Scan returns an region scanner.
+func (r *Region) Scan() *Scanner {
+	return &Scanner{
+		state: r.state,
+		src:   r,
+		data:  r.region.Data,
+	}
+}
+
+// Scanner scans a Region.
+type Scanner struct {
+	state *State
+
+	src   *Region
+	data  []byte
+	pos   int
+	stack []scanstep
+	err   error
+	done  bool
+
+	// set during iteration
+	kind     reflect.Kind
+	region   *Region
+	offset   int64
+	typ      *Type
+	field    *Field
+	function *Function
+	nil      bool
+	len      int
+	cap      int
+	data1    uint64
+	data2    uint64
+}
+
+type scanstep struct {
+	st  scantype
+	idx int
+	len int
+	typ *Type
+}
+
+type scantype int
+
+const (
+	scanprimitive scantype = iota
+	scanarray
+	scanstruct
+	scanmap
+	scanclosure
+)
+
+// Next is true if there is more to scan.
+func (s *Scanner) Next() bool {
+	if s.err != nil || s.done || s.pos >= len(s.data) {
+		return false
+	}
+
+	s.kind = reflect.Invalid
+	s.region = nil
+	s.offset = 0
+	s.typ = nil
+	s.field = nil
+	s.function = nil
+	s.nil = false
+	s.len = 0
+	s.cap = 0
+	s.data1 = 0
+	s.data2 = 0
+
+	if len(s.stack) == 0 { // init
+		return s.readAny(s.src.Type(), 0)
+	}
+
+	for len(s.stack) > 0 {
+		last := &s.stack[len(s.stack)-1]
+		switch last.st {
+		case scanprimitive:
+
+		case scanarray:
+			last.idx++
+			if last.idx < last.len {
+				return s.readAny(last.typ.Elem(), len(s.stack))
+			}
+
+		case scanstruct:
+			last.idx++
+			if last.idx < last.len {
+				s.field = last.typ.Field(last.idx)
+				return s.readAny(s.field.Type(), len(s.stack))
+			}
+
+		case scanmap:
+			last.idx++
+			if last.idx < last.len {
+				var t *Type
+				if last.idx%2 == 0 {
+					t = last.typ.Key()
+				} else {
+					t = last.typ.Elem()
+				}
+				return s.readAny(t, len(s.stack))
+			}
+
+		case scanclosure:
+			ct := last.typ
+			last.typ = nil
+			return s.readStruct(ct, 1)
+		}
+		s.stack = s.stack[:len(s.stack)-1] // pop
+	}
+
+	if s.pos != len(s.data) {
+		s.err = fmt.Errorf("trailing bytes")
+	} else {
+		s.done = true // prevent re-init
+	}
+	return false
+}
+
+// Pos is the position of the scanner, in terms of number of bytes into
+// the region.
+func (s *Scanner) Pos() int {
+	return s.pos
+}
+
+// Depth is the depth of the scan stack.
+func (s *Scanner) Depth() int {
+	return len(s.stack)
+}
+
+// Kind is the kind of entity the scanner is pointing to.
+func (s *Scanner) Kind() reflect.Kind {
+	return s.kind
+}
+
+// Region is the region and offset the scanner is pointing to.
+func (s *Scanner) Region() (*Region, int64) {
+	return s.region, s.offset
+}
+
+// Type is the type the scanner is pointing to.
+func (s *Scanner) Type() *Type {
+	return s.typ
+}
+
+// Field is the field the scanner is pointing to.
+func (s *Scanner) Field() *Field {
+	return s.field
+}
+
+// Function is the function the scanner is pointing to.
+func (s *Scanner) Function() *Function {
+	return s.function
+}
+
+// IsNil is true if the scanner is pointing to nil.
+func (s *Scanner) IsNil() bool {
+	return s.nil
+}
+
+// Bool returns the bool the scanner points to.
+func (s *Scanner) Bool() bool {
+	return s.data1 == 1
+}
+
+// Int returns the int the scanner points to.
+func (s *Scanner) Int() int {
+	return int(s.data1)
+}
+
+// Int8 returns the int8 the scanner points to.
+func (s *Scanner) Int8() int8 {
+	return int8(s.data1)
+}
+
+// Int16 returns the int16 the scanner points to.
+func (s *Scanner) Int16() int16 {
+	return int16(s.data1)
+}
+
+// Int32 returns the int32 the scanner points to.
+func (s *Scanner) Int32() int32 {
+	return int32(s.data1)
+}
+
+// Int64 returns the int64 the scanner points to.
+func (s *Scanner) Int64() int64 {
+	return int64(s.data1)
+}
+
+// Uint returns the uint8 the scanner points to.
+func (s *Scanner) Uint() uint {
+	return uint(s.data1)
+}
+
+// Uint8 returns the uint8 the scanner points to.
+func (s *Scanner) Uint8() uint8 {
+	return uint8(s.data1)
+}
+
+// Uint16 returns the uint16 the scanner points to.
+func (s *Scanner) Uint16() uint16 {
+	return uint16(s.data1)
+}
+
+// Uint32 returns the uint32 the scanner points to.
+func (s *Scanner) Uint32() uint32 {
+	return uint32(s.data1)
+}
+
+// Uint64 returns the uint64 the scanner points to.
+func (s *Scanner) Uint64() uint64 {
+	return s.data1
+}
+
+// Uintptr returns the uintptr the scanner points to.
+func (s *Scanner) Uintptr() uintptr {
+	return uintptr(s.data1)
+}
+
+// Float32 returns the float32 the scanner points to.
+func (s *Scanner) Float32() float32 {
+	return math.Float32frombits(uint32(s.data1))
+}
+
+// Float64 returns the float64 the scanner points to.
+func (s *Scanner) Float64() float64 {
+	return math.Float64frombits(s.data1)
+}
+
+// Complex64 returns the complex64 the scanner points to.
+func (s *Scanner) Complex64() complex64 {
+	r := math.Float32frombits(uint32(s.data1))
+	i := math.Float32frombits(uint32(s.data2))
+	return complex(r, i)
+}
+
+// Complex128 returns the complex128 the scanner points to.
+func (s *Scanner) Complex128() complex128 {
+	r := math.Float64frombits(s.data1)
+	i := math.Float64frombits(s.data2)
+	return complex(r, i)
+}
+
+// Close closes the scanner and returns any errors that occurred during scanning.
+func (s *Scanner) Close() error {
+	return s.err
+}
+
+func (s *Scanner) readAny(t *Type, depth int) (ok bool) {
+	s.typ = t
+	s.kind = t.Kind()
+
+	if depth == 0 && t.Kind() == reflect.Map {
+		// Map regions encode the contents of a map.
+		// When maps are seen within a region (nested in another
+		// object), a reference to the map region is stored instead.
+		// Handle the first case here, and the reference case below.
+		return s.readMap()
+	}
+
+	switch t.Kind() {
+	case reflect.Array:
+		return s.readArray(t)
+	case reflect.Struct:
+		return s.readStruct(t, 0)
+	case reflect.Func:
+		return s.readFunc(t)
+	}
+
+	s.stack = append(s.stack, scanstep{st: scanprimitive})
+
+	switch t.Kind() {
+	case reflect.Uint8, reflect.Int8, reflect.Bool:
+		return s.readUint8()
+	case reflect.Uint16, reflect.Int16:
+		return s.readUint16()
+	case reflect.Uint32, reflect.Int32, reflect.Float32:
+		return s.readUint32()
+	case reflect.Uint64, reflect.Int64, reflect.Uint, reflect.Int, reflect.Float64:
+		return s.readUint64()
+	case reflect.Complex64:
+		return s.readComplex64()
+	case reflect.Complex128:
+		return s.readComplex128()
+	case reflect.String:
+		return s.readString()
+	case reflect.Slice:
+		return s.readSlice()
+	case reflect.Pointer, reflect.UnsafePointer, reflect.Map: // references
+		return s.readRegionPointer()
+	case reflect.Interface:
+		return s.readInterface()
+	default:
+		panic("not implemented")
+	}
+}
+
+func (s *Scanner) readUint8() (ok bool) {
+	s.data1 = uint64(s.data[s.pos])
+	s.pos++
+	return true
+}
+
+func (s *Scanner) readUint16() (ok bool) {
+	if len(s.data)-s.pos < 2 {
+		return false
+	}
+	s.data1 = uint64(binary.LittleEndian.Uint16(s.data[s.pos:]))
+	s.pos += 2
+	return true
+}
+
+func (s *Scanner) readUint32() (ok bool) {
+	if len(s.data)-s.pos < 4 {
+		return false
+	}
+	s.data1 = uint64(binary.LittleEndian.Uint32(s.data[s.pos:]))
+	s.pos += 4
+	return true
+}
+
+func (s *Scanner) readUint64() (ok bool) {
+	if len(s.data)-s.pos < 8 {
+		return false
+	}
+	s.data1 = uint64(binary.LittleEndian.Uint64(s.data[s.pos:]))
+	s.pos += 8
+	return true
+}
+
+func (s *Scanner) readComplex64() (ok bool) {
+	if len(s.data)-s.pos < 8 {
+		return false
+	}
+	s.data1 = uint64(binary.LittleEndian.Uint32(s.data[s.pos:]))
+	s.data2 = uint64(binary.LittleEndian.Uint32(s.data[s.pos+4:]))
+	s.pos += 8
+	return true
+}
+
+func (s *Scanner) readComplex128() (ok bool) {
+	if len(s.data)-s.pos < 16 {
+		return false
+	}
+	s.data1 = binary.LittleEndian.Uint64(s.data[s.pos:])
+	s.data2 = binary.LittleEndian.Uint64(s.data[s.pos+8:])
+	s.pos += 16
+	return true
+}
+
+func (s *Scanner) readString() (ok bool) {
+	n, ok := s.getVarint()
+	if !ok {
+		return ok
+	}
+	s.len = int(n)
+	if s.len == 0 {
+		return true
+	}
+	return s.readRegionPointer()
+}
+
+func (s *Scanner) readSlice() (ok bool) {
+	n, ok := s.getVarint()
+	if !ok {
+		return ok
+	}
+	s.len = int(n)
+
+	n, ok = s.getVarint()
+	if !ok {
+		return ok
+	}
+	s.cap = int(n)
+
+	return s.readRegionPointer()
+}
+
+func (s *Scanner) readArray(t *Type) (ok bool) {
+	s.len = t.Len()
+	s.stack = append(s.stack, scanstep{
+		st:  scanarray,
+		idx: -1,
+		len: s.len,
+		typ: t,
+	})
+	return true
+}
+
+func (s *Scanner) readStruct(t *Type, fromField int) (ok bool) {
+	s.stack = append(s.stack, scanstep{
+		st:  scanstruct,
+		idx: fromField - 1,
+		len: t.NumField(),
+		typ: t,
+	})
+	return true
+}
+
+func (s *Scanner) readFunc(t *Type) (ok bool) {
+	id, ok := s.getVarint()
+	if !ok {
+		return false
+	}
+	if id == 0 {
+		s.nil = true
+		return true
+	}
+	s.function = s.state.Function(int(id - 1))
+
+	ct := s.function.ClosureType()
+	if ct != nil {
+		s.stack = append(s.stack, scanstep{
+			st:  scanclosure,
+			typ: ct,
+		})
+	}
+	return true
+}
+
+func (s *Scanner) readMap() (ok bool) {
+	n, ok := s.getVarint()
+	if !ok {
+		return false
+	}
+	s.len = int(n)
+
+	t := s.src.Type()
+	if len(s.stack) > 0 || t.Kind() != reflect.Map {
+		panic("unexpected inline map")
+	}
+
+	s.stack = append(s.stack, scanstep{
+		st:  scanmap,
+		idx: -1,
+		len: int(n * 2),
+		typ: t,
+	})
+	return true
+}
+
+func (s *Scanner) readInterface() (ok bool) {
+	nonNil := s.getBool()
+	if !nonNil {
+		s.nil = true
+		return true
+	}
+
+	typeid, ok := s.getVarint()
+	if !ok {
+		return false
+	}
+	s.typ = s.state.Type(int(typeid - 1))
+
+	return s.readRegionPointer()
+}
+
+func (s *Scanner) readRegionPointer() (ok bool) {
+	tag, ok := s.getVarint()
+	if !ok {
+		return false
+	}
+	if tag == 0 {
+		s.nil = true
+		return true
+	}
+	if tag == -1 { // static
+		offset, ok := s.getVarint()
+		if !ok {
+			return false
+		}
+		s.data1 = uint64(offset)
+		return true
+	}
+	s.region = s.state.Region(int(tag - 1))
+
+	offset, ok := s.getVarint()
+	if !ok {
+		return false
+	}
+	s.offset = offset
+	return true
+}
+
+func (s *Scanner) getBool() bool {
+	// loop invariant: s.pos < len(s.data)
+	value := s.data[s.pos] == 1
+	s.pos++
+	return value
+}
+
+func (s *Scanner) getVarint() (value int64, ok bool) {
+	// loop invariant: s.pos < len(s.data)
+	var n int
+	value, n = binary.Varint(s.data[s.pos:])
+	if n <= 0 {
+		s.err = io.ErrShortBuffer
+		return
+	}
+	s.pos += n
+	return value, true
 }
