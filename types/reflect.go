@@ -250,7 +250,7 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 			serializeFunc(s, t, unsafe.Pointer(&addr))
 		}
 	case reflect.Pointer:
-		serializePointedAt(s, t.Elem(), v.UnsafePointer())
+		serializePointedAt(s, t.Elem(), -1, v.UnsafePointer())
 	default:
 		panic(fmt.Sprintf("not implemented: serializing reflect.Value with type %s (%s)", t, t.Kind()))
 	}
@@ -360,7 +360,7 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type) (v reflect.Value) 
 	return
 }
 
-func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
+func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Pointer) {
 	// If this is a nil pointer, write it as such.
 	if p == nil {
 		serializeVarint(s, 0)
@@ -386,12 +386,12 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	// to the serializer). Scanning here might cause known regions to
 	// expand, invalidating those that have already been encoded.
 	if !r.valid() {
-		if t == nil {
+		if et == nil {
 			panic("cannot serialize unsafe.Pointer pointing to region of unknown size")
 		}
 		r.addr = p
-		r.typ = t
-		r.len = -1
+		r.typ = et
+		r.len = length
 	}
 
 	if r.len >= 0 {
@@ -565,11 +565,7 @@ func serializeSlice(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 
 	serializeVarint(s, r.Len())
 	serializeVarint(s, r.Cap())
-
-	at := reflect.ArrayOf(r.Cap(), t.Elem())
-	ap := r.UnsafePointer()
-
-	serializePointedAt(s, at, ap)
+	serializePointedAt(s, t.Elem(), r.Cap(), r.UnsafePointer())
 }
 
 func deserializeSlice(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
@@ -611,7 +607,7 @@ func deserializeArray(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 func serializePointer(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	r := reflect.NewAt(t, p).Elem()
 	x := r.UnsafePointer()
-	serializePointedAt(s, t.Elem(), x)
+	serializePointedAt(s, t.Elem(), -1, x)
 }
 
 func deserializePointer(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
@@ -622,9 +618,9 @@ func deserializePointer(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 
 func serializeUnsafePointer(s *Serializer, p unsafe.Pointer) {
 	if p == nil {
-		serializePointedAt(s, nil, nil)
+		serializePointedAt(s, nil, -1, nil)
 	} else {
-		serializePointedAt(s, nil, *(*unsafe.Pointer)(p))
+		serializePointedAt(s, nil, -1, *(*unsafe.Pointer)(p))
 	}
 }
 
@@ -738,7 +734,11 @@ func serializeInterface(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		// noescape?
 	}
 
-	serializePointedAt(s, et, eptr)
+	if et.Kind() == reflect.Array {
+		serializePointedAt(s, et.Elem(), et.Len(), eptr)
+	} else {
+		serializePointedAt(s, et, -1, eptr)
+	}
 }
 
 func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
@@ -779,10 +779,9 @@ func serializeString(s *Serializer, x *string) {
 		return
 	}
 
-	at := reflect.ArrayOf(l, byteT)
-	ap := unsafe.Pointer(unsafe.StringData(*x))
+	p := unsafe.Pointer(unsafe.StringData(*x))
 
-	serializePointedAt(s, at, ap)
+	serializePointedAt(s, byteT, l, p)
 }
 
 func deserializeString(d *Deserializer, x *string) {
