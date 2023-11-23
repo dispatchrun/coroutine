@@ -391,6 +391,11 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		}
 		r.addr = p
 		r.typ = t
+		r.len = -1
+	}
+
+	if r.len >= 0 {
+		r.typ = reflect.ArrayOf(r.len, r.typ)
 	}
 
 	if r.typ.Kind() == reflect.Map {
