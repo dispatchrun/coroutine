@@ -795,6 +795,8 @@ func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	// Store the result in the interface
 	r := reflect.NewAt(t, p)
 	if ep != nil {
+		// FIXME: is there a way to avoid ArrayOf+NewAt here? We can
+		//  access the iface via p. We can set the ptr, but not the typ.
 		if length >= 0 {
 			et = reflect.ArrayOf(length, et)
 		}
