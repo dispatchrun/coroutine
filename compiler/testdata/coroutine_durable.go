@@ -245,7 +245,7 @@ func NestedLoops(_fn0 int) (_ int) {
 
 		return _f0.X1
 	}
-	return
+	panic("unreachable")
 }
 
 //go:noinline
@@ -1616,7 +1616,7 @@ func Range10ClosureCapturingValues() {
 
 				return false
 			}
-			return
+			panic("unreachable")
 		}
 		_f1.IP = 4
 		fallthrough
@@ -1733,7 +1733,7 @@ func Range10ClosureCapturingPointers() {
 
 				return false
 			}
-			return
+			panic("unreachable")
 		}
 		_f1.IP = 5
 		fallthrough
@@ -1953,7 +1953,7 @@ func Range10ClosureHeterogenousCapture() {
 			case _f0.IP < 16:
 				return _f1.X10 < 10
 			}
-			return
+			panic("unreachable")
 		}
 		_f1.IP = 13
 		fallthrough
@@ -2837,7 +2837,7 @@ func a(_fn0 int) (_ int) {
 	case _f0.IP < 3:
 		return _f0.X0
 	}
-	return
+	panic("unreachable")
 }
 
 //go:noinline
@@ -2869,7 +2869,7 @@ func b(_fn0 int) (_ int) {
 	case _f0.IP < 3:
 		return _f0.X0
 	}
-	return
+	panic("unreachable")
 }
 
 //go:noinline
@@ -3196,6 +3196,46 @@ func varArgs(_fn0 ...int) {
 		}
 	}
 }
+
+//go:noinline
+func ReturnNamedValue() (_fn0 int) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 int
+	} = coroutine.Push[struct {
+		IP int
+		X0 int
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 int
+		}{}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X0 = 5
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 3:
+		coroutine.Yield[int, any](11)
+		_f0.IP = 3
+		fallthrough
+	case _f0.IP < 4:
+		_f0.X0 = 42
+		_f0.IP = 4
+		fallthrough
+	case _f0.IP < 5:
+		return _f0.X0
+	}
+	panic("unreachable")
+}
 func init() {
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Double")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.EvenSquareGenerator")
@@ -3292,6 +3332,7 @@ func init() {
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeTripleFuncValue")
 	_types.RegisterFunc[func(i int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeTripleFuncValue.func2")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeYieldAndDeferAssign")
+	_types.RegisterFunc[func() (_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.ReturnNamedValue")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.Select")
 	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.Shadowing")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.SomeFunctionThatShouldExistInTheCompiledFile")
