@@ -124,7 +124,8 @@ type Type struct {
 	index int
 }
 
-// Index is the index of the type in the serialized state.
+// Index is the index of the type in the serialized state, or -1
+// if the type is derived from a serialized type.
 func (t *Type) Index() int {
 	return t.index
 }
@@ -960,6 +961,7 @@ func (s *Scanner) readType() (ok bool) {
 		return false
 	}
 	t := s.state.Type(int(id - 1))
+
 	len, ok := s.getVarint()
 	if !ok {
 		return false
