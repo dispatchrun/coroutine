@@ -717,9 +717,13 @@ func (s *Scanner) Next() bool {
 			}
 
 		case scanclosure:
-			ct := last.typ
-			last.typ = nil // only read closure struct once
-			return s.readStruct(ct, 1)
+			if last.typ != nil {
+				ct := last.typ
+				last.typ = nil // only read closure struct once
+				s.kind = reflect.Struct
+				s.typ = ct
+				return s.readStruct(ct, 1)
+			}
 
 		case scancustom:
 			if uint64(s.pos) < last.customtil {
@@ -1150,8 +1154,7 @@ func (s *Scanner) readCustom() (ok bool) {
 		return false
 	}
 	size := binary.LittleEndian.Uint64(s.data[s.pos:])
-	s.pos += 8
-	if uint64(s.pos)+size < uint64(len(s.data)) {
+	if uint64(s.pos)+size > uint64(len(s.data)) {
 		s.err = fmt.Errorf("invalid custom object size")
 		return false
 	}
@@ -1159,6 +1162,7 @@ func (s *Scanner) readCustom() (ok bool) {
 		st:        scancustom,
 		customtil: uint64(s.pos) + size,
 	})
+	s.pos += 8
 	return true
 }
 
