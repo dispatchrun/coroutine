@@ -211,7 +211,12 @@ func (m *Region) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		copy(dAtA[i:], m.Data)
 		i = encodeVarint(dAtA, i, uint64(len(m.Data)))
 		i--
-		dAtA[i] = 0x12
+		dAtA[i] = 0x1a
+	}
+	if m.ArrayLength != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.ArrayLength))
+		i--
+		dAtA[i] = 0x10
 	}
 	if m.Type != 0 {
 		i = encodeVarint(dAtA, i, uint64(m.Type))
@@ -297,6 +302,9 @@ func (m *Region) SizeVT() (n int) {
 	_ = l
 	if m.Type != 0 {
 		n += 1 + sov(uint64(m.Type))
+	}
+	if m.ArrayLength != 0 {
+		n += 1 + sov(uint64(m.ArrayLength))
 	}
 	l = len(m.Data)
 	if l > 0 {
@@ -793,6 +801,25 @@ func (m *Region) UnmarshalVT(dAtA []byte) error {
 				}
 			}
 		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ArrayLength", wireType)
+			}
+			m.ArrayLength = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ArrayLength |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Data", wireType)
 			}

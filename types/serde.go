@@ -58,8 +58,9 @@ func Serialize(x any) ([]byte, error) {
 		Strings:   s.strings.strings,
 		Regions:   s.regions,
 		Root: &coroutinev1.Region{
-			Type: s.types.ToType(t),
-			Data: s.b,
+			Type:        s.types.ToType(t),
+			ArrayLength: -1, // not an array
+			Data:        s.b,
 		},
 	}
 	return state.MarshalVT()

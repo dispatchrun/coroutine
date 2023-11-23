@@ -45,6 +45,14 @@ message Region {
   // Type is the type of the region.
   uint32 type = 1;
 
+  // Array length, when >= 0, indicates that this region is an
+  // array of the specified length (in terms of number of
+  // elements, not in terms of bytes) and that the region type
+  // is the type of the array element. If the array length is < 0
+  // then this region does not represent an array, and the region
+  // type describes the object that is encoded.
+  int32 array_length = 2;
+
   // Data is the encoded contents of the memory region.
-  bytes data = 2;
+  bytes data = 3;
 }

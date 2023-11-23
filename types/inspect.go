@@ -598,7 +598,27 @@ func (t *Region) Index() int {
 
 // Type is the type of the region.
 func (r *Region) Type() *Type {
-	return r.state.Type(int(r.region.Type - 1))
+	t := r.state.Type(int(r.region.Type - 1))
+	if r.region.ArrayLength >= 0 {
+		t = newArrayType(r.state, int64(r.region.ArrayLength), t)
+	}
+	return t
+}
+
+func newArrayType(state *State, length int64, t *Type) *Type {
+	idx := t.Index()
+	if idx < 0 {
+		panic("BUG")
+	}
+	return &Type{
+		state: state,
+		typ: &coroutinev1.Type{
+			Kind:   coroutinev1.Kind_KIND_ARRAY,
+			Length: int64(length),
+			Elem:   uint32(idx + 1),
+		},
+		index: -1, // aka. a derived type
+	}
 }
 
 // Size is the size of the region in bytes.
@@ -967,15 +987,7 @@ func (s *Scanner) readType() (ok bool) {
 		return false
 	}
 	if len >= 0 {
-		t = &Type{
-			state: s.state,
-			typ: &coroutinev1.Type{
-				Kind:   coroutinev1.Kind_KIND_ARRAY,
-				Length: len,
-				Elem:   t.typ.Elem,
-			},
-			index: -1,
-		}
+		t = newArrayType(s.state, len, t)
 	}
 	s.typ = t
 	return true

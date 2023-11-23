@@ -394,11 +394,7 @@ func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Poi
 		r.len = length
 	}
 
-	if r.len >= 0 {
-		r.typ = reflect.ArrayOf(r.len, r.typ)
-	}
-
-	if r.typ.Kind() == reflect.Map {
+	if r.len < 0 && r.typ.Kind() == reflect.Map {
 		serializeMap(s, r.typ, r.addr)
 		return
 	}
@@ -414,20 +410,29 @@ func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Poi
 	}
 
 	region := &coroutinev1.Region{
-		Type: s.types.ToType(r.typ),
+		Type:        s.types.ToType(r.typ),
+		ArrayLength: int32(r.len),
 	}
 	s.regions = append(s.regions, region)
 
-	if r.typ.Kind() == reflect.Array && r.typ.Elem().Kind() == reflect.Uint8 {
-		// Fast path for byte arrays.
-		if n := r.typ.Len(); n > 0 {
-			region.Data = unsafe.Slice((*byte)(r.addr), n)
+	// Fast path for byte arrays.
+	if r.len >= 0 && r.typ.Kind() == reflect.Uint8 {
+		if r.len >= 0 {
+			region.Data = unsafe.Slice((*byte)(r.addr), r.len)
+		}
+		return
+	}
+
+	regionSer := s.fork()
+	if r.len >= 0 { // array
+		es := int(r.typ.Size())
+		for i := 0; i < r.len; i++ {
+			serializeAny(regionSer, r.typ, unsafe.Add(r.addr, i*es))
 		}
 	} else {
-		regionSer := s.fork()
 		serializeAny(regionSer, r.typ, r.addr)
-		region.Data = regionSer.b
 	}
+	region.Data = regionSer.b
 }
 
 func deserializePointedAt(d *Deserializer, et reflect.Type, length int) reflect.Value {
@@ -470,6 +475,10 @@ func deserializePointedAt(d *Deserializer, et reflect.Type, length int) reflect.
 		region := d.regions[id-1]
 
 		regionType := d.types.ToReflect(typeid(region.Type))
+
+		if region.ArrayLength >= 0 {
+			regionType = reflect.ArrayOf(int(region.ArrayLength), regionType)
+		}
 
 		container := reflect.New(regionType)
 		p = container.UnsafePointer()
@@ -514,7 +523,8 @@ func serializeMapReflect(s *Serializer, t reflect.Type, r reflect.Value) {
 	size := r.Len()
 
 	region := &coroutinev1.Region{
-		Type: s.types.ToType(t),
+		Type:        s.types.ToType(t),
+		ArrayLength: -1, // not an array
 	}
 	s.regions = append(s.regions, region)
 
