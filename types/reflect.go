@@ -351,7 +351,7 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type) (v reflect.Value) 
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(&fn.Addr)
 		}
 	case reflect.Pointer:
-		ep := deserializePointedAt(d, t.Elem())
+		ep := deserializePointedAt(d, t.Elem(), -1)
 		v = reflect.New(t).Elem()
 		v.Set(ep)
 	default:
@@ -423,12 +423,17 @@ func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Poi
 	region.Data = regionSer.b
 }
 
-func deserializePointedAt(d *Deserializer, t reflect.Type) reflect.Value {
+func deserializePointedAt(d *Deserializer, et reflect.Type, length int) reflect.Value {
 	// This function is a bit different than the other deserialize* ones
 	// because it deserializes into an unknown location. As a result,
 	// instead of taking an unsafe.Pointer as an input, it returns a
 	// reflect.Value that contains a *T (where T is given by the argument
 	// t).
+
+	t := et
+	if length >= 0 {
+		t = reflect.ArrayOf(length, et)
+	}
 
 	if t.Kind() == reflect.Map {
 		m := reflect.New(t)
@@ -572,9 +577,7 @@ func deserializeSlice(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	l := deserializeVarint(d)
 	c := deserializeVarint(d)
 
-	at := reflect.ArrayOf(c, t.Elem())
-
-	ar := deserializePointedAt(d, at)
+	ar := deserializePointedAt(d, t.Elem(), c)
 	if ar.IsNil() {
 		return
 	}
@@ -611,7 +614,7 @@ func serializePointer(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func deserializePointer(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	ep := deserializePointedAt(d, t.Elem())
+	ep := deserializePointedAt(d, t.Elem(), -1)
 	r := reflect.NewAt(t, p)
 	r.Elem().Set(ep)
 }
@@ -629,7 +632,7 @@ var unsafePointerType = reflect.TypeOf(unsafe.Pointer(nil))
 func deserializeUnsafePointer(d *Deserializer, p unsafe.Pointer) {
 	r := reflect.NewAt(unsafePointerType, p)
 
-	ep := deserializePointedAt(d, unsafePointerType)
+	ep := deserializePointedAt(d, unsafePointerType, -1)
 	if !ep.IsNil() {
 		up := ep.UnsafePointer()
 		r.Elem().Set(reflect.ValueOf(up))
@@ -753,12 +756,9 @@ func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	if et == nil {
 		return
 	}
-	if length >= 0 {
-		et = reflect.ArrayOf(length, et)
-	}
 
 	// Deserialize the pointer
-	ep := deserializePointedAt(d, et)
+	ep := deserializePointedAt(d, et, length)
 
 	// Store the result in the interface
 	r := reflect.NewAt(t, p)
@@ -791,8 +791,7 @@ func deserializeString(d *Deserializer, x *string) {
 		return
 	}
 
-	at := reflect.ArrayOf(l, byteT)
-	ar := deserializePointedAt(d, at)
+	ar := deserializePointedAt(d, byteT, l)
 
 	*x = unsafe.String((*byte)(ar.UnsafePointer()), l)
 }
