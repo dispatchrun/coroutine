@@ -245,7 +245,7 @@ func NestedLoops(_fn0 int) (_ int) {
 
 		return _f0.X1
 	}
-	return
+	panic("unreachable")
 }
 
 //go:noinline
@@ -1616,7 +1616,7 @@ func Range10ClosureCapturingValues() {
 
 				return false
 			}
-			return
+			panic("unreachable")
 		}
 		_f1.IP = 4
 		fallthrough
@@ -1733,7 +1733,7 @@ func Range10ClosureCapturingPointers() {
 
 				return false
 			}
-			return
+			panic("unreachable")
 		}
 		_f1.IP = 5
 		fallthrough
@@ -1953,7 +1953,7 @@ func Range10ClosureHeterogenousCapture() {
 			case _f0.IP < 16:
 				return _f1.X10 < 10
 			}
-			return
+			panic("unreachable")
 		}
 		_f1.IP = 13
 		fallthrough
@@ -2837,7 +2837,7 @@ func a(_fn0 int) (_ int) {
 	case _f0.IP < 3:
 		return _f0.X0
 	}
-	return
+	panic("unreachable")
 }
 
 //go:noinline
@@ -2869,7 +2869,7 @@ func b(_fn0 int) (_ int) {
 	case _f0.IP < 3:
 		return _f0.X0
 	}
-	return
+	panic("unreachable")
 }
 
 //go:noinline
@@ -3234,7 +3234,7 @@ func ReturnNamedValue() (_fn0 int) {
 	case _f0.IP < 5:
 		return _f0.X0
 	}
-	return
+	panic("unreachable")
 }
 func init() {
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Double")
