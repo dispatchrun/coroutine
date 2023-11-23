@@ -199,6 +199,7 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 	ti := &coroutinev1.Type{
 		Name:    m.strings.Intern(t.Name()),
 		Package: m.strings.Intern(t.PkgPath()),
+		Kind:    kindOf(t.Kind()),
 	}
 
 	if t.Name() != "" {
@@ -214,7 +215,6 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 	if s, ok := m.serdes.serdeByType(t); ok {
 		if t.Name() == "" && t.Kind() == reflect.Pointer {
 			if et := t.Elem(); et.Name() != "" {
-				ti.Kind = coroutinev1.Kind_KIND_POINTER
 				ti.MemoryOffset = uint64(offsetForType(et))
 				ti.Name = m.strings.Intern(et.Name())
 				ti.Package = m.strings.Intern(et.PkgPath())
@@ -224,87 +224,22 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 		return id
 	}
 
-	switch t.Kind() {
-	case reflect.Invalid:
-		panic("can't handle reflect.Invalid")
-
-	case reflect.Bool:
-		ti.Kind = coroutinev1.Kind_KIND_BOOL
-
-	case reflect.Int:
-		ti.Kind = coroutinev1.Kind_KIND_INT
-
-	case reflect.Int8:
-		ti.Kind = coroutinev1.Kind_KIND_INT8
-
-	case reflect.Int16:
-		ti.Kind = coroutinev1.Kind_KIND_INT16
-
-	case reflect.Int32:
-		ti.Kind = coroutinev1.Kind_KIND_INT32
-
-	case reflect.Int64:
-		ti.Kind = coroutinev1.Kind_KIND_INT64
-
-	case reflect.Uint:
-		ti.Kind = coroutinev1.Kind_KIND_UINT
-
-	case reflect.Uint8:
-		ti.Kind = coroutinev1.Kind_KIND_UINT8
-
-	case reflect.Uint16:
-		ti.Kind = coroutinev1.Kind_KIND_UINT16
-
-	case reflect.Uint32:
-		ti.Kind = coroutinev1.Kind_KIND_UINT32
-
-	case reflect.Uint64:
-		ti.Kind = coroutinev1.Kind_KIND_UINT64
-
-	case reflect.Uintptr:
-		ti.Kind = coroutinev1.Kind_KIND_UINTPTR
-
-	case reflect.Float32:
-		ti.Kind = coroutinev1.Kind_KIND_FLOAT32
-
-	case reflect.Float64:
-		ti.Kind = coroutinev1.Kind_KIND_FLOAT64
-
-	case reflect.Complex64:
-		ti.Kind = coroutinev1.Kind_KIND_COMPLEX64
-
-	case reflect.Complex128:
-		ti.Kind = coroutinev1.Kind_KIND_COMPLEX128
-
-	case reflect.String:
-		ti.Kind = coroutinev1.Kind_KIND_STRING
-
-	case reflect.Interface:
-		ti.Kind = coroutinev1.Kind_KIND_INTERFACE
-
+	switch t.Kind() { // note: already checked above in kindOf() call
 	case reflect.Array:
-		ti.Kind = coroutinev1.Kind_KIND_ARRAY
 		ti.Length = int64(t.Len())
 		ti.Elem = m.ToType(t.Elem())
 
 	case reflect.Map:
-		ti.Kind = coroutinev1.Kind_KIND_MAP
 		ti.Key = m.ToType(t.Key())
 		ti.Elem = m.ToType(t.Elem())
 
 	case reflect.Pointer:
-		ti.Kind = coroutinev1.Kind_KIND_POINTER
 		ti.Elem = m.ToType(t.Elem())
 
-	case reflect.UnsafePointer:
-		ti.Kind = coroutinev1.Kind_KIND_UNSAFE_POINTER
-
 	case reflect.Slice:
-		ti.Kind = coroutinev1.Kind_KIND_SLICE
 		ti.Elem = m.ToType(t.Elem())
 
 	case reflect.Struct:
-		ti.Kind = coroutinev1.Kind_KIND_STRUCT
 		ti.Fields = make([]*coroutinev1.Field, t.NumField())
 		for i := range ti.Fields {
 			f := t.Field(i)
@@ -327,7 +262,6 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 		}
 
 	case reflect.Func:
-		ti.Kind = coroutinev1.Kind_KIND_FUNC
 		ti.Params = make([]uint32, t.NumIn())
 		for i := range ti.Params {
 			ti.Params[i] = m.ToType(t.In(i))
@@ -339,7 +273,6 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 		ti.Variadic = t.IsVariadic()
 
 	case reflect.Chan:
-		ti.Kind = coroutinev1.Kind_KIND_CHAN
 		ti.Elem = m.ToType(t.Elem())
 		switch t.ChanDir() {
 		case reflect.RecvDir:
@@ -349,11 +282,69 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 		case reflect.BothDir:
 			ti.ChanDir = coroutinev1.ChanDir_CHAN_DIR_BOTH
 		}
-
-	default:
-		panic(fmt.Errorf("unsupported reflect.Kind (%s)", t.Kind()))
 	}
 	return id
+}
+
+func kindOf(kind reflect.Kind) coroutinev1.Kind {
+	switch kind {
+	case reflect.Invalid:
+		panic("can't handle reflect.Invalid")
+	case reflect.Bool:
+		return coroutinev1.Kind_KIND_BOOL
+	case reflect.Int:
+		return coroutinev1.Kind_KIND_INT
+	case reflect.Int8:
+		return coroutinev1.Kind_KIND_INT8
+	case reflect.Int16:
+		return coroutinev1.Kind_KIND_INT16
+	case reflect.Int32:
+		return coroutinev1.Kind_KIND_INT32
+	case reflect.Int64:
+		return coroutinev1.Kind_KIND_INT64
+	case reflect.Uint:
+		return coroutinev1.Kind_KIND_UINT
+	case reflect.Uint8:
+		return coroutinev1.Kind_KIND_UINT8
+	case reflect.Uint16:
+		return coroutinev1.Kind_KIND_UINT16
+	case reflect.Uint32:
+		return coroutinev1.Kind_KIND_UINT32
+	case reflect.Uint64:
+		return coroutinev1.Kind_KIND_UINT64
+	case reflect.Uintptr:
+		return coroutinev1.Kind_KIND_UINTPTR
+	case reflect.Float32:
+		return coroutinev1.Kind_KIND_FLOAT32
+	case reflect.Float64:
+		return coroutinev1.Kind_KIND_FLOAT64
+	case reflect.Complex64:
+		return coroutinev1.Kind_KIND_COMPLEX64
+	case reflect.Complex128:
+		return coroutinev1.Kind_KIND_COMPLEX128
+	case reflect.String:
+		return coroutinev1.Kind_KIND_STRING
+	case reflect.Interface:
+		return coroutinev1.Kind_KIND_INTERFACE
+	case reflect.Array:
+		return coroutinev1.Kind_KIND_ARRAY
+	case reflect.Map:
+		return coroutinev1.Kind_KIND_MAP
+	case reflect.Pointer:
+		return coroutinev1.Kind_KIND_POINTER
+	case reflect.UnsafePointer:
+		return coroutinev1.Kind_KIND_UNSAFE_POINTER
+	case reflect.Slice:
+		return coroutinev1.Kind_KIND_SLICE
+	case reflect.Struct:
+		return coroutinev1.Kind_KIND_STRUCT
+	case reflect.Func:
+		return coroutinev1.Kind_KIND_FUNC
+	case reflect.Chan:
+		return coroutinev1.Kind_KIND_CHAN
+	default:
+		panic(fmt.Errorf("unsupported reflect.Kind (%s)", kind))
+	}
 }
 
 type funcid = uint32
