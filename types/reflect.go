@@ -400,9 +400,16 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	}
 	s.regions = append(s.regions, region)
 
-	regionSer := s.fork()
-	serializeAny(regionSer, r.typ, r.addr)
-	region.Data = regionSer.b
+	if r.typ.Kind() == reflect.Array && r.typ.Elem().Kind() == reflect.Uint8 {
+		// Fast path for byte arrays.
+		if n := r.typ.Len(); n > 0 {
+			region.Data = unsafe.Slice((*byte)(r.addr), n)
+		}
+	} else {
+		regionSer := s.fork()
+		serializeAny(regionSer, r.typ, r.addr)
+		region.Data = regionSer.b
+	}
 }
 
 func deserializePointedAt(d *Deserializer, t reflect.Type) reflect.Value {
@@ -441,11 +448,19 @@ func deserializePointedAt(d *Deserializer, t reflect.Type) reflect.Value {
 
 		regionType := d.types.ToReflect(typeid(region.Type))
 
-		regionDeser := d.fork(region.Data)
 		container := reflect.New(regionType)
 		p = container.UnsafePointer()
 		d.store(sID(id), p)
-		deserializeAny(regionDeser, regionType, p)
+
+		if regionType.Kind() == reflect.Array && regionType.Elem().Kind() == reflect.Uint8 {
+			// Fast path for byte arrays.
+			if n := regionType.Len(); n > 0 {
+				copy(unsafe.Slice((*byte)(p), n), region.Data)
+			}
+		} else {
+			regionDeser := d.fork(region.Data)
+			deserializeAny(regionDeser, regionType, p)
+		}
 	}
 
 	// Create the pointer with an offset into the container.
