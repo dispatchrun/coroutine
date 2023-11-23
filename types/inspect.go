@@ -717,9 +717,13 @@ func (s *Scanner) Next() bool {
 			}
 
 		case scanclosure:
-			ct := last.typ
-			last.typ = nil // only read closure struct once
-			return s.readStruct(ct, 1)
+			if last.typ != nil {
+				ct := last.typ
+				last.typ = nil // only read closure struct once
+				s.kind = reflect.Struct
+				s.typ = ct
+				return s.readStruct(ct, 1)
+			}
 
 		case scancustom:
 			if uint64(s.pos) < last.customtil {
@@ -780,13 +784,24 @@ func (s *Scanner) Function() *Function {
 
 // Custom is true if the scanner is scanning an object for
 // which a custom serializer was registered.
-func (s *Scanner) IsCustom() bool {
+func (s *Scanner) Custom() bool {
 	return s.custom
 }
 
 // Nil is true if the scanner is pointing to nil.
 func (s *Scanner) Nil() bool {
 	return s.nil
+}
+
+// Len is the length of the string, slice, array or map
+// the scanner is pointing to.
+func (s *Scanner) Len() int {
+	return s.len
+}
+
+// Cap is the capacity of the slice the scanner is pointing to.
+func (s *Scanner) Cap() int {
+	return s.cap
 }
 
 // Bool returns the bool the scanner points to.
@@ -898,9 +913,14 @@ func (s *Scanner) readAny(t *Type, depth int) (ok bool) {
 	case reflect.Array:
 		return s.readArray(t)
 	case reflect.Struct:
+		if t.Package() == "reflect" {
+			panic("not implemented: reflection")
+		}
 		return s.readStruct(t, 0)
 	case reflect.Func:
 		return s.readFunc(t)
+	case reflect.Chan:
+		panic("not implemented: channels")
 	}
 
 	s.stack = append(s.stack, scanstep{st: scanprimitive})
@@ -1134,8 +1154,7 @@ func (s *Scanner) readCustom() (ok bool) {
 		return false
 	}
 	size := binary.LittleEndian.Uint64(s.data[s.pos:])
-	s.pos += 8
-	if uint64(s.pos)+size < uint64(len(s.data)) {
+	if uint64(s.pos)+size > uint64(len(s.data)) {
 		s.err = fmt.Errorf("invalid custom object size")
 		return false
 	}
@@ -1143,6 +1162,7 @@ func (s *Scanner) readCustom() (ok bool) {
 		st:        scancustom,
 		customtil: uint64(s.pos) + size,
 	})
+	s.pos += 8
 	return true
 }
 
