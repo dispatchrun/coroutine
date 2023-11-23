@@ -67,7 +67,7 @@ func assertCanInspect(t *testing.T, b []byte) {
 	}
 	for _, region := range regions {
 		if typ := region.Type(); typ.Package() == "reflect" {
-			// FIXME
+			// TODO: support scanning reflect.Value/Type objects
 			continue
 		}
 		s := region.Scan()

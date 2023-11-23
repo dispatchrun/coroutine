@@ -909,9 +909,14 @@ func (s *Scanner) readAny(t *Type, depth int) (ok bool) {
 	case reflect.Array:
 		return s.readArray(t)
 	case reflect.Struct:
+		if t.Package() == "reflect" {
+			panic("not implemented: reflection")
+		}
 		return s.readStruct(t, 0)
 	case reflect.Func:
 		return s.readFunc(t)
+	case reflect.Chan:
+		panic("not implemented: channels")
 	}
 
 	s.stack = append(s.stack, scanstep{st: scanprimitive})
