@@ -207,6 +207,13 @@ func TestCoroutineYield(t *testing.T) {
 			yields: []int{1, 2, 3, 2, 4, 6, 3, 6, 9, 2, 4, 6, 4, 8, 12, 6, 12, 18, 3, 6, 9, 6, 12, 18, 9, 18, 27},
 			result: 27,
 		},
+
+		{
+			name:   "return named values",
+			coroR:  func() int { return ReturnNamedValue() },
+			yields: []int{11},
+			result: 42,
+		},
 	}
 
 	// This emulates the installation of function type information by the

@@ -543,7 +543,7 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	// assignments that use := to assignments that use =. Constant decls are
 	// hoisted and also have their value assigned in the function prologue.
 	decls, frameType, frameInit := extractDecls(p, typ, body, recv, defers, p.TypesInfo)
-	renameObjects(body, p.TypesInfo, decls, frameName, frameType, frameInit, scope)
+	renameObjects(typ, body, p.TypesInfo, decls, frameName, frameType, frameInit, scope)
 
 	// var _f{n} F = coroutine.Push[F](&_c.Stack)
 	gen.List = append(gen.List, &ast.DeclStmt{Decl: &ast.GenDecl{
@@ -633,7 +633,7 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	gen.List = append(gen.List, compiledBody.List...)
 
 	// If the function returns one or more values, it must end with a return statement;
-	// we inject it if the function body does not already has one.
+	// we inject it if the function body does not already have one.
 	if typ.Results != nil && len(typ.Results.List) > 0 {
 		needsReturn := len(gen.List) == 0
 		if !needsReturn {
