@@ -49,8 +49,34 @@ func testSerdeTime(t *testing.T, x time.Time) {
 		t.Fatal(err)
 	}
 
+	assertCanInspect(t, b)
+
 	if !x.Equal(out.(time.Time)) {
 		t.Errorf("expected %v, got %v", x, out)
+	}
+}
+
+func assertCanInspect(t *testing.T, b []byte) {
+	c, err := Inspect(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	regions := []*Region{c.Root()}
+	for i := 0; i < c.NumRegion(); i++ {
+		regions = append(regions, c.Region(i))
+	}
+	for _, region := range regions {
+		if typ := region.Type(); typ.Package() == "reflect" {
+			// FIXME
+			continue
+		}
+		s := region.Scan()
+		for s.Next() {
+			//
+		}
+		if err := s.Close(); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -192,6 +218,8 @@ func TestReflect(t *testing.T) {
 			}
 
 			assertEqual(t, x, out)
+
+			assertCanInspect(t, b)
 		})
 	}
 }

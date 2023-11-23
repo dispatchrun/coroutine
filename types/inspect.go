@@ -642,13 +642,15 @@ type Scanner struct {
 	cap      int
 	data1    uint64
 	data2    uint64
+	custom   bool
 }
 
 type scanstep struct {
-	st  scantype
-	idx int
-	len int
-	typ *Type
+	st        scantype
+	idx       int
+	len       int
+	customtil uint64
+	typ       *Type
 }
 
 type scantype int
@@ -659,6 +661,7 @@ const (
 	scanstruct
 	scanmap
 	scanclosure
+	scancustom
 )
 
 // Next is true if there is more to scan.
@@ -715,8 +718,18 @@ func (s *Scanner) Next() bool {
 
 		case scanclosure:
 			ct := last.typ
-			last.typ = nil
+			last.typ = nil // only read closure struct once
 			return s.readStruct(ct, 1)
+
+		case scancustom:
+			if uint64(s.pos) < last.customtil {
+				return s.readTypedAny(len(s.stack))
+			}
+			if uint64(s.pos) > last.customtil {
+				s.err = fmt.Errorf("invalid custom object size")
+				return false
+			}
+			s.custom = false
 		}
 		s.stack = s.stack[:len(s.stack)-1] // pop
 	}
@@ -765,8 +778,14 @@ func (s *Scanner) Function() *Function {
 	return s.function
 }
 
-// IsNil is true if the scanner is pointing to nil.
-func (s *Scanner) IsNil() bool {
+// Custom is true if the scanner is scanning an object for
+// which a custom serializer was registered.
+func (s *Scanner) IsCustom() bool {
+	return s.custom
+}
+
+// Nil is true if the scanner is pointing to nil.
+func (s *Scanner) Nil() bool {
 	return s.nil
 }
 
@@ -871,6 +890,10 @@ func (s *Scanner) readAny(t *Type, depth int) (ok bool) {
 		return s.readMap()
 	}
 
+	if t.Opaque() {
+		return s.readCustom()
+	}
+
 	switch t.Kind() {
 	case reflect.Array:
 		return s.readArray(t)
@@ -906,6 +929,15 @@ func (s *Scanner) readAny(t *Type, depth int) (ok bool) {
 	default:
 		panic("not implemented")
 	}
+}
+
+func (s *Scanner) readTypedAny(depth int) (ok bool) {
+	id, ok := s.getVarint()
+	if !ok {
+		return false
+	}
+	t := s.state.Type(int(id - 1))
+	return s.readAny(t, depth)
 }
 
 func (s *Scanner) readUint8() (ok bool) {
@@ -1092,6 +1124,25 @@ func (s *Scanner) readRegionPointer() (ok bool) {
 		return false
 	}
 	s.offset = offset
+	return true
+}
+
+func (s *Scanner) readCustom() (ok bool) {
+	s.custom = true
+	if len(s.data)-s.pos < 8 {
+		s.err = io.ErrShortBuffer
+		return false
+	}
+	size := binary.LittleEndian.Uint64(s.data[s.pos:])
+	s.pos += 8
+	if uint64(s.pos)+size < uint64(len(s.data)) {
+		s.err = fmt.Errorf("invalid custom object size")
+		return false
+	}
+	s.stack = append(s.stack, scanstep{
+		st:        scancustom,
+		customtil: uint64(s.pos) + size,
+	})
 	return true
 }
 
