@@ -780,13 +780,24 @@ func (s *Scanner) Function() *Function {
 
 // Custom is true if the scanner is scanning an object for
 // which a custom serializer was registered.
-func (s *Scanner) IsCustom() bool {
+func (s *Scanner) Custom() bool {
 	return s.custom
 }
 
 // Nil is true if the scanner is pointing to nil.
 func (s *Scanner) Nil() bool {
 	return s.nil
+}
+
+// Len is the length of the string, slice, array or map
+// the scanner is pointing to.
+func (s *Scanner) Len() int {
+	return s.len
+}
+
+// Cap is the capacity of the slice the scanner is pointing to.
+func (s *Scanner) Cap() int {
+	return s.cap
 }
 
 // Bool returns the bool the scanner points to.
