@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 	"unsafe"
@@ -914,4 +915,22 @@ func assertRoundTrip[T any](t *testing.T, orig T) T {
 func testReflect(t *testing.T, name string, f func(t *testing.T)) {
 	t.Helper()
 	t.Run(name, f)
+}
+
+func BenchmarkRoundtripString(b *testing.B) {
+	s := strings.Repeat("x", 1000)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		buf, err := Serialize(s)
+		if err != nil {
+			b.Fatal(err)
+		}
+		_, err = Deserialize(buf)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }
