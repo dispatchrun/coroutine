@@ -134,6 +134,8 @@ func TestReflect(t *testing.T) {
 		struct{ a, b int }{a: 1, b: 2},
 		[1][2]int{{1, 2}},
 
+		[1][2][3][4]byte{{{{1}}}},
+
 		[]any{(*int)(nil)},
 
 		funcType(nil),

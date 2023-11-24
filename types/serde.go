@@ -58,7 +58,7 @@ func Serialize(x any) ([]byte, error) {
 		Strings:   s.strings.strings,
 		Regions:   s.regions,
 		Root: &coroutinev1.Region{
-			Type: s.types.ToType(t),
+			Type: s.types.ToType(t) << 1,
 			Data: s.b,
 		},
 	}
@@ -240,9 +240,13 @@ func DeserializeTo[T any](d *Deserializer, x *T) {
 	r := reflect.ValueOf(x)
 	t := r.Type().Elem()
 	p := r.UnsafePointer()
-	actualType := deserializeType(d)
-	if actualType != t {
-		panic(fmt.Sprintf("cannot deserialize %s as %s", actualType, t))
+	actualType, length := deserializeType(d)
+	if length < 0 {
+		if t != actualType {
+			panic(fmt.Sprintf("cannot deserialize %s as %s", actualType, t))
+		}
+	} else if t.Kind() != reflect.Array || t.Len() != length || t != actualType.Elem() {
+		panic(fmt.Sprintf("cannot deserialize [%d]%s as %s", length, actualType, t))
 	}
 	deserializeAny(d, t, p)
 }

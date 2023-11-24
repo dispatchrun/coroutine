@@ -42,9 +42,16 @@ message Build {
 
 // Region is an encoded region of memory.
 message Region {
-  // Type is the type of the region.
+  // Type is the type of the region, shifted left by one.
+  //
+  // The least significant bit indicates that this region represents
+  // an array, and that the type is the array element type rather
+  // than the object that's encoded in this region.
   uint32 type = 1;
 
+  // Array length, for regions that are arrays.
+  uint32 array_length = 2;
+
   // Data is the encoded contents of the memory region.
-  bytes data = 2;
+  bytes data = 3;
 }

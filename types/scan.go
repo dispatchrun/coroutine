@@ -11,6 +11,7 @@ import (
 type container struct {
 	addr unsafe.Pointer
 	typ  reflect.Type
+	len  int // >=0 for arrays, -1 for other types
 }
 
 // Returns true iff at least one byte of the address space is shared between c
@@ -37,15 +38,18 @@ func (c container) after(x container) bool {
 
 // Size in bytes of c.
 func (c container) size() uintptr {
+	if c.len >= 0 {
+		return uintptr(c.len) * c.typ.Size()
+	}
 	return c.typ.Size()
 }
 
 func (c container) isStruct() bool {
-	return c.typ.Kind() == reflect.Struct
+	return !c.isArray() && c.typ.Kind() == reflect.Struct
 }
 
 func (c container) isArray() bool {
-	return c.typ.Kind() == reflect.Array
+	return c.len >= 0
 }
 
 func (c container) valid() bool {
@@ -71,7 +75,7 @@ func (c container) compare(p unsafe.Pointer) int {
 }
 
 func (c container) String() string {
-	return fmt.Sprintf("[%d-%d[ %d %s", c.addr, uintptr(c.addr)+c.size(), c.size(), c.typ)
+	return fmt.Sprintf("[%d-%d] %d %s(%d)", c.addr, uintptr(c.addr)+c.size(), c.size(), c.typ, c.len)
 }
 
 type containers []container
@@ -97,18 +101,16 @@ func (c *containers) of(p unsafe.Pointer) container {
 	return s[i]
 }
 
-func (c *containers) add(t reflect.Type, p unsafe.Pointer) {
+func (c *containers) add(t reflect.Type, length int, p unsafe.Pointer) {
+	if length == 0 {
+		return
+	}
 	if t.Size() == 0 {
 		return
 	}
 
 	if p == nil {
 		panic("tried to add nil pointer")
-	}
-	switch t.Kind() {
-	case reflect.Struct, reflect.Array:
-	default:
-		panic(fmt.Errorf("tried to add non struct or array container: %s (%s)", t, t.Kind()))
 	}
 
 	defer func() {
@@ -119,7 +121,7 @@ func (c *containers) add(t reflect.Type, p unsafe.Pointer) {
 		}
 	}()
 
-	x := container{addr: p, typ: t}
+	x := container{addr: p, typ: t, len: length}
 	i := c.insert(x)
 	c.fixup(i)
 	if i > 0 {
@@ -156,7 +158,7 @@ func (c *containers) fixup(i int) {
 
 	// There is some overlap. The only thing we accept to merge are arrays
 	// of the same type.
-	if !x.isArray() || !next.isArray() || x.typ.Elem() != next.typ.Elem() {
+	if !x.isArray() || !next.isArray() || x.typ != next.typ {
 		panic(fmt.Errorf("only support merging arrays of same type (%s, %s)", x.typ, next.typ))
 	}
 
@@ -171,16 +173,14 @@ func (c *containers) merge(i int) {
 	a := s[i]
 	b := s[i+1]
 
-	elemSize := a.typ.Elem().Size()
+	elemSize := a.typ.Size()
 
 	// sanity check alignment
 	if (uintptr(b.addr)-uintptr(a.addr))%uintptr(elemSize) != 0 {
 		panic("overlapping arrays aren't aligned")
 	}
 
-	// new element count of the array
-	newlen := int((uintptr(b.addr)-uintptr(a.addr))/elemSize) + b.typ.Len()
-	s[i].typ = reflect.ArrayOf(newlen, a.typ.Elem())
+	s[i].len = int((uintptr(b.addr)-uintptr(a.addr))/elemSize) + b.len
 
 	c.remove(i + 1)
 }
@@ -267,7 +267,7 @@ func (s *Serializer) scan1(t reflect.Type, p unsafe.Pointer, seen map[reflect.Va
 	case reflect.Invalid:
 		panic("handling invalid reflect.Type")
 	case reflect.Array:
-		s.containers.add(t, p)
+		s.containers.add(t.Elem(), t.Len(), p)
 		et := t.Elem()
 		es := int(et.Size())
 		for i := 0; i < t.Len(); i++ {
@@ -287,9 +287,7 @@ func (s *Serializer) scan1(t reflect.Type, p unsafe.Pointer, seen map[reflect.Va
 		et := t.Elem()
 		es := int(et.Size())
 
-		// Create a new type for the backing array.
-		xt := reflect.ArrayOf(sr.Cap(), t.Elem())
-		s.containers.add(xt, ep)
+		s.containers.add(et, sr.Cap(), ep)
 		for i := 0; i < sr.Len(); i++ {
 			ep := unsafe.Add(ep, es*i)
 			s.scan1(et, ep, seen)
@@ -314,7 +312,7 @@ func (s *Serializer) scan1(t reflect.Type, p unsafe.Pointer, seen map[reflect.Va
 
 		s.scan1(et, eptr, seen)
 	case reflect.Struct:
-		s.containers.add(t, p)
+		s.containers.add(t, -1, p)
 		n := t.NumField()
 		for i := 0; i < n; i++ {
 			f := t.Field(i)
@@ -335,8 +333,7 @@ func (s *Serializer) scan1(t reflect.Type, p unsafe.Pointer, seen map[reflect.Va
 			// empty strings are represented as nil pointers.
 			return
 		}
-		xt := reflect.ArrayOf(len(str), byteT)
-		s.containers.add(xt, unsafe.Pointer(sp))
+		s.containers.add(byteT, len(str), unsafe.Pointer(sp))
 	case reflect.Map:
 		m := r.Elem()
 		if m.IsNil() || m.Len() == 0 {

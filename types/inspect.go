@@ -124,7 +124,8 @@ type Type struct {
 	index int
 }
 
-// Index is the index of the type in the serialized state.
+// Index is the index of the type in the serialized state, or -1
+// if the type is derived from a serialized type.
 func (t *Type) Index() int {
 	return t.index
 }
@@ -597,7 +598,27 @@ func (t *Region) Index() int {
 
 // Type is the type of the region.
 func (r *Region) Type() *Type {
-	return r.state.Type(int(r.region.Type - 1))
+	t := r.state.Type(int((r.region.Type >> 1) - 1))
+	if r.region.Type&1 == 1 {
+		t = newArrayType(r.state, int64(r.region.ArrayLength), t)
+	}
+	return t
+}
+
+func newArrayType(state *State, length int64, t *Type) *Type {
+	idx := t.Index()
+	if idx < 0 {
+		panic("BUG")
+	}
+	return &Type{
+		state: state,
+		typ: &coroutinev1.Type{
+			Kind:   coroutinev1.Kind_KIND_ARRAY,
+			Length: int64(length),
+			Elem:   uint32(idx + 1),
+		},
+		index: -1, // aka. a derived type
+	}
 }
 
 // Size is the size of the region in bytes.
@@ -727,7 +748,10 @@ func (s *Scanner) Next() bool {
 
 		case scancustom:
 			if uint64(s.pos) < last.customtil {
-				return s.readTypedAny(len(s.stack))
+				if !s.readType() {
+					return false
+				}
+				return s.readAny(s.typ, len(s.stack))
 			}
 			if uint64(s.pos) > last.customtil {
 				s.err = fmt.Errorf("invalid custom object size")
@@ -951,13 +975,22 @@ func (s *Scanner) readAny(t *Type, depth int) (ok bool) {
 	}
 }
 
-func (s *Scanner) readTypedAny(depth int) (ok bool) {
+func (s *Scanner) readType() (ok bool) {
 	id, ok := s.getVarint()
 	if !ok {
 		return false
 	}
 	t := s.state.Type(int(id - 1))
-	return s.readAny(t, depth)
+
+	len, ok := s.getVarint()
+	if !ok {
+		return false
+	}
+	if len >= 0 {
+		t = newArrayType(s.state, len, t)
+	}
+	s.typ = t
+	return true
 }
 
 func (s *Scanner) readUint8() (ok bool) {
@@ -1110,13 +1143,9 @@ func (s *Scanner) readInterface() (ok bool) {
 		s.nil = true
 		return true
 	}
-
-	typeid, ok := s.getVarint()
-	if !ok {
+	if !s.readType() {
 		return false
 	}
-	s.typ = s.state.Type(int(typeid - 1))
-
 	return s.readRegionPointer()
 }
 

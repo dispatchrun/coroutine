@@ -11,13 +11,23 @@ import (
 )
 
 func serializeType(s *Serializer, t reflect.Type) {
-	x := s.types.ToType(t)
-	serializeVarint(s, int(x))
+	if t != nil && t.Kind() == reflect.Array {
+		id := s.types.ToType(t.Elem())
+		serializeVarint(s, int(id))
+		serializeVarint(s, t.Len())
+	} else {
+		id := s.types.ToType(t)
+		serializeVarint(s, int(id))
+		serializeVarint(s, -1)
+	}
+
 }
 
-func deserializeType(d *Deserializer) reflect.Type {
+func deserializeType(d *Deserializer) (reflect.Type, int) {
 	id := deserializeVarint(d)
-	return d.types.ToReflect(typeid(id))
+	length := deserializeVarint(d)
+	t := d.types.ToReflect(typeid(id))
+	return t, length
 }
 
 func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
@@ -105,7 +115,15 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 
 	switch t {
 	case reflectValueType:
-		rt := deserializeType(d)
+		rt, length := deserializeType(d)
+		if length >= 0 {
+			// We can't avoid the ArrayOf call here. We need to build a
+			// reflect.Type in order to return a reflect.Value. The only
+			// time this path is taken is if the user has explicitly serialized
+			// a reflect.Value, or some other data type that contains or points
+			// to a reflect.Value.
+			rt = reflect.ArrayOf(length, rt)
+		}
 		v := deserializeReflectValue(d, rt)
 		reflect.NewAt(reflectValueType, p).Elem().Set(reflect.ValueOf(v))
 		return
@@ -237,7 +255,7 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 			serializeFunc(s, t, unsafe.Pointer(&addr))
 		}
 	case reflect.Pointer:
-		serializePointedAt(s, t.Elem(), v.UnsafePointer())
+		serializePointedAt(s, t.Elem(), -1, v.UnsafePointer())
 	default:
 		panic(fmt.Sprintf("not implemented: serializing reflect.Value with type %s (%s)", t, t.Kind()))
 	}
@@ -338,16 +356,16 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type) (v reflect.Value) 
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(&fn.Addr)
 		}
 	case reflect.Pointer:
-		ep := deserializePointedAt(d, t.Elem())
+		ep := deserializePointedAt(d, t.Elem(), -1)
 		v = reflect.New(t).Elem()
-		v.Set(ep)
+		v.Set(reflect.NewAt(t.Elem(), ep))
 	default:
 		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", t))
 	}
 	return
 }
 
-func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
+func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Pointer) {
 	// If this is a nil pointer, write it as such.
 	if p == nil {
 		serializeVarint(s, 0)
@@ -373,14 +391,15 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	// to the serializer). Scanning here might cause known regions to
 	// expand, invalidating those that have already been encoded.
 	if !r.valid() {
-		if t == nil {
+		if et == nil {
 			panic("cannot serialize unsafe.Pointer pointing to region of unknown size")
 		}
 		r.addr = p
-		r.typ = t
+		r.typ = et
+		r.len = length
 	}
 
-	if r.typ.Kind() == reflect.Map {
+	if r.len < 0 && r.typ.Kind() == reflect.Map {
 		serializeMap(s, r.typ, r.addr)
 		return
 	}
@@ -396,46 +415,57 @@ func serializePointedAt(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	region := &coroutinev1.Region{
-		Type: s.types.ToType(r.typ),
+		Type: s.types.ToType(r.typ) << 1,
+	}
+	if r.len >= 0 {
+		region.Type |= 1
+		region.ArrayLength = uint32(r.len)
 	}
 	s.regions = append(s.regions, region)
 
-	if r.typ.Kind() == reflect.Array && r.typ.Elem().Kind() == reflect.Uint8 {
-		// Fast path for byte arrays.
-		if n := r.typ.Len(); n > 0 {
-			region.Data = unsafe.Slice((*byte)(r.addr), n)
+	// Fast path for byte arrays.
+	if r.len >= 0 && r.typ.Kind() == reflect.Uint8 {
+		if r.len > 0 {
+			region.Data = unsafe.Slice((*byte)(r.addr), r.len)
+		}
+		return
+	}
+
+	regionSer := s.fork()
+	if r.len >= 0 { // array
+		es := int(r.typ.Size())
+		for i := 0; i < r.len; i++ {
+			serializeAny(regionSer, r.typ, unsafe.Add(r.addr, i*es))
 		}
 	} else {
-		regionSer := s.fork()
 		serializeAny(regionSer, r.typ, r.addr)
-		region.Data = regionSer.b
 	}
+	region.Data = regionSer.b
 }
 
-func deserializePointedAt(d *Deserializer, t reflect.Type) reflect.Value {
+func deserializePointedAt(d *Deserializer, t reflect.Type, length int) unsafe.Pointer {
 	// This function is a bit different than the other deserialize* ones
 	// because it deserializes into an unknown location. As a result,
-	// instead of taking an unsafe.Pointer as an input, it returns a
-	// reflect.Value that contains a *T (where T is given by the argument
-	// t).
+	// instead of taking an unsafe.Pointer as an input, it returns an
+	// unsafe.Pointer to a deserialized object.
 
-	if t.Kind() == reflect.Map {
+	if length < 0 && t.Kind() == reflect.Map {
 		m := reflect.New(t)
+		p := m.UnsafePointer()
 		deserializeMapReflect(d, t, m.Elem(), m.UnsafePointer())
-		return m
+		return p
 	}
 
 	id := deserializeVarint(d)
 	if id == 0 {
 		// Nil pointer.
-		return reflect.NewAt(t, unsafe.Pointer(nil))
+		return unsafe.Pointer(nil)
 	}
 
 	offset := deserializeVarint(d)
 	if id == -1 {
 		// Pointer into static uint64 table.
-		p := staticPointer(offset)
-		return reflect.NewAt(t, p)
+		return staticPointer(offset)
 	}
 
 	p := d.ptrs[sID(id)]
@@ -446,25 +476,38 @@ func deserializePointedAt(d *Deserializer, t reflect.Type) reflect.Value {
 		}
 		region := d.regions[id-1]
 
-		regionType := d.types.ToReflect(typeid(region.Type))
+		regionType := d.types.ToReflect(typeid(region.Type >> 1))
 
-		container := reflect.New(regionType)
-		p = container.UnsafePointer()
-		d.store(sID(id), p)
+		if region.Type&1 == 1 {
+			elemSize := int(regionType.Size())
+			length := int(region.ArrayLength)
+			data := make([]byte, elemSize*length)
+			p = unsafe.Pointer(unsafe.SliceData(data))
+			d.store(sID(id), p)
 
-		if regionType.Kind() == reflect.Array && regionType.Elem().Kind() == reflect.Uint8 {
 			// Fast path for byte arrays.
-			if n := regionType.Len(); n > 0 {
-				copy(unsafe.Slice((*byte)(p), n), region.Data)
+			if regionType.Kind() == reflect.Uint8 {
+				if length > 0 {
+					copy(unsafe.Slice((*byte)(p), length), region.Data)
+				}
+			} else {
+				regionDeser := d.fork(region.Data)
+				for i := 0; i < length; i++ {
+					deserializeAny(regionDeser, regionType, unsafe.Add(p, elemSize*i))
+				}
 			}
 		} else {
+			container := reflect.New(regionType)
+			p = container.UnsafePointer()
+			d.store(sID(id), p)
 			regionDeser := d.fork(region.Data)
 			deserializeAny(regionDeser, regionType, p)
 		}
+
 	}
 
 	// Create the pointer with an offset into the container.
-	return reflect.NewAt(t, unsafe.Add(p, offset))
+	return unsafe.Add(p, offset)
 }
 
 func serializeMap(s *Serializer, t reflect.Type, p unsafe.Pointer) {
@@ -491,7 +534,7 @@ func serializeMapReflect(s *Serializer, t reflect.Type, r reflect.Value) {
 	size := r.Len()
 
 	region := &coroutinev1.Region{
-		Type: s.types.ToType(t),
+		Type: s.types.ToType(t) << 1,
 	}
 	s.regions = append(s.regions, region)
 
@@ -562,26 +605,20 @@ func serializeSlice(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 
 	serializeVarint(s, r.Len())
 	serializeVarint(s, r.Cap())
-
-	at := reflect.ArrayOf(r.Cap(), t.Elem())
-	ap := r.UnsafePointer()
-
-	serializePointedAt(s, at, ap)
+	serializePointedAt(s, t.Elem(), r.Cap(), r.UnsafePointer())
 }
 
 func deserializeSlice(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	l := deserializeVarint(d)
 	c := deserializeVarint(d)
 
-	at := reflect.ArrayOf(c, t.Elem())
-
-	ar := deserializePointedAt(d, at)
-	if ar.IsNil() {
+	ar := deserializePointedAt(d, t.Elem(), c)
+	if ar == nil {
 		return
 	}
 
 	s := (*slice)(p)
-	s.data = ar.UnsafePointer()
+	s.data = ar
 	s.cap = c
 	s.len = l
 }
@@ -608,20 +645,20 @@ func deserializeArray(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 func serializePointer(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	r := reflect.NewAt(t, p).Elem()
 	x := r.UnsafePointer()
-	serializePointedAt(s, t.Elem(), x)
+	serializePointedAt(s, t.Elem(), -1, x)
 }
 
 func deserializePointer(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	ep := deserializePointedAt(d, t.Elem())
+	ep := deserializePointedAt(d, t.Elem(), -1)
 	r := reflect.NewAt(t, p)
-	r.Elem().Set(ep)
+	r.Elem().Set(reflect.NewAt(t.Elem(), ep))
 }
 
 func serializeUnsafePointer(s *Serializer, p unsafe.Pointer) {
 	if p == nil {
-		serializePointedAt(s, nil, nil)
+		serializePointedAt(s, nil, -1, nil)
 	} else {
-		serializePointedAt(s, nil, *(*unsafe.Pointer)(p))
+		serializePointedAt(s, nil, -1, *(*unsafe.Pointer)(p))
 	}
 }
 
@@ -630,10 +667,9 @@ var unsafePointerType = reflect.TypeOf(unsafe.Pointer(nil))
 func deserializeUnsafePointer(d *Deserializer, p unsafe.Pointer) {
 	r := reflect.NewAt(unsafePointerType, p)
 
-	ep := deserializePointedAt(d, unsafePointerType)
-	if !ep.IsNil() {
-		up := ep.UnsafePointer()
-		r.Elem().Set(reflect.ValueOf(up))
+	ep := deserializePointedAt(d, unsafePointerType, -1)
+	if ep != nil {
+		r.Elem().Set(reflect.ValueOf(ep))
 	}
 }
 
@@ -735,7 +771,11 @@ func serializeInterface(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		// noescape?
 	}
 
-	serializePointedAt(s, et, eptr)
+	if et.Kind() == reflect.Array {
+		serializePointedAt(s, et.Elem(), et.Len(), eptr)
+	} else {
+		serializePointedAt(s, et, -1, eptr)
+	}
 }
 
 func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
@@ -746,15 +786,24 @@ func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	// Deserialize the type
-	et := deserializeType(d)
+	et, length := deserializeType(d)
+	if et == nil {
+		return
+	}
 
 	// Deserialize the pointer
-	ep := deserializePointedAt(d, et)
+	ep := deserializePointedAt(d, et, length)
 
 	// Store the result in the interface
 	r := reflect.NewAt(t, p)
-	if !ep.IsNil() {
-		r.Elem().Set(ep.Elem())
+	if ep != nil {
+		// FIXME: is there a way to avoid ArrayOf+NewAt here? We can
+		//  access the iface via p. We can set the ptr, but not the typ.
+		if length >= 0 {
+			et = reflect.ArrayOf(length, et)
+		}
+		x := reflect.NewAt(et, ep)
+		r.Elem().Set(x.Elem())
 	} else {
 		r.Elem().Set(reflect.Zero(et))
 	}
@@ -770,10 +819,9 @@ func serializeString(s *Serializer, x *string) {
 		return
 	}
 
-	at := reflect.ArrayOf(l, byteT)
-	ap := unsafe.Pointer(unsafe.StringData(*x))
+	p := unsafe.Pointer(unsafe.StringData(*x))
 
-	serializePointedAt(s, at, ap)
+	serializePointedAt(s, byteT, l, p)
 }
 
 func deserializeString(d *Deserializer, x *string) {
@@ -783,10 +831,9 @@ func deserializeString(d *Deserializer, x *string) {
 		return
 	}
 
-	at := reflect.ArrayOf(l, byteT)
-	ar := deserializePointedAt(d, at)
+	ar := deserializePointedAt(d, byteT, l)
 
-	*x = unsafe.String((*byte)(ar.UnsafePointer()), l)
+	*x = unsafe.String((*byte)(ar), l)
 }
 
 func serializeBool(s *Serializer, x bool) {
