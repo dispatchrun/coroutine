@@ -598,8 +598,8 @@ func (t *Region) Index() int {
 
 // Type is the type of the region.
 func (r *Region) Type() *Type {
-	t := r.state.Type(int(r.region.Type - 1))
-	if r.region.ArrayLength >= 0 {
+	t := r.state.Type(int((r.region.Type >> 1) - 1))
+	if r.region.Type&1 == 1 {
 		t = newArrayType(r.state, int64(r.region.ArrayLength), t)
 	}
 	return t

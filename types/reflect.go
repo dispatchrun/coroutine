@@ -415,8 +415,11 @@ func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Poi
 	}
 
 	region := &coroutinev1.Region{
-		Type:        s.types.ToType(r.typ),
-		ArrayLength: int32(r.len),
+		Type: s.types.ToType(r.typ) << 1,
+	}
+	if r.len >= 0 {
+		region.Type |= 1
+		region.ArrayLength = uint32(r.len)
 	}
 	s.regions = append(s.regions, region)
 
@@ -473,9 +476,9 @@ func deserializePointedAt(d *Deserializer, t reflect.Type, length int) unsafe.Po
 		}
 		region := d.regions[id-1]
 
-		regionType := d.types.ToReflect(typeid(region.Type))
+		regionType := d.types.ToReflect(typeid(region.Type >> 1))
 
-		if region.ArrayLength >= 0 {
+		if region.Type&1 == 1 {
 			elemSize := int(regionType.Size())
 			length := int(region.ArrayLength)
 			data := make([]byte, elemSize*length)
@@ -531,8 +534,7 @@ func serializeMapReflect(s *Serializer, t reflect.Type, r reflect.Value) {
 	size := r.Len()
 
 	region := &coroutinev1.Region{
-		Type:        s.types.ToType(t),
-		ArrayLength: -1, // not an array
+		Type: s.types.ToType(t) << 1,
 	}
 	s.regions = append(s.regions, region)
 
