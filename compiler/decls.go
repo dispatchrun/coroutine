@@ -152,7 +152,7 @@ func extractDecls(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, r
 // renameObjects renames types, constants and variables declared within
 // a function. Each is given a unique name, so that declarations are safe
 // to hoist into the function prologue.
-func renameObjects(tree ast.Node, info *types.Info, decls []*ast.GenDecl, frameName *ast.Ident, frameType *ast.StructType, frameInit *ast.CompositeLit, scope *scope) {
+func renameObjects(fntype *ast.FuncType, tree ast.Node, info *types.Info, decls []*ast.GenDecl, frameName *ast.Ident, frameType *ast.StructType, frameInit *ast.CompositeLit, scope *scope) {
 	// Scan decls to find objects, giving each new object a unique name.
 	names := make(map[types.Object]*ast.Ident, len(decls))
 	selectors := make(map[types.Object]*ast.SelectorExpr, len(frameType.Fields.List))
@@ -238,7 +238,7 @@ func renameObjects(tree ast.Node, info *types.Info, decls []*ast.GenDecl, frameN
 	// replacing if they are removed from the tree too early.
 	//
 	// Note that replacing identifiers is a recursive operation which traverses
-	// function literls.
+	// function literals.
 
 	astutil.Apply(tree,
 		func(cursor *astutil.Cursor) bool {
@@ -326,9 +326,55 @@ func renameObjects(tree ast.Node, info *types.Info, decls []*ast.GenDecl, frameN
 		},
 		nil,
 	)
+
+	// Perform a last pass to assigned named results before unnamed. It cannot
+	// be done in the renaming pass because it should not recurse into function
+	// literals, which the renaming pass does.
+	if hasNamedResults(fntype) {
+		astutil.Apply(tree,
+			func(cursor *astutil.Cursor) bool {
+				switch n := cursor.Node().(type) {
+				case *ast.FuncLit:
+					return false
+				case *ast.ReturnStmt:
+					if len(n.Results) > 0 {
+						return true
+					}
+
+					// Transform
+					//   return
+					// into
+					//   return (selector1), (selector2)...
+					for _, t := range fntype.Results.List {
+						ident := t.Names[0]
+						obj := info.ObjectOf(ident)
+						n.Results = append(n.Results, selectors[obj])
+					}
+				}
+
+				return true
+			}, nil)
+	}
 }
 
-func renameFuncRecvParamsResults(typ *ast.FuncType, recv *ast.FieldList, body *ast.BlockStmt, info *types.Info) {
+func hasNamedResults(t *ast.FuncType) bool {
+	if t.Results == nil || len(t.Results.List) == 0 {
+		return false
+	}
+
+	for _, result := range t.Results.List {
+		for _, name := range result.Names {
+			if name == nil || name.Name == "" || name.Name == "_" {
+				continue
+			}
+			return true
+		}
+	}
+	return false
+}
+
+func renameFuncRecvParamsResults(typ *ast.FuncType, recv *ast.FieldList, body *ast.BlockStmt, info *types.Info) []*ast.Ident {
+	var namedResults []*ast.Ident
 	names := map[types.Object]*ast.Ident{}
 
 	fieldLists := []*ast.FieldList{recv, typ.Params, typ.Results}
@@ -345,6 +391,7 @@ func renameFuncRecvParamsResults(typ *ast.FuncType, recv *ast.FieldList, body *a
 				newIdent := ast.NewIdent("_fn" + strconv.Itoa(len(names)))
 				names[obj] = newIdent
 				info.Defs[newIdent] = obj
+				namedResults = append(namedResults, newIdent)
 			}
 		}
 	}
@@ -366,4 +413,6 @@ func renameFuncRecvParamsResults(typ *ast.FuncType, recv *ast.FieldList, body *a
 		}
 		return true
 	}, nil)
+
+	return namedResults
 }

@@ -543,7 +543,7 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	// assignments that use := to assignments that use =. Constant decls are
 	// hoisted and also have their value assigned in the function prologue.
 	decls, frameType, frameInit := extractDecls(p, typ, body, recv, defers, p.TypesInfo)
-	renameObjects(body, p.TypesInfo, decls, frameName, frameType, frameInit, scope)
+	renameObjects(typ, body, p.TypesInfo, decls, frameName, frameType, frameInit, scope)
 
 	// var _f{n} F = coroutine.Push[F](&_c.Stack)
 	gen.List = append(gen.List, &ast.DeclStmt{Decl: &ast.GenDecl{
@@ -632,8 +632,11 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	compiledBody := compileDispatch(body, frameName, spans, mayYield).(*ast.BlockStmt)
 	gen.List = append(gen.List, compiledBody.List...)
 
-	// If the function returns one or more values, it must end with a return statement;
-	// we inject it if the function body does not already has one.
+	// If the function returns one or more values, it must end with a return
+	// statement. Since the input Go code is valid, the last entry in the
+	// dispatch table should already contain a return statement. We inject a
+	// panic at the end of the function in case this invariant does not hold
+	// anymore.
 	if typ.Results != nil && len(typ.Results.List) > 0 {
 		needsReturn := len(gen.List) == 0
 		if !needsReturn {
@@ -641,11 +644,23 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 			needsReturn = !endsWithReturn
 		}
 		if needsReturn {
-			gen.List = append(gen.List, &ast.ReturnStmt{})
+			gen.List = append(gen.List, &ast.ExprStmt{X: panicCall("unreachable")})
 		}
 	}
 
 	return gen
+}
+
+func panicCall(s string) ast.Expr {
+	return &ast.CallExpr{
+		Fun: &ast.Ident{Name: "panic"},
+		Args: []ast.Expr{
+			&ast.BasicLit{
+				Kind:  token.STRING,
+				Value: "\"" + s + "\"",
+			},
+		},
+	}
 }
 
 // This function returns true if a function body is composed of at most one

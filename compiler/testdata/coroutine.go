@@ -550,3 +550,10 @@ func varArgs(args ...int) {
 		coroutine.Yield[int, any](arg)
 	}
 }
+
+func ReturnNamedValue() (out int) {
+	out = 5
+	coroutine.Yield[int, any](11)
+	out = 42
+	return
+}
