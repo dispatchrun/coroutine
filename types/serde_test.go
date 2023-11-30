@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 	"unsafe"
+
+	coroutinev1 "github.com/stealthrocket/coroutine/gen/proto/go/coroutine/v1"
 )
 
 func TestSerdeTime(t *testing.T) {
@@ -935,4 +937,32 @@ func BenchmarkRoundtripString(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+}
+
+func TestUnmarshalInvalid(t *testing.T) {
+	for _, invalid := range [][]byte{
+		[]byte("foobar"),
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		mustSerialize(&coroutinev1.State{
+			Build: buildInfo,
+			Root: &coroutinev1.Region{
+				Type: 0,
+				Data: []byte{1, 0},
+			},
+		}),
+	} {
+		t.Run(fmt.Sprintf("%v", invalid), func(t *testing.T) {
+			if _, err := Deserialize(invalid); err == nil {
+				t.Error("expected error, got nil")
+			}
+		})
+	}
+}
+
+func mustSerialize(s *coroutinev1.State) []byte {
+	b, err := s.MarshalVT()
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
