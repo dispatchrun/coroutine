@@ -66,7 +66,14 @@ func Serialize(x any) ([]byte, error) {
 }
 
 // Deserialize value from b. Return left over bytes.
-func Deserialize(b []byte) (interface{}, error) {
+func Deserialize(b []byte) (x interface{}, err error) {
+	defer func() {
+		// FIXME: the deserialize*() functions panic on invalid input
+		if e := recover(); e != nil {
+			err = fmt.Errorf("cannot deserialize state: %v", e)
+		}
+	}()
+
 	var state coroutinev1.State
 	if err := state.UnmarshalVT(b); err != nil {
 		return nil, err
@@ -77,16 +84,15 @@ func Deserialize(b []byte) (interface{}, error) {
 
 	d := newDeserializer(state.Root.Data, state.Types, state.Functions, state.Regions, state.Strings)
 
-	var x interface{}
 	px := &x
 	t := reflect.TypeOf(px).Elem()
 	p := unsafe.Pointer(px)
 	deserializeInterface(d, t, p)
 
 	if len(d.b) != 0 {
-		return nil, errors.New("trailing bytes")
+		err = errors.New("trailing bytes")
 	}
-	return x, nil
+	return
 }
 
 type Deserializer struct {
