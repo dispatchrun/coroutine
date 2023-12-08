@@ -71,7 +71,11 @@ type Context[R, S any] struct {
 
 // Run executes a coroutine to completion, calling f for each value that the
 // coroutine yields, and sending back each value that f returns.
-func Run[R, S any](c Coroutine[R, S], f func(R) S) {
+//
+// If c was constructed with NewWithReturn, the return value of the coroutine is
+// returned by Run. Otherwise, the zero-value is returned and can be ignored by
+// the caller.
+func Run[R, S any](c Coroutine[R, S], f func(R) S) R {
 	// The coroutine is run to completion, but f might panic in which case we
 	// don't want to leave it in an uncompleted state and interrupt it instead.
 	defer func() {
@@ -86,6 +90,8 @@ func Run[R, S any](c Coroutine[R, S], f func(R) S) {
 		s := f(r)
 		c.Send(s)
 	}
+
+	return c.Result()
 }
 
 // Yield sends v to the generator and pauses the execution of the coroutine
