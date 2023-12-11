@@ -557,3 +557,7 @@ func ReturnNamedValue() (out int) {
 	out = 42
 	return
 }
+
+func IdentityGeneric[T any](n T) {
+	coroutine.Yield[T, any](n)
+}
