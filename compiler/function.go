@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"log"
 	"maps"
 	"slices"
 	"strconv"
@@ -207,15 +208,22 @@ func functionPath(p *packages.Package, f *ast.FuncDecl) string {
 	return packagePath(p) + "." + f.Name.Name
 }
 
-func generateFunctypes(p *packages.Package, f *ast.File, colors map[ast.Node]*types.Signature) {
+func (c *compiler) generateFunctypes(p *packages.Package, f *ast.File, colors map[ast.Node]*types.Signature) {
 	functypes := map[string]functype{}
 
 	for _, decl := range f.Decls {
 		switch d := decl.(type) {
 		case *ast.FuncDecl:
-			scope := &funcscope{vars: map[string]*funcvar{}}
-			name := functionPath(p, d)
-			collectFunctypes(p, name, d, scope, colors, functypes)
+			obj := p.TypesInfo.ObjectOf(d.Name).(*types.Func)
+			fn := c.prog.FuncValue(obj)
+			if fn.TypeParams() != nil {
+				log.Printf("warning: cannot register runtime type information for generic function %s", d.Name)
+				continue
+			} else {
+				scope := &funcscope{vars: map[string]*funcvar{}}
+				name := functionPath(p, d)
+				collectFunctypes(p, name, d, scope, colors, functypes)
+			}
 		}
 	}
 
