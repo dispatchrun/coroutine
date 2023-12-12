@@ -217,6 +217,7 @@ func (c *compiler) generateFunctypes(p *packages.Package, f *ast.File, colors ma
 			obj := p.TypesInfo.ObjectOf(d.Name).(*types.Func)
 			fn := c.prog.FuncValue(obj)
 			if fn.TypeParams() != nil {
+				// TODO: support generics. Generate type func/closure type information for each instance from: instances := c.generics[fn]
 				log.Printf("warning: cannot register runtime type information for generic function %s", d.Name)
 				continue
 			} else {
