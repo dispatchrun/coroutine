@@ -3236,12 +3236,30 @@ func ReturnNamedValue() (_fn0 int) {
 	}
 	panic("unreachable")
 }
+
+//go:noinline
+func IdentityGeneric[T any](n T) { coroutine.Yield[T, any](n) }
+
+type IdentityGenericStruct[T any] struct {
+	n T
+}
+
+//go:noinline
+func (i *IdentityGenericStruct[T]) Run() { coroutine.Yield[T, any](i.n) }
+
+//go:noinline
+func IdentityGenericInt(n int) { IdentityGeneric[int](n) }
+
+//go:noinline
+func IdentityGenericStructInt(n int) { (&IdentityGenericStruct[int]{n: n}).Run() }
 func init() {
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Double")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.EvenSquareGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.FizzBuzzIfGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.FizzBuzzSwitchGenerator")
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Identity")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.IdentityGenericInt")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.IdentityGenericStructInt")
 	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.LoopBreakAndContinue")
 	_types.RegisterFunc[func(_fn1 int)]("github.com/stealthrocket/coroutine/compiler/testdata.MethodGenerator")
 	_types.RegisterFunc[func(_fn0 int) (_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.NestedLoops")

@@ -92,6 +92,12 @@ func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
 			c.Dir = ast.RECV
 		}
 		return c
+
+	case *types.TypeParam:
+		obj := t.Obj()
+		ident := ast.NewIdent(obj.Name())
+		p.TypesInfo.Defs[ident] = obj
+		return ident
 	}
 	panic(fmt.Sprintf("not implemented: %T", typ))
 }
