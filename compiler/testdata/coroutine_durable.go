@@ -3236,6 +3236,9 @@ func ReturnNamedValue() (_fn0 int) {
 	}
 	panic("unreachable")
 }
+
+//go:noinline
+func IdentityGeneric[T any](n T) { coroutine.Yield[T, any](n) }
 func init() {
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Double")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.EvenSquareGenerator")
