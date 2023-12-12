@@ -47,6 +47,8 @@ func Compile(path string, options ...Option) error {
 type Option func(*compiler)
 
 type compiler struct {
+	prog         *ssa.Program
+	generics     map[*ssa.Function][]*ssa.Function
 	coroutinePkg *packages.Package
 
 	fset *token.FileSet
@@ -112,13 +114,26 @@ func (c *compiler) compile(path string) error {
 	}
 
 	log.Printf("building SSA program")
-	prog, _ := ssautil.AllPackages(pkgs, ssa.InstantiateGenerics|ssa.GlobalDebug)
-	prog.Build()
+	c.prog, _ = ssautil.AllPackages(pkgs, ssa.InstantiateGenerics|ssa.GlobalDebug)
+	c.prog.Build()
 
 	log.Printf("building call graph")
-	cg := vta.CallGraph(ssautil.AllFunctions(prog), cha.CallGraph(prog))
+	cg := vta.CallGraph(ssautil.AllFunctions(c.prog), cha.CallGraph(c.prog))
 
-	log.Printf("finding generic yield instantiations")
+	log.Printf("collecting generic instances")
+	c.generics = map[*ssa.Function][]*ssa.Function{}
+	for fn := range ssautil.AllFunctions(c.prog) {
+		if fn.Signature.TypeParams() != nil {
+			if _, ok := c.generics[fn]; !ok {
+				c.generics[fn] = nil
+			}
+		}
+		if origin := fn.Origin(); origin != nil {
+			c.generics[origin] = append(c.generics[origin], fn)
+		}
+	}
+
+	log.Printf("finding yield points")
 	packages.Visit(pkgs, func(p *packages.Package) bool {
 		if p.PkgPath == coroutinePackage {
 			c.coroutinePkg = p
@@ -129,10 +144,10 @@ func (c *compiler) compile(path string) error {
 		log.Printf("%s not imported by the module. Nothing to do", coroutinePackage)
 		return nil
 	}
-	yieldFunc := prog.FuncValue(c.coroutinePkg.Types.Scope().Lookup("Yield").(*types.Func))
+	yieldFunc := c.prog.FuncValue(c.coroutinePkg.Types.Scope().Lookup("Yield").(*types.Func))
 	yieldInstances := functionColors{}
-	for fn := range ssautil.AllFunctions(prog) {
-		if fn.Origin() == yieldFunc {
+	if fns, ok := c.generics[yieldFunc]; ok {
+		for _, fn := range fns {
 			yieldInstances[fn] = fn.Signature
 		}
 	}
@@ -149,11 +164,17 @@ func (c *compiler) compile(path string) error {
 	}, nil)
 	colorsByPkg := map[*packages.Package]functionColors{}
 	for fn, color := range colors {
-		if fn.Pkg == nil {
+		pkg := fn.Pkg
+		if pkg == nil {
+			if origin := fn.Origin(); origin != nil {
+				pkg = origin.Pkg
+			}
+		}
+		if pkg == nil {
 			return fmt.Errorf("unsupported yield function %s (Pkg is nil)", fn)
 		}
 
-		p := pkgsByTypes[fn.Pkg.Pkg]
+		p := pkgsByTypes[pkg.Pkg]
 		pkgColors := colorsByPkg[p]
 		if pkgColors == nil {
 			pkgColors = functionColors{}
@@ -306,7 +327,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 			}
 		}
 
-		generateFunctypes(p, gen, colorsByFunc)
+		c.generateFunctypes(p, gen, colorsByFunc)
 
 		// Find all the required imports for this file.
 		gen = addImports(p, gen)
