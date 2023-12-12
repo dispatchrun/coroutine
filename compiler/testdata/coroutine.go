@@ -561,3 +561,19 @@ func ReturnNamedValue() (out int) {
 func IdentityGeneric[T any](n T) {
 	coroutine.Yield[T, any](n)
 }
+
+type IdentityGenericStruct[T any] struct {
+	n T
+}
+
+func (i *IdentityGenericStruct[T]) Run() {
+	coroutine.Yield[T, any](i.n)
+}
+
+func IdentityGenericInt(n int) {
+	IdentityGeneric[int](n)
+}
+
+func IdentityGenericStructInt(n int) {
+	(&IdentityGenericStruct[int]{n: n}).Run()
+}
