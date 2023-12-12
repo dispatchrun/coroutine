@@ -399,6 +399,9 @@ func (m *funcmap) RegisterAddr(addr unsafe.Pointer) (id funcid, closureType refl
 	if f == nil {
 		panic(fmt.Sprintf("function not found at address %v", addr))
 	}
+	if f.Type == nil {
+		panic(fmt.Sprintf("type information not registered for function %s (%p)", f.Name, addr))
+	}
 
 	var closureTypeID typeid
 	if f.Closure != nil {
