@@ -232,6 +232,12 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   func() { IdentityGenericStructInt(11) },
 			yields: []int{11},
 		},
+
+		{
+			name:   "identity generic (4)",
+			coro:   func() { IdentityGenericClosureInt(11) },
+			yields: []int{11, 11},
+		},
 	}
 
 	// This emulates the installation of function type information by the

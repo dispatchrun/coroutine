@@ -3252,12 +3252,63 @@ func IdentityGenericInt(n int) { IdentityGeneric[int](n) }
 
 //go:noinline
 func IdentityGenericStructInt(n int) { (&IdentityGenericStruct[int]{n: n}).Run() }
+
+//go:noinline
+func IdentityGenericClosure[T any](_fn0 T) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 T
+		X1 func()
+	} = coroutine.Push[struct {
+		IP int
+		X0 T
+		X1 func()
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 T
+			X1 func()
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X1 = buildClosure(_f0.X0)
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 3:
+		_f0.X1()
+		_f0.IP = 3
+		fallthrough
+	case _f0.IP < 4:
+		_f0.X1()
+	}
+}
+
+// TODO: add this go:noinline directive automatically
+//
+//go:noinline
+func buildClosure[T any](n T) func() {
+	return func() {
+		coroutine.Yield[T, any](n)
+	}
+}
+
+//go:noinline
+func IdentityGenericClosureInt(n int) { IdentityGenericClosure[int](n) }
 func init() {
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Double")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.EvenSquareGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.FizzBuzzIfGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.FizzBuzzSwitchGenerator")
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Identity")
+	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.IdentityGenericClosureInt")
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.IdentityGenericInt")
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.IdentityGenericStructInt")
 	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.LoopBreakAndContinue")

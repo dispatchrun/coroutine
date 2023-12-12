@@ -577,3 +577,22 @@ func IdentityGenericInt(n int) {
 func IdentityGenericStructInt(n int) {
 	(&IdentityGenericStruct[int]{n: n}).Run()
 }
+
+func IdentityGenericClosure[T any](n T) {
+	fn := buildClosure(n)
+	fn()
+	fn()
+}
+
+// TODO: add this go:noinline directive automatically
+//
+//go:noinline
+func buildClosure[T any](n T) func() {
+	return func() {
+		coroutine.Yield[T, any](n)
+	}
+}
+
+func IdentityGenericClosureInt(n int) {
+	IdentityGenericClosure[int](n)
+}
