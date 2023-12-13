@@ -3255,7 +3255,7 @@ func IdentityGenericStructInt(n int) { (&IdentityGenericStruct[int]{n: n}).Run()
 
 //go:noinline
 func IdentityGenericClosure[T any](_fn0 T) {
-	_c := coroutine.LoadContext[T, any]()
+	_c := coroutine.LoadContext[int, any]()
 	var _f0 *struct {
 		IP int
 		X0 T
@@ -3443,10 +3443,5 @@ func init() {
 		F  uintptr
 		X0 int
 	}]("github.com/stealthrocket/coroutine/compiler/testdata.buildClosure[go.shape.int].func1")
-	_types.RegisterFunc[func(n T) func()]("github.com/stealthrocket/coroutine/compiler/testdata.buildClosure[go.shape.interface{}]")
-	_types.RegisterClosure[func(), struct {
-		F  uintptr
-		X0 T
-	}]("github.com/stealthrocket/coroutine/compiler/testdata.buildClosure[go.shape.interface{}].func1")
 	_types.RegisterFunc[func(_fn0 ...int)]("github.com/stealthrocket/coroutine/compiler/testdata.varArgs")
 }

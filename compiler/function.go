@@ -249,6 +249,11 @@ func (c *compiler) generateFunctypes(p *packages.Package, f *ast.File, colors ma
 				}
 				for _, instance := range instances {
 					g := newGenericInstance(fn, instance)
+					if g.partial() {
+						// Skip instances where not all type params have concrete types.
+						// I'm not sure why these are generated in the SSA program.
+						continue
+					}
 					scope := &funcscope{vars: map[string]*funcvar{}}
 					name := g.gcshapePath()
 					collectFunctypes(p, name, instance.Syntax(), scope, colors, functypes, g)
@@ -428,6 +433,23 @@ func newGenericInstance(origin, instance *ssa.Function) *genericInstance {
 func (g *genericInstance) typeOfParam(t types.Type) (types.Type, bool) {
 	v, ok := g.types[t]
 	return v, ok
+}
+
+func (g *genericInstance) partial() bool {
+	sig := g.instance.Signature
+	params := sig.Params()
+	for i := 0; i < params.Len(); i++ {
+		if _, ok := params.At(i).Type().(*types.TypeParam); ok {
+			return true
+		}
+	}
+	results := sig.Results()
+	for i := 0; i < results.Len(); i++ {
+		if _, ok := results.At(i).Type().(*types.TypeParam); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *genericInstance) scanRecvTypeArgs(fn func(*types.TypeParam, int, types.Type)) {
