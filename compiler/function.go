@@ -461,7 +461,7 @@ func (g *genericInstance) partial() bool {
 }
 
 func (g *genericInstance) scanRecvTypeArgs(fn func(*types.TypeParam, int, types.Type)) {
-	typeParams := g.recvType.TypeParams()
+	typeParams := g.instance.Signature.RecvTypeParams()
 	typeArgs := g.recvType.TypeArgs()
 	for i := 0; i < typeArgs.Len(); i++ {
 		arg := typeArgs.At(i)
@@ -583,6 +583,9 @@ func writeGoShape(b *strings.Builder, tt types.Type) {
 	switch t := tt.Underlying().(type) {
 	case *types.Basic:
 		b.WriteString(t.Name())
+	case *types.Pointer:
+		// All pointers resolve to *uint8.
+		b.WriteString("*uint8")
 	case *types.Interface:
 		if t.Empty() {
 			b.WriteString("interface{}")
