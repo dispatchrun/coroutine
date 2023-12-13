@@ -88,11 +88,25 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 		if fields != nil {
 			for _, field := range fields.List {
 				for _, name := range field.Names {
+					typ := p.TypesInfo.TypeOf(name)
+					if g != nil {
+						if instanceType, ok := g.typeOfParam(typ); ok {
+							typ = instanceType
+						}
+					}
+					if typ != nil {
+						_, ellipsis := field.Type.(*ast.Ellipsis)
+						field.Type = typeExpr(p, typ)
+						if a, ok := field.Type.(*ast.ArrayType); ok && a.Len == nil && ellipsis {
+							field.Type = &ast.Ellipsis{Elt: a.Elt}
+						}
+					}
 					scope.insert(name, field.Type)
 				}
 			}
 		}
 	}
+	signature.TypeParams = nil
 
 	var inspect func(ast.Node) bool
 	inspect = func(node ast.Node) bool {
@@ -110,11 +124,17 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 					switch s := spec.(type) {
 					case *ast.ValueSpec:
 						for _, name := range s.Names {
-							typ := s.Type
-							if typ == nil {
-								typ = typeExpr(p, p.TypesInfo.TypeOf(name))
+							typ := p.TypesInfo.TypeOf(name)
+							if g != nil {
+								if instanceType, ok := g.typeOfParam(typ); ok {
+									typ = instanceType
+								}
 							}
-							scope.insert(name, typ)
+							if typ == nil {
+								scope.insert(name, s.Type)
+							} else {
+								scope.insert(name, typeExpr(p, typ))
+							}
 						}
 					}
 				}
