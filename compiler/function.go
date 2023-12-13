@@ -83,7 +83,9 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 		return v
 	}
 
-	signature := functionTypeOf(fn)
+	signature := copyFunctionType(functionTypeOf(fn))
+	signature.TypeParams = nil
+
 	for _, fields := range []*ast.FieldList{signature.Params, signature.Results} {
 		if fields != nil {
 			for _, field := range fields.List {
@@ -106,7 +108,6 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 			}
 		}
 	}
-	signature.TypeParams = nil
 
 	var inspect func(ast.Node) bool
 	inspect = func(node ast.Node) bool {
@@ -332,6 +333,30 @@ func functionTypeOf(fn ast.Node) *ast.FuncType {
 	default:
 		panic("node is neither *ast.FuncDecl or *ast.FuncLit")
 	}
+}
+
+func copyFunctionType(f *ast.FuncType) *ast.FuncType {
+	return &ast.FuncType{
+		TypeParams: copyFieldList(f.TypeParams),
+		Params:     copyFieldList(f.Params),
+		Results:    copyFieldList(f.Results),
+	}
+}
+
+func copyFieldList(f *ast.FieldList) *ast.FieldList {
+	if f == nil {
+		return nil
+	}
+	list := make([]*ast.Field, len(f.List))
+	for i := range f.List {
+		list[i] = copyField(f.List[i])
+	}
+	return &ast.FieldList{List: list}
+}
+
+func copyField(f *ast.Field) *ast.Field {
+	c := *f
+	return &c
 }
 
 func functionBodyOf(fn ast.Node) *ast.BlockStmt {
