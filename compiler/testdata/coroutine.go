@@ -584,7 +584,7 @@ func IdentityGenericClosure[T any](n T) {
 	fn()
 }
 
-// TODO: add this go:noinline directive automatically
+// TODO: add this go:noinline directive automatically (once stealthrocket/coroutine#84 is fixed)
 //
 //go:noinline
 func buildClosure[T any](n T) func() {
