@@ -172,10 +172,18 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 		signature: signature,
 	}
 	if len(freeVars) > 0 {
-		fields := make([]*ast.Field, 1+len(freeVars))
-		fields[0] = &ast.Field{
-			Type:  ast.NewIdent("uintptr"),
-			Names: []*ast.Ident{ast.NewIdent("F")},
+		fields := []*ast.Field{
+			{
+				Type:  ast.NewIdent("uintptr"),
+				Names: []*ast.Ident{ast.NewIdent("F")},
+			},
+		}
+		if g != nil {
+			// Append a field for the dictionary.
+			fields = append(fields, &ast.Field{
+				Type:  ast.NewIdent("uintptr"),
+				Names: []*ast.Ident{ast.NewIdent("D")},
+			})
 		}
 		for i, freeVar := range freeVars {
 			fieldName := ast.NewIdent(fmt.Sprintf("X%d", i))
@@ -191,10 +199,10 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 			// and pointers will be less than 128 bytes on all platforms, which
 			// means that the stack frame pointer is always captured by value.
 
-			fields[i+1] = &ast.Field{
+			fields = append(fields, &ast.Field{
 				Type:  fieldType,
 				Names: []*ast.Ident{fieldName},
-			}
+			})
 		}
 		functype.closure = &ast.StructType{
 			Fields: &ast.FieldList{List: fields},
