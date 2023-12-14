@@ -130,3 +130,80 @@ func newFields(p *packages.Package, tuple *types.Tuple, typeArg func(*types.Type
 	}
 	return fields
 }
+
+// substituteTypeArgs replaces all type parameter placeholders
+// with type args.
+//
+// It returns a deep copy of the input expr.
+func substituteTypeArgs(p *packages.Package, expr ast.Expr, typeArg func(*types.TypeParam) types.Type) ast.Expr {
+	if expr == nil {
+		return nil
+	}
+	switch e := expr.(type) {
+	case *ast.ArrayType:
+		return &ast.ArrayType{
+			Elt: substituteTypeArgs(p, e.Elt, typeArg),
+			Len: substituteTypeArgs(p, e.Len, typeArg),
+		}
+	case *ast.MapType:
+		return &ast.MapType{
+			Key:   substituteTypeArgs(p, e.Key, typeArg),
+			Value: substituteTypeArgs(p, e.Value, typeArg),
+		}
+	case *ast.FuncType:
+		return &ast.FuncType{
+			TypeParams: substituteFieldList(p, e.TypeParams, typeArg),
+			Params:     substituteFieldList(p, e.Params, typeArg),
+			Results:    substituteFieldList(p, e.Results, typeArg),
+		}
+	case *ast.ChanType:
+		return &ast.ChanType{
+			Dir:   e.Dir,
+			Value: substituteTypeArgs(p, e.Value, typeArg),
+		}
+	case *ast.StructType:
+		return &ast.StructType{
+			Fields: substituteFieldList(p, e.Fields, typeArg),
+		}
+	case *ast.StarExpr:
+		return &ast.StarExpr{
+			X: substituteTypeArgs(p, e.X, typeArg),
+		}
+	case *ast.SelectorExpr:
+		return &ast.SelectorExpr{
+			X:   substituteTypeArgs(p, e.X, typeArg),
+			Sel: e.Sel,
+		}
+	case *ast.IndexExpr:
+		return &ast.IndexExpr{
+			X:     substituteTypeArgs(p, e.X, typeArg),
+			Index: substituteTypeArgs(p, e.Index, typeArg),
+		}
+	case *ast.Ident:
+		t := p.TypesInfo.TypeOf(e)
+		tp, ok := t.(*types.TypeParam)
+		if !ok {
+			return e
+		}
+		return typeExpr(p, typeArg(tp), typeArg)
+	case *ast.BasicLit:
+		return e
+	default:
+		panic(fmt.Sprintf("not implemented: %T", e))
+	}
+}
+
+func substituteFieldList(p *packages.Package, f *ast.FieldList, typeArg func(*types.TypeParam) types.Type) *ast.FieldList {
+	if f == nil || f.List == nil {
+		return f
+	}
+	fields := make([]*ast.Field, len(f.List))
+	for i, field := range f.List {
+		fields[i] = &ast.Field{
+			Names: field.Names,
+			Type:  substituteTypeArgs(p, field.Type, typeArg),
+			Tag:   field.Tag,
+		}
+	}
+	return &ast.FieldList{List: fields}
+}

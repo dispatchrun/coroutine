@@ -3577,8 +3577,8 @@ func init() {
 		D  uintptr
 		X0 *struct {
 			IP int
-			X0 *IdentityGenericStruct[T]
-			X1 T
+			X0 *IdentityGenericStruct[int]
+			X1 int
 		}
 	}]("github.com/stealthrocket/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure.func2")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Run")

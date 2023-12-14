@@ -83,13 +83,15 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 		return v
 	}
 
-	signature := copyFunctionType(functionTypeOf(fn))
-	signature.TypeParams = nil
-
+	// The function syntax may be generic, requiring translation of type param
+	// placeholders to known type args.
 	var typeArg func(*types.TypeParam) types.Type
 	if g != nil {
 		typeArg = g.typeArgOf
 	}
+
+	signature := copyFunctionType(functionTypeOf(fn))
+	signature.TypeParams = nil
 
 	recv := copyFieldList(functionRecvOf(fn))
 	for _, fields := range []*ast.FieldList{recv, signature.Params, signature.Results} {
@@ -126,7 +128,11 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 						for _, name := range s.Names {
 							typ := p.TypesInfo.TypeOf(name)
 							if typ == nil {
-								scope.insert(name, s.Type)
+								// FIXME: this means that TypesInfo was not updated when syntax was
+								// generated or mutated. The following workaround is required as a
+								// result.
+								e := substituteTypeArgs(p, s.Type, typeArg)
+								scope.insert(name, e)
 							} else {
 								scope.insert(name, typeExpr(p, typ, typeArg))
 							}
