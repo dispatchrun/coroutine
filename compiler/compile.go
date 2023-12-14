@@ -117,11 +117,12 @@ func (c *compiler) compile(path string) error {
 	c.prog.Build()
 
 	log.Printf("building call graph")
-	cg := vta.CallGraph(ssautil.AllFunctions(c.prog), cha.CallGraph(c.prog))
+	functions := ssautil.AllFunctions(c.prog)
+	cg := vta.CallGraph(functions, cha.CallGraph(c.prog))
 
 	log.Printf("collecting generic instances")
 	c.generics = map[*ssa.Function][]*ssa.Function{}
-	for fn := range ssautil.AllFunctions(c.prog) {
+	for fn := range functions {
 		if fn.Signature.TypeParams() != nil {
 			if _, ok := c.generics[fn]; !ok {
 				c.generics[fn] = nil
