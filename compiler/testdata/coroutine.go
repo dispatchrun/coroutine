@@ -577,3 +577,23 @@ func IdentityGenericInt(n int) {
 func IdentityGenericStructInt(n int) {
 	(&IdentityGenericStruct[int]{n: n}).Run()
 }
+
+type Box struct {
+	n int
+}
+
+func (b *Box) Closure() func() {
+	coroutine.Yield[int, any](-1)
+	return func() {
+		coroutine.Yield[int, any](b.n)
+		b.n++
+	}
+}
+
+func StructClosure(n, count int) {
+	box := Box{n}
+	fn := box.Closure()
+	for i := 0; i < count; i++ {
+		fn()
+	}
+}

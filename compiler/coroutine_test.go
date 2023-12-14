@@ -216,6 +216,12 @@ func TestCoroutineYield(t *testing.T) {
 		},
 
 		{
+			name:   "closure capturing receiver and param",
+			coro:   func() { StructClosure(0, 3) },
+			yields: []int{-1, 0, 1, 2},
+		},
+
+		{
 			name:   "identity generic",
 			coro:   func() { IdentityGeneric[int](11) },
 			yields: []int{11},
