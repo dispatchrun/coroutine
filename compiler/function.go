@@ -9,6 +9,7 @@ import (
 	"maps"
 	"slices"
 	"strconv"
+	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
@@ -82,7 +83,8 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 	}
 
 	signature := functionTypeOf(fn)
-	for _, fields := range []*ast.FieldList{signature.Params, signature.Results} {
+	recv := functionRecvOf(fn)
+	for _, fields := range []*ast.FieldList{recv, signature.Params, signature.Results} {
 		if fields != nil {
 			for _, field := range fields.List {
 				for _, name := range field.Names {
@@ -205,7 +207,33 @@ func packagePath(p *packages.Package) string {
 }
 
 func functionPath(p *packages.Package, f *ast.FuncDecl) string {
-	return packagePath(p) + "." + f.Name.Name
+	var b strings.Builder
+	b.WriteString(packagePath(p))
+	if f.Recv != nil {
+		signature := p.TypesInfo.Defs[f.Name].Type().(*types.Signature)
+		recvType := signature.Recv().Type()
+		isptr := false
+		if ptr, ok := recvType.(*types.Pointer); ok {
+			recvType = ptr.Elem()
+			isptr = true
+		}
+		b.WriteByte('.')
+		if isptr {
+			b.WriteString("(*")
+		}
+		switch t := recvType.(type) {
+		case *types.Named:
+			b.WriteString(t.Obj().Name())
+		default:
+			panic(fmt.Sprintf("not implemented: %T", t))
+		}
+		if isptr {
+			b.WriteByte(')')
+		}
+	}
+	b.WriteByte('.')
+	b.WriteString(f.Name.Name)
+	return b.String()
 }
 
 func (c *compiler) generateFunctypes(p *packages.Package, f *ast.File, colors map[ast.Node]*types.Signature) {
@@ -297,6 +325,17 @@ func functionTypeOf(fn ast.Node) *ast.FuncType {
 		return f.Type
 	case *ast.FuncLit:
 		return f.Type
+	default:
+		panic("node is neither *ast.FuncDecl or *ast.FuncLit")
+	}
+}
+
+func functionRecvOf(fn ast.Node) *ast.FieldList {
+	switch f := fn.(type) {
+	case *ast.FuncDecl:
+		return f.Recv
+	case *ast.FuncLit:
+		return nil
 	default:
 		panic("node is neither *ast.FuncDecl or *ast.FuncLit")
 	}
