@@ -10,7 +10,10 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
+// typeExpr converts a types.Type to an ast.Expr.
+//
+// If typeArg is provided, it's used to resolve type parameters.
+func typeExpr(p *packages.Package, typ types.Type, typeArg func(*types.TypeParam) types.Type) ast.Expr {
 	switch t := typ.(type) {
 	case *types.Basic:
 		switch t {
@@ -19,22 +22,22 @@ func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
 		}
 		return ast.NewIdent(t.String())
 	case *types.Slice:
-		return &ast.ArrayType{Elt: typeExpr(p, t.Elem())}
+		return &ast.ArrayType{Elt: typeExpr(p, t.Elem(), typeArg)}
 	case *types.Array:
 		return &ast.ArrayType{
 			Len: &ast.BasicLit{Kind: token.INT, Value: strconv.FormatInt(t.Len(), 10)},
-			Elt: typeExpr(p, t.Elem()),
+			Elt: typeExpr(p, t.Elem(), typeArg),
 		}
 	case *types.Map:
 		return &ast.MapType{
-			Key:   typeExpr(p, t.Key()),
-			Value: typeExpr(p, t.Elem()),
+			Key:   typeExpr(p, t.Key(), typeArg),
+			Value: typeExpr(p, t.Elem(), typeArg),
 		}
 	case *types.Struct:
 		fields := make([]*ast.Field, t.NumFields())
 		for i := range fields {
 			f := t.Field(i)
-			fields[i] = &ast.Field{Type: typeExpr(p, f.Type())}
+			fields[i] = &ast.Field{Type: typeExpr(p, f.Type(), typeArg)}
 			if !f.Anonymous() {
 				fields[i].Names = []*ast.Ident{ast.NewIdent(f.Name())}
 			}
@@ -44,7 +47,7 @@ func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
 		}
 		return &ast.StructType{Fields: &ast.FieldList{List: fields}}
 	case *types.Pointer:
-		return &ast.StarExpr{X: typeExpr(p, t.Elem())}
+		return &ast.StarExpr{X: typeExpr(p, t.Elem(), typeArg)}
 	case *types.Interface:
 		if t.Empty() {
 			return ast.NewIdent("any")
@@ -70,7 +73,7 @@ func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
 		if typeArgs := t.TypeArgs(); typeArgs != nil {
 			indices := make([]ast.Expr, typeArgs.Len())
 			for i := range indices {
-				indices[i] = typeExpr(p, typeArgs.At(i))
+				indices[i] = typeExpr(p, typeArgs.At(i), typeArg)
 			}
 			namedExpr = &ast.IndexListExpr{
 				X:       namedExpr,
@@ -81,7 +84,7 @@ func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
 
 	case *types.Chan:
 		c := &ast.ChanType{
-			Value: typeExpr(p, t.Elem()),
+			Value: typeExpr(p, t.Elem(), typeArg),
 		}
 		switch t.Dir() {
 		case types.SendRecv:
@@ -94,6 +97,9 @@ func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
 		return c
 
 	case *types.TypeParam:
+		if typeArg != nil {
+			return typeExpr(p, typeArg(t), typeArg)
+		}
 		obj := t.Obj()
 		ident := ast.NewIdent(obj.Name())
 		p.TypesInfo.Defs[ident] = obj
@@ -119,7 +125,7 @@ func newFields(p *packages.Package, tuple *types.Tuple) []*ast.Field {
 	fields := make([]*ast.Field, tuple.Len())
 	for i := range fields {
 		fields[i] = &ast.Field{
-			Type: typeExpr(p, tuple.At(i).Type()),
+			Type: typeExpr(p, tuple.At(i).Type(), nil),
 		}
 	}
 	return fields

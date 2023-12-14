@@ -86,23 +86,21 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 	signature := copyFunctionType(functionTypeOf(fn))
 	signature.TypeParams = nil
 
+	var typeArg func(*types.TypeParam) types.Type
+	if g != nil {
+		typeArg = g.typeArgOf
+	}
+
 	recv := copyFieldList(functionRecvOf(fn))
 	for _, fields := range []*ast.FieldList{recv, signature.Params, signature.Results} {
 		if fields != nil {
 			for _, field := range fields.List {
 				for _, name := range field.Names {
 					typ := p.TypesInfo.TypeOf(name)
-					if g != nil {
-						if instanceType, ok := g.typeOfParam(typ); ok {
-							typ = instanceType
-						}
-					}
-					if typ != nil {
-						_, ellipsis := field.Type.(*ast.Ellipsis)
-						field.Type = typeExpr(p, typ)
-						if a, ok := field.Type.(*ast.ArrayType); ok && a.Len == nil && ellipsis {
-							field.Type = &ast.Ellipsis{Elt: a.Elt}
-						}
+					_, ellipsis := field.Type.(*ast.Ellipsis)
+					field.Type = typeExpr(p, typ, typeArg)
+					if a, ok := field.Type.(*ast.ArrayType); ok && a.Len == nil && ellipsis {
+						field.Type = &ast.Ellipsis{Elt: a.Elt}
 					}
 					scope.insert(name, field.Type)
 				}
@@ -127,15 +125,10 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 					case *ast.ValueSpec:
 						for _, name := range s.Names {
 							typ := p.TypesInfo.TypeOf(name)
-							if g != nil {
-								if instanceType, ok := g.typeOfParam(typ); ok {
-									typ = instanceType
-								}
-							}
 							if typ == nil {
 								scope.insert(name, s.Type)
 							} else {
-								scope.insert(name, typeExpr(p, typ))
+								scope.insert(name, typeExpr(p, typ, typeArg))
 							}
 						}
 					}
@@ -439,7 +432,7 @@ type genericInstance struct {
 	recvPtr  bool
 	recvType *types.Named
 
-	types map[types.Type]types.Type
+	typeArgs map[*types.TypeParam]types.Type
 }
 
 func newGenericInstance(origin, instance *ssa.Function) *genericInstance {
@@ -463,22 +456,25 @@ func newGenericInstance(origin, instance *ssa.Function) *genericInstance {
 		}
 	}
 
-	g.types = map[types.Type]types.Type{}
+	g.typeArgs = map[*types.TypeParam]types.Type{}
 	if g.recvType != nil {
 		g.scanRecvTypeArgs(func(p *types.TypeParam, _ int, arg types.Type) {
-			g.types[p.Obj().Type()] = arg
+			g.typeArgs[p] = arg
 		})
 	}
 	g.scanTypeArgs(func(p *types.TypeParam, _ int, arg types.Type) {
-		g.types[p.Obj().Type()] = arg
+		g.typeArgs[p] = arg
 	})
 
 	return g
 }
 
-func (g *genericInstance) typeOfParam(t types.Type) (types.Type, bool) {
-	v, ok := g.types[t]
-	return v, ok
+func (g *genericInstance) typeArgOf(param *types.TypeParam) types.Type {
+	arg, ok := g.typeArgs[param]
+	if !ok {
+		panic(fmt.Sprintf("not type arg found for %s", param))
+	}
+	return arg
 }
 
 func (g *genericInstance) partial() bool {

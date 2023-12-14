@@ -534,8 +534,8 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	ctx := ast.NewIdent("_c")
 
 	yieldTypeExpr := make([]ast.Expr, 2)
-	yieldTypeExpr[0] = typeExpr(p, color.Params().At(0).Type())
-	yieldTypeExpr[1] = typeExpr(p, color.Results().At(0).Type())
+	yieldTypeExpr[0] = typeExpr(p, color.Params().At(0).Type(), nil)
+	yieldTypeExpr[1] = typeExpr(p, color.Results().At(0).Type(), nil)
 
 	coroutineIdent := ast.NewIdent("coroutine")
 	p.TypesInfo.Uses[coroutineIdent] = types.NewPkgName(token.NoPos, p.Types, "coroutine", scope.compiler.coroutinePkg.Types)
