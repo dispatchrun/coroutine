@@ -210,15 +210,14 @@ func functionPath(p *packages.Package, f *ast.FuncDecl) string {
 	var b strings.Builder
 	b.WriteString(packagePath(p))
 	if f.Recv != nil {
-		b.WriteByte('.')
-		// https://go.dev/ref/spec#Method_declarations
-		// > That parameter section must declare a single non-variadic parameter
-		recvType := p.TypesInfo.Defs[f.Name].Type().(*types.Signature).Recv().Type()
+		signature := p.TypesInfo.Defs[f.Name].Type().(*types.Signature)
+		recvType := signature.Recv().Type()
 		isptr := false
 		if ptr, ok := recvType.(*types.Pointer); ok {
 			recvType = ptr.Elem()
 			isptr = true
 		}
+		b.WriteByte('.')
 		if isptr {
 			b.WriteString("(*")
 		}
