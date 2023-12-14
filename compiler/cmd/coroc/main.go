@@ -22,6 +22,10 @@ OPTIONS:
   -h, --help      Show this help information
   -l, --list      List all files that would be compiled
   -v, --version   Show the compiler version
+
+ADVANCED OPTIONS:
+  -cpuprofile     Write CPU profile to file
+  -memprofile     Write memory profile to file
 `
 
 var (
