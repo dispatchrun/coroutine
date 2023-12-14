@@ -45,12 +45,9 @@ func Compile(path string, options ...Option) error {
 
 type compiler struct {
 	onlyListFiles bool
-
-	prog         *ssa.Program
-	generics     map[*ssa.Function][]*ssa.Function
-	coroutinePkg *packages.Package
-
-	fset *token.FileSet
+	prog          *ssa.Program
+	coroutinePkg  *packages.Package
+	fset          *token.FileSet
 }
 
 func (c *compiler) compile(path string) error {
@@ -120,19 +117,6 @@ func (c *compiler) compile(path string) error {
 	functions := ssautil.AllFunctions(c.prog)
 	cg := vta.CallGraph(functions, cha.CallGraph(c.prog))
 
-	log.Printf("collecting generic instances")
-	c.generics = map[*ssa.Function][]*ssa.Function{}
-	for fn := range functions {
-		if fn.Signature.TypeParams() != nil {
-			if _, ok := c.generics[fn]; !ok {
-				c.generics[fn] = nil
-			}
-		}
-		if origin := fn.Origin(); origin != nil {
-			c.generics[origin] = append(c.generics[origin], fn)
-		}
-	}
-
 	log.Printf("finding yield points")
 	packages.Visit(pkgs, func(p *packages.Package) bool {
 		if p.PkgPath == coroutinePackage {
@@ -146,8 +130,8 @@ func (c *compiler) compile(path string) error {
 	}
 	yieldFunc := c.prog.FuncValue(c.coroutinePkg.Types.Scope().Lookup("Yield").(*types.Func))
 	yieldInstances := functionColors{}
-	if fns, ok := c.generics[yieldFunc]; ok {
-		for _, fn := range fns {
+	for fn := range functions {
+		if fn.Origin() == yieldFunc {
 			yieldInstances[fn] = fn.Signature
 		}
 	}
