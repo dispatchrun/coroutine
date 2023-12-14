@@ -236,7 +236,7 @@ func TestCoroutineYield(t *testing.T) {
 		{
 			name:   "generic struct closure",
 			coro:   func() { IdentityGenericStructClosureInt(11) },
-			yields: []int{11, 100, 11, 100},
+			yields: []int{11, 100, 23, 12, 101, 45},
 		},
 	}
 

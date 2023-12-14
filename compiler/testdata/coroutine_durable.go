@@ -3293,7 +3293,11 @@ func buildClosure[T any](n T) func() {
 //go:noinline
 func IdentityGenericClosureInt(n int) { IdentityGenericClosure[int](n) }
 
-type IdentityGenericStruct[T any] struct {
+type integer interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64
+}
+
+type IdentityGenericStruct[T integer] struct {
 	n T
 }
 
@@ -3301,10 +3305,13 @@ type IdentityGenericStruct[T any] struct {
 func (i *IdentityGenericStruct[T]) Run() { coroutine.Yield[T, any](i.n) }
 
 //go:noinline
-func (i *IdentityGenericStruct[T]) Closure(n T) func() {
-	return func() {
+func (i *IdentityGenericStruct[T]) Closure(n T) func(T) {
+	return func(x T) {
 		coroutine.Yield[T, any](i.n)
+		i.n++
 		coroutine.Yield[T, any](n)
+		n++
+		coroutine.Yield[T, any](x)
 	}
 }
 
@@ -3317,17 +3324,17 @@ func IdentityGenericStructClosureInt(_fn0 int) {
 	var _f0 *struct {
 		IP int
 		X0 int
-		X1 func()
+		X1 func(int)
 	} = coroutine.Push[struct {
 		IP int
 		X0 int
-		X1 func()
+		X1 func(int)
 	}](&_c.Stack)
 	if _f0.IP == 0 {
 		*_f0 = struct {
 			IP int
 			X0 int
-			X1 func()
+			X1 func(int)
 		}{X0: _fn0}
 	}
 	defer func() {
@@ -3341,16 +3348,16 @@ func IdentityGenericStructClosureInt(_fn0 int) {
 		_f0.IP = 2
 		fallthrough
 	case _f0.IP < 3:
-		_f0.X1()
+		_f0.X1(23)
 		_f0.IP = 3
 		fallthrough
 	case _f0.IP < 4:
-		_f0.X1()
+		_f0.X1(45)
 	}
 }
 func init() {
-	_types.RegisterFunc[func(n int) func()]("github.com/stealthrocket/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure")
-	_types.RegisterClosure[func(), struct {
+	_types.RegisterFunc[func(n int) func(T)]("github.com/stealthrocket/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure")
+	_types.RegisterClosure[func(x int), struct {
 		F  uintptr
 		D  uintptr
 		X0 int
