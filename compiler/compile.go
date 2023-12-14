@@ -43,10 +43,9 @@ func Compile(path string, options ...Option) error {
 	return c.compile(path)
 }
 
-// Option configures the compiler.
-type Option func(*compiler)
-
 type compiler struct {
+	onlyListFiles bool
+
 	prog         *ssa.Program
 	generics     map[*ssa.Function][]*ssa.Function
 	coroutinePkg *packages.Package
@@ -183,6 +182,17 @@ func (c *compiler) compile(path string) error {
 		pkgColors[fn] = color
 	}
 
+	if c.onlyListFiles {
+		cwd, _ := os.Getwd()
+		for pkg := range colorsByPkg {
+			for _, filePath := range pkg.GoFiles {
+				relPath, _ := filepath.Rel(cwd, filePath)
+				fmt.Println(relPath)
+			}
+		}
+		return nil
+	}
+
 	// Before mutating packages, we need to ensure that packages exist in a
 	// location where mutations can be made safely (without affecting other
 	// builds).
@@ -219,6 +229,7 @@ func (c *compiler) compile(path string) error {
 		// Reject packages outside ./vendor.
 		return fmt.Errorf("cannot mutate package %s (%s) safely. Please vendor dependencies: go mod vendor", p.PkgPath, dir)
 	}
+
 	if len(needVendoring) > 0 {
 		log.Printf("vendoring GOROOT packages")
 		newRoot := filepath.Join(moduleDir, "goroot")

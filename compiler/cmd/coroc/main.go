@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"runtime/debug"
 
@@ -17,8 +19,19 @@ USAGE:
 
 OPTIONS:
   -h, --help      Show this help information
+  -l, --list      List all files that would be compiled
   -v, --version   Show the compiler version
 `
+
+var (
+	showVersion   bool
+	onlyListFiles bool
+)
+
+func boolFlag(ptr *bool, short, long string) {
+	flag.BoolVar(ptr, short, false, "")
+	flag.BoolVar(ptr, long, false, "")
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -30,10 +43,8 @@ func main() {
 func run() error {
 	flag.Usage = func() { println(usage[1:]) }
 
-	var showVersion bool
-	flag.BoolVar(&showVersion, "v", false, "")
-	flag.BoolVar(&showVersion, "version", false, "")
-
+	boolFlag(&showVersion, "v", "version")
+	boolFlag(&onlyListFiles, "l", "list")
 	flag.Parse()
 
 	if showVersion {
@@ -55,7 +66,13 @@ func run() error {
 		}
 	}
 
-	return compiler.Compile(path)
+	if onlyListFiles {
+		log.SetOutput(io.Discard)
+	}
+
+	return compiler.Compile(path,
+		compiler.OnlyListFiles(onlyListFiles),
+	)
 }
 
 func version() (version string) {
