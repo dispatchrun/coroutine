@@ -3,8 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"runtime/debug"
+	"runtime/pprof"
 
 	"github.com/stealthrocket/coroutine/compiler"
 )
@@ -17,8 +20,25 @@ USAGE:
 
 OPTIONS:
   -h, --help      Show this help information
+  -l, --list      List all files that would be compiled
   -v, --version   Show the compiler version
+
+ADVANCED OPTIONS:
+  -cpuprofile     Write CPU profile to file
+  -memprofile     Write memory profile to file
 `
+
+var (
+	showVersion   bool
+	onlyListFiles bool
+	cpuProfile    string
+	memProfile    string
+)
+
+func boolFlag(ptr *bool, short, long string) {
+	flag.BoolVar(ptr, short, false, "")
+	flag.BoolVar(ptr, long, false, "")
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -30,15 +50,36 @@ func main() {
 func run() error {
 	flag.Usage = func() { println(usage[1:]) }
 
-	var showVersion bool
-	flag.BoolVar(&showVersion, "v", false, "")
-	flag.BoolVar(&showVersion, "version", false, "")
-
+	boolFlag(&showVersion, "v", "version")
+	boolFlag(&onlyListFiles, "l", "list")
+	flag.StringVar(&cpuProfile, "cpuprofile", "", "")
+	flag.StringVar(&memProfile, "memprofile", "", "")
 	flag.Parse()
 
 	if showVersion {
 		fmt.Println(version())
 		return nil
+	}
+
+	if memProfile != "" {
+		f, err := os.Create(memProfile)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		defer pprof.WriteHeapProfile(f)
+	}
+
+	if cpuProfile != "" {
+		f, err := os.Create(cpuProfile)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			return err
+		}
+		defer pprof.StopCPUProfile()
 	}
 
 	path := flag.Arg(0)
@@ -55,7 +96,13 @@ func run() error {
 		}
 	}
 
-	return compiler.Compile(path)
+	if onlyListFiles {
+		log.SetOutput(io.Discard)
+	}
+
+	return compiler.Compile(path,
+		compiler.OnlyListFiles(onlyListFiles),
+	)
 }
 
 func version() (version string) {
