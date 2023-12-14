@@ -562,20 +562,8 @@ func IdentityGeneric[T any](n T) {
 	coroutine.Yield[T, any](n)
 }
 
-type IdentityGenericStruct[T any] struct {
-	n T
-}
-
-func (i *IdentityGenericStruct[T]) Run() {
-	coroutine.Yield[T, any](i.n)
-}
-
 func IdentityGenericInt(n int) {
 	IdentityGeneric[int](n)
-}
-
-func IdentityGenericStructInt(n int) {
-	(&IdentityGenericStruct[int]{n: n}).Run()
 }
 
 func IdentityGenericClosure[T any](n T) {
@@ -595,4 +583,30 @@ func buildClosure[T any](n T) func() {
 
 func IdentityGenericClosureInt(n int) {
 	IdentityGenericClosure[int](n)
+}
+
+type IdentityGenericStruct[T any] struct {
+	n T
+}
+
+func (i *IdentityGenericStruct[T]) Run() {
+	coroutine.Yield[T, any](i.n)
+}
+
+//go:noinline
+func (i *IdentityGenericStruct[T]) Closure(n T) func() {
+	return func() {
+		coroutine.Yield[T, any](i.n)
+		coroutine.Yield[T, any](n)
+	}
+}
+
+func IdentityGenericStructInt(n int) {
+	(&IdentityGenericStruct[int]{n: n}).Run()
+}
+
+func IdentityGenericStructClosureInt(n int) {
+	fn := (&IdentityGenericStruct[int]{n: n}).Closure(100)
+	fn()
+	fn()
 }
