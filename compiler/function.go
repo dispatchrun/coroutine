@@ -401,23 +401,12 @@ type genericInstance struct {
 
 	recvPtr  bool
 	recvType *types.Named
-	recvArgs map[types.Type]types.Type
-
-	typeParams map[types.Type]*types.TypeParam
 
 	types map[types.Type]types.Type
 }
 
 func newGenericInstance(origin, instance *ssa.Function) *genericInstance {
 	g := &genericInstance{origin: origin, instance: instance}
-
-	g.typeParams = map[types.Type]*types.TypeParam{}
-	typeParams := g.origin.Signature.TypeParams()
-	for i := 0; i < typeParams.Len(); i++ {
-		p := typeParams.At(i)
-		pt := p.Obj().Type()
-		g.typeParams[pt] = p
-	}
 
 	if recv := g.instance.Signature.Recv(); recv != nil {
 		switch t := recv.Type().(type) {
@@ -484,63 +473,11 @@ func (g *genericInstance) scanRecvTypeArgs(fn func(*types.TypeParam, int, types.
 }
 
 func (g *genericInstance) scanTypeArgs(fn func(*types.TypeParam, int, types.Type)) {
-	knownTypes := map[*types.TypeParam]map[types.Type]struct{}{}
-	g.scanParams(func(p *types.TypeParam, i int, arg *types.Var) {
-		t, ok := knownTypes[p]
-		if !ok {
-			t = map[types.Type]struct{}{}
-			knownTypes[p] = t
-		}
-		t[arg.Type()] = struct{}{}
-	})
-	g.scanResults(func(p *types.TypeParam, i int, res *types.Var) {
-		t, ok := knownTypes[p]
-		if !ok {
-			t = map[types.Type]struct{}{}
-			knownTypes[p] = t
-		}
-		t[res.Type()] = struct{}{}
-	})
+	params := g.origin.TypeParams()
+	args := g.instance.TypeArgs()
 
-	typeParams := g.origin.Signature.TypeParams()
-	for i := 0; i < typeParams.Len(); i++ {
-		p := typeParams.At(i)
-		types := knownTypes[p]
-
-		switch len(types) {
-		case 0:
-			panic(fmt.Sprintf("not implemented: no usage of type param %s in function %s instance %s", p, g.origin, g.instance))
-		case 1:
-			for knownType := range types {
-				fn(p, i, knownType)
-			}
-		default:
-			panic(fmt.Sprintf("not implemented: more than one type registered for type param %s in function %s instance %s", p, g.origin, g.instance))
-		}
-	}
-}
-
-func (g *genericInstance) scanParams(fn func(*types.TypeParam, int, *types.Var)) {
-	originParams := g.origin.Signature.Params()
-	params := g.instance.Signature.Params()
 	for i := 0; i < params.Len(); i++ {
-		param := params.At(i)
-		op := originParams.At(i)
-		if tp, ok := g.typeParams[op.Type()]; ok {
-			fn(tp, i, param)
-		}
-	}
-}
-
-func (g *genericInstance) scanResults(fn func(*types.TypeParam, int, *types.Var)) {
-	originResults := g.origin.Signature.Results()
-	results := g.instance.Signature.Results()
-	for i := 0; i < results.Len(); i++ {
-		result := results.At(i)
-		op := originResults.At(i)
-		if tp, ok := g.typeParams[op.Type()]; ok {
-			fn(tp, i, result)
-		}
+		fn(params.At(i), i, args[i])
 	}
 }
 
