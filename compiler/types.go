@@ -53,7 +53,7 @@ func typeExpr(p *packages.Package, typ types.Type, typeArg func(*types.TypeParam
 			return ast.NewIdent("any")
 		}
 	case *types.Signature:
-		return newFuncType(p, t)
+		return newFuncType(p, t, typeArg)
 	case *types.Named:
 		obj := t.Obj()
 		name := ast.NewIdent(obj.Name())
@@ -108,24 +108,24 @@ func typeExpr(p *packages.Package, typ types.Type, typeArg func(*types.TypeParam
 	panic(fmt.Sprintf("not implemented: %T", typ))
 }
 
-func newFuncType(p *packages.Package, signature *types.Signature) *ast.FuncType {
+func newFuncType(p *packages.Package, signature *types.Signature, typeArg func(*types.TypeParam) types.Type) *ast.FuncType {
 	return &ast.FuncType{
-		Params:  newFieldList(p, signature.Params()),
-		Results: newFieldList(p, signature.Results()),
+		Params:  newFieldList(p, signature.Params(), typeArg),
+		Results: newFieldList(p, signature.Results(), typeArg),
 	}
 }
 
-func newFieldList(p *packages.Package, tuple *types.Tuple) *ast.FieldList {
+func newFieldList(p *packages.Package, tuple *types.Tuple, typeArg func(*types.TypeParam) types.Type) *ast.FieldList {
 	return &ast.FieldList{
-		List: newFields(p, tuple),
+		List: newFields(p, tuple, typeArg),
 	}
 }
 
-func newFields(p *packages.Package, tuple *types.Tuple) []*ast.Field {
+func newFields(p *packages.Package, tuple *types.Tuple, typeArg func(*types.TypeParam) types.Type) []*ast.Field {
 	fields := make([]*ast.Field, tuple.Len())
 	for i := range fields {
 		fields[i] = &ast.Field{
-			Type: typeExpr(p, tuple.At(i).Type(), nil),
+			Type: typeExpr(p, tuple.At(i).Type(), typeArg),
 		}
 	}
 	return fields

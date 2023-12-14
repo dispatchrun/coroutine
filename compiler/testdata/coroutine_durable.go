@@ -3571,7 +3571,7 @@ func init() {
 			X1 int
 		}
 	}]("github.com/stealthrocket/coroutine/compiler/testdata.(*Box).Closure.func2")
-	_types.RegisterFunc[func(_fn1 int) (_ func(T))]("github.com/stealthrocket/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure")
+	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/stealthrocket/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure")
 	_types.RegisterClosure[func(_fn0 int), struct {
 		F  uintptr
 		D  uintptr
