@@ -237,7 +237,33 @@ func packagePath(p *packages.Package) string {
 }
 
 func functionPath(p *packages.Package, f *ast.FuncDecl) string {
-	return packagePath(p) + "." + f.Name.Name
+	var b strings.Builder
+	b.WriteString(packagePath(p))
+	if f.Recv != nil {
+		signature := p.TypesInfo.Defs[f.Name].Type().(*types.Signature)
+		recvType := signature.Recv().Type()
+		isptr := false
+		if ptr, ok := recvType.(*types.Pointer); ok {
+			recvType = ptr.Elem()
+			isptr = true
+		}
+		b.WriteByte('.')
+		if isptr {
+			b.WriteString("(*")
+		}
+		switch t := recvType.(type) {
+		case *types.Named:
+			b.WriteString(t.Obj().Name())
+		default:
+			panic(fmt.Sprintf("not implemented: %T", t))
+		}
+		if isptr {
+			b.WriteByte(')')
+		}
+	}
+	b.WriteByte('.')
+	b.WriteString(f.Name.Name)
+	return b.String()
 }
 
 func (c *compiler) generateFunctypes(p *packages.Package, f *ast.File, colors map[ast.Node]*types.Signature) {
