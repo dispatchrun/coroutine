@@ -86,7 +86,8 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 	signature := copyFunctionType(functionTypeOf(fn))
 	signature.TypeParams = nil
 
-	for _, fields := range []*ast.FieldList{signature.Params, signature.Results} {
+	recv := copyFieldList(functionRecvOf(fn))
+	for _, fields := range []*ast.FieldList{recv, signature.Params, signature.Results} {
 		if fields != nil {
 			for _, field := range fields.List {
 				for _, name := range field.Names {
@@ -343,6 +344,17 @@ func functionTypeOf(fn ast.Node) *ast.FuncType {
 		return f.Type
 	case *ast.FuncLit:
 		return f.Type
+	default:
+		panic("node is neither *ast.FuncDecl or *ast.FuncLit")
+	}
+}
+
+func functionRecvOf(fn ast.Node) *ast.FieldList {
+	switch f := fn.(type) {
+	case *ast.FuncDecl:
+		return f.Recv
+	case *ast.FuncLit:
+		return nil
 	default:
 		panic("node is neither *ast.FuncDecl or *ast.FuncLit")
 	}
