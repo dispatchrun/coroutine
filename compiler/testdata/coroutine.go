@@ -597,8 +597,10 @@ func (i *IdentityGenericStruct[T]) Run() {
 	coroutine.Yield[T, any](i.n)
 }
 
-//go:noinline
 func (i *IdentityGenericStruct[T]) Closure(n T) func(T) {
+	// Force compilation of this method. Remove once #84 is fixed.
+	coroutine.Yield[T, any](-1)
+
 	return func(x T) {
 		coroutine.Yield[T, any](i.n)
 		i.n++

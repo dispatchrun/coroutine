@@ -265,7 +265,7 @@ func (c *compiler) generateFunctypes(p *packages.Package, f *ast.File, colors ma
 					}
 					scope := &funcscope{vars: map[string]*funcvar{}}
 					name := g.gcshapePath()
-					collectFunctypes(p, name, instance.Syntax(), scope, colors, functypes, g)
+					collectFunctypes(p, name, d, scope, colors, functypes, g)
 				}
 			} else {
 				scope := &funcscope{vars: map[string]*funcvar{}}

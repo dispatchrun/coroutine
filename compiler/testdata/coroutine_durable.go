@@ -3305,14 +3305,81 @@ type IdentityGenericStruct[T integer] struct {
 func (i *IdentityGenericStruct[T]) Run() { coroutine.Yield[T, any](i.n) }
 
 //go:noinline
-func (i *IdentityGenericStruct[T]) Closure(n T) func(T) {
-	return func(x T) {
-		coroutine.Yield[T, any](i.n)
-		i.n++
-		coroutine.Yield[T, any](n)
-		n++
-		coroutine.Yield[T, any](x)
+func (_fn0 *IdentityGenericStruct[T]) Closure(_fn1 T) (_ func(T)) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f1 *struct {
+		IP int
+		X0 *IdentityGenericStruct[T]
+		X1 T
+	} = coroutine.Push[struct {
+		IP int
+		X0 *IdentityGenericStruct[T]
+		X1 T
+	}](&_c.Stack)
+	if _f1.IP == 0 {
+		*_f1 = struct {
+			IP int
+			X0 *IdentityGenericStruct[T]
+			X1 T
+		}{X0: _fn0, X1: _fn1}
 	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f1.IP < 2:
+
+		coroutine.Yield[T, any](-1)
+		_f1.IP = 2
+		fallthrough
+	case _f1.IP < 3:
+
+		return func(_fn0 T) {
+			_c := coroutine.LoadContext[int, any]()
+			var _f0 *struct {
+				IP int
+				X0 T
+			} = coroutine.Push[struct {
+				IP int
+				X0 T
+			}](&_c.Stack)
+			if _f0.IP == 0 {
+				*_f0 = struct {
+					IP int
+					X0 T
+				}{X0: _fn0}
+			}
+			defer func() {
+				if !_c.Unwinding() {
+					coroutine.Pop(&_c.Stack)
+				}
+			}()
+			switch {
+			case _f0.IP < 2:
+				coroutine.Yield[T, any](_f1.X0.n)
+				_f0.IP = 2
+				fallthrough
+			case _f0.IP < 3:
+				_f1.X0.
+					n++
+				_f0.IP = 3
+				fallthrough
+			case _f0.IP < 4:
+				coroutine.Yield[T, any](_f1.X1)
+				_f0.IP = 4
+				fallthrough
+			case _f0.IP < 5:
+				_f1.X1++
+				_f0.IP = 5
+				fallthrough
+			case _f0.IP < 6:
+				coroutine.Yield[T, any](_f0.X0)
+			}
+		}
+	}
+	panic("unreachable")
 }
 
 //go:noinline
@@ -3356,13 +3423,16 @@ func IdentityGenericStructClosureInt(_fn0 int) {
 	}
 }
 func init() {
-	_types.RegisterFunc[func(n int) func(T)]("github.com/stealthrocket/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure")
-	_types.RegisterClosure[func(x int), struct {
+	_types.RegisterFunc[func(_fn1 int) (_ func(T))]("github.com/stealthrocket/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure")
+	_types.RegisterClosure[func(_fn0 int), struct {
 		F  uintptr
 		D  uintptr
-		X0 *IdentityGenericStruct[T]
-		X1 int
-	}]("github.com/stealthrocket/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure.func1")
+		X0 *struct {
+			IP int
+			X0 *IdentityGenericStruct[T]
+			X1 T
+		}
+	}]("github.com/stealthrocket/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure.func2")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Run")
 	_types.RegisterFunc[func(n int)]("github.com/stealthrocket/coroutine/compiler/testdata.Double")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.EvenSquareGenerator")
