@@ -375,6 +375,17 @@ func functionTypeOf(fn ast.Node) *ast.FuncType {
 	}
 }
 
+func functionSignatureOf(p *packages.Package, fn ast.Node) *types.Signature {
+	switch f := fn.(type) {
+	case *ast.FuncDecl:
+		return p.TypesInfo.Defs[f.Name].Type().(*types.Signature)
+	case *ast.FuncLit:
+		return p.TypesInfo.TypeOf(f).(*types.Signature)
+	default:
+		panic("node is neither *ast.FuncDecl or *ast.FuncLit")
+	}
+}
+
 func functionRecvOf(fn ast.Node) *ast.FieldList {
 	switch f := fn.(type) {
 	case *ast.FuncDecl:
