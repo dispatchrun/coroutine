@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"runtime/debug"
+	"runtime/pprof"
 
 	"github.com/stealthrocket/coroutine/compiler"
 )
@@ -21,11 +22,17 @@ OPTIONS:
   -h, --help      Show this help information
   -l, --list      List all files that would be compiled
   -v, --version   Show the compiler version
+
+ADVANCED OPTIONS:
+  -cpuprofile     Write CPU profile to file
+  -memprofile     Write memory profile to file
 `
 
 var (
 	showVersion   bool
 	onlyListFiles bool
+	cpuProfile    string
+	memProfile    string
 )
 
 func boolFlag(ptr *bool, short, long string) {
@@ -45,11 +52,34 @@ func run() error {
 
 	boolFlag(&showVersion, "v", "version")
 	boolFlag(&onlyListFiles, "l", "list")
+	flag.StringVar(&cpuProfile, "cpuprofile", "", "")
+	flag.StringVar(&memProfile, "memprofile", "", "")
 	flag.Parse()
 
 	if showVersion {
 		fmt.Println(version())
 		return nil
+	}
+
+	if memProfile != "" {
+		f, err := os.Create(memProfile)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		defer pprof.WriteHeapProfile(f)
+	}
+
+	if cpuProfile != "" {
+		f, err := os.Create(cpuProfile)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			return err
+		}
+		defer pprof.StopCPUProfile()
 	}
 
 	path := flag.Arg(0)
