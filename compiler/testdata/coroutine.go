@@ -579,21 +579,28 @@ func IdentityGenericStructInt(n int) {
 }
 
 type Box struct {
-	n int
+	x int
 }
 
-func (b *Box) Closure() func() {
+func (b *Box) Closure(y int) func(int) {
+	// Force compilation of this method and the closure within.
+	// Remove once #84 is fixed.
 	coroutine.Yield[int, any](-1)
-	return func() {
-		coroutine.Yield[int, any](b.n)
-		b.n++
+
+	return func(z int) {
+		coroutine.Yield[int, any](b.x)
+		coroutine.Yield[int, any](y)
+		coroutine.Yield[int, any](z)
+		b.x++
+		y++
+		z++ // mutation is lost
 	}
 }
 
-func StructClosure(n, count int) {
-	box := Box{n}
-	fn := box.Closure()
-	for i := 0; i < count; i++ {
-		fn()
+func StructClosure(n int) {
+	box := Box{10}
+	fn := box.Closure(100)
+	for i := 0; i < n; i++ {
+		fn(1000)
 	}
 }

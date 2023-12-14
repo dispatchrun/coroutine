@@ -3254,93 +3254,26 @@ func IdentityGenericInt(n int) { IdentityGeneric[int](n) }
 func IdentityGenericStructInt(n int) { (&IdentityGenericStruct[int]{n: n}).Run() }
 
 type Box struct {
-	n int
+	x int
 }
 
 //go:noinline
-func (_fn0 *Box) Closure() (_ func()) {
+func (_fn0 *Box) Closure(_fn1 int) (_ func(int)) {
 	_c := coroutine.LoadContext[int, any]()
 	var _f1 *struct {
 		IP int
 		X0 *Box
+		X1 int
 	} = coroutine.Push[struct {
 		IP int
 		X0 *Box
+		X1 int
 	}](&_c.Stack)
 	if _f1.IP == 0 {
 		*_f1 = struct {
 			IP int
 			X0 *Box
-		}{X0: _fn0}
-	}
-	defer func() {
-		if !_c.Unwinding() {
-			coroutine.Pop(&_c.Stack)
-		}
-	}()
-	switch {
-	case _f1.IP < 2:
-		coroutine.Yield[int, any](-1)
-		_f1.IP = 2
-		fallthrough
-	case _f1.IP < 3:
-		return func() {
-			_c := coroutine.LoadContext[int, any]()
-			var _f0 *struct {
-				IP int
-			} = coroutine.Push[struct {
-				IP int
-			}](&_c.Stack)
-			if _f0.IP == 0 {
-				*_f0 = struct {
-					IP int
-				}{}
-			}
-			defer func() {
-				if !_c.Unwinding() {
-					coroutine.Pop(&_c.Stack)
-				}
-			}()
-			switch {
-			case _f0.IP < 2:
-				coroutine.Yield[int, any](_f1.X0.n)
-				_f0.IP = 2
-				fallthrough
-			case _f0.IP < 3:
-				_f1.X0.
-					n++
-			}
-		}
-	}
-	panic("unreachable")
-}
-
-//go:noinline
-func StructClosure(_fn0, _fn1 int) {
-	_c := coroutine.LoadContext[int, any]()
-	var _f0 *struct {
-		IP int
-		X0 int
-		X1 int
-		X2 Box
-		X3 func()
-		X4 int
-	} = coroutine.Push[struct {
-		IP int
-		X0 int
-		X1 int
-		X2 Box
-		X3 func()
-		X4 int
-	}](&_c.Stack)
-	if _f0.IP == 0 {
-		*_f0 = struct {
-			IP int
-			X0 int
 			X1 int
-			X2 Box
-			X3 func()
-			X4 int
 		}{X0: _fn0, X1: _fn1}
 	}
 	defer func() {
@@ -3349,34 +3282,123 @@ func StructClosure(_fn0, _fn1 int) {
 		}
 	}()
 	switch {
+	case _f1.IP < 2:
+
+		coroutine.Yield[int, any](-1)
+		_f1.IP = 2
+		fallthrough
+	case _f1.IP < 3:
+
+		return func(_fn0 int) {
+			_c := coroutine.LoadContext[int, any]()
+			var _f0 *struct {
+				IP int
+				X0 int
+			} = coroutine.Push[struct {
+				IP int
+				X0 int
+			}](&_c.Stack)
+			if _f0.IP == 0 {
+				*_f0 = struct {
+					IP int
+					X0 int
+				}{X0: _fn0}
+			}
+			defer func() {
+				if !_c.Unwinding() {
+					coroutine.Pop(&_c.Stack)
+				}
+			}()
+			switch {
+			case _f0.IP < 2:
+				coroutine.Yield[int, any](_f1.X0.x)
+				_f0.IP = 2
+				fallthrough
+			case _f0.IP < 3:
+				coroutine.Yield[int, any](_f1.X1)
+				_f0.IP = 3
+				fallthrough
+			case _f0.IP < 4:
+				coroutine.Yield[int, any](_f0.X0)
+				_f0.IP = 4
+				fallthrough
+			case _f0.IP < 5:
+				_f1.X0.
+					x++
+				_f0.IP = 5
+				fallthrough
+			case _f0.IP < 6:
+				_f1.X1++
+				_f0.IP = 6
+				fallthrough
+			case _f0.IP < 7:
+				_f0.X0++
+			}
+		}
+	}
+	panic("unreachable")
+}
+
+//go:noinline
+func StructClosure(_fn0 int) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 int
+		X1 Box
+		X2 func(int)
+		X3 int
+	} = coroutine.Push[struct {
+		IP int
+		X0 int
+		X1 Box
+		X2 func(int)
+		X3 int
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 int
+			X1 Box
+			X2 func(int)
+			X3 int
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
 	case _f0.IP < 2:
-		_f0.X2 = Box{_f0.X0}
+		_f0.X1 = Box{10}
 		_f0.IP = 2
 		fallthrough
 	case _f0.IP < 3:
-		_f0.X3 = _f0.X2.Closure()
+		_f0.X2 = _f0.X1.Closure(100)
 		_f0.IP = 3
 		fallthrough
 	case _f0.IP < 5:
 		switch {
 		case _f0.IP < 4:
-			_f0.X4 = 0
+			_f0.X3 = 0
 			_f0.IP = 4
 			fallthrough
 		case _f0.IP < 5:
-			for ; _f0.X4 < _f0.X1; _f0.X4, _f0.IP = _f0.X4+1, 4 {
-				_f0.X3()
+			for ; _f0.X3 < _f0.X0; _f0.X3, _f0.IP = _f0.X3+1, 4 {
+				_f0.X2(1000)
 			}
 		}
 	}
 }
 func init() {
-	_types.RegisterFunc[func() (_ func())]("github.com/stealthrocket/coroutine/compiler/testdata.(*Box).Closure")
-	_types.RegisterClosure[func(), struct {
+	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/stealthrocket/coroutine/compiler/testdata.(*Box).Closure")
+	_types.RegisterClosure[func(_fn0 int), struct {
 		F  uintptr
 		X0 *struct {
 			IP int
 			X0 *Box
+			X1 int
 		}
 	}]("github.com/stealthrocket/coroutine/compiler/testdata.(*Box).Closure.func2")
 	_types.RegisterFunc[func(_fn1 int)]("github.com/stealthrocket/coroutine/compiler/testdata.(*MethodGeneratorState).MethodGenerator")
@@ -3483,7 +3505,7 @@ func init() {
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.SquareGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.SquareGeneratorTwice")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.SquareGeneratorTwiceLoop")
-	_types.RegisterFunc[func(_fn0, _fn1 int)]("github.com/stealthrocket/coroutine/compiler/testdata.StructClosure")
+	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.StructClosure")
 	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.TypeSwitchingGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.VarArgs")
 	_types.RegisterFunc[func(_fn0 *int, _fn1, _fn2 int)]("github.com/stealthrocket/coroutine/compiler/testdata.YieldAndDeferAssign")

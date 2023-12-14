@@ -217,8 +217,8 @@ func TestCoroutineYield(t *testing.T) {
 
 		{
 			name:   "closure capturing receiver and param",
-			coro:   func() { StructClosure(0, 3) },
-			yields: []int{-1, 0, 1, 2},
+			coro:   func() { StructClosure(3) },
+			yields: []int{-1, 10, 100, 1000, 11, 101, 1000, 12, 102, 1000},
 		},
 
 		{
