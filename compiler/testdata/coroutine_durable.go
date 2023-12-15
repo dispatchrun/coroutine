@@ -3574,12 +3574,12 @@ func init() {
 	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/stealthrocket/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure")
 	_types.RegisterClosure[func(_fn0 int), struct {
 		F  uintptr
-		D  uintptr
 		X0 *struct {
 			IP int
 			X0 *IdentityGenericStruct[int]
 			X1 int
 		}
+		D uintptr
 	}]("github.com/stealthrocket/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure.func2")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Run")
 	_types.RegisterFunc[func(_fn1 int)]("github.com/stealthrocket/coroutine/compiler/testdata.(*MethodGeneratorState).MethodGenerator")
@@ -3721,8 +3721,8 @@ func init() {
 	_types.RegisterFunc[func(n int) func()]("github.com/stealthrocket/coroutine/compiler/testdata.buildClosure[go.shape.int]")
 	_types.RegisterClosure[func(), struct {
 		F  uintptr
-		D  uintptr
 		X0 int
+		D  uintptr
 	}]("github.com/stealthrocket/coroutine/compiler/testdata.buildClosure[go.shape.int].func1")
 	_types.RegisterFunc[func(_fn0 ...int)]("github.com/stealthrocket/coroutine/compiler/testdata.varArgs")
 }

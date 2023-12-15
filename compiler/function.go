@@ -178,13 +178,6 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 				Names: []*ast.Ident{ast.NewIdent("F")},
 			},
 		}
-		if g != nil {
-			// Append a field for the dictionary.
-			fields = append(fields, &ast.Field{
-				Type:  ast.NewIdent("uintptr"),
-				Names: []*ast.Ident{ast.NewIdent("D")},
-			})
-		}
 		for i, freeVar := range freeVars {
 			fieldName := ast.NewIdent(fmt.Sprintf("X%d", i))
 			fieldType := freeVar.typ
@@ -202,6 +195,13 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 			fields = append(fields, &ast.Field{
 				Type:  fieldType,
 				Names: []*ast.Ident{fieldName},
+			})
+		}
+		if g != nil {
+			// Append a field for the dictionary.
+			fields = append(fields, &ast.Field{
+				Type:  ast.NewIdent("uintptr"),
+				Names: []*ast.Ident{ast.NewIdent("D")},
 			})
 		}
 		functype.closure = &ast.StructType{
