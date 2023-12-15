@@ -325,8 +325,8 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 				}
 
 			case *ast.FuncDecl:
-				color, ok := colorsByFunc[decl]
-				if !ok {
+				color := colorsByFunc[decl]
+				if color == nil && !containsColoredFuncLit(decl, colorsByFunc) {
 					gen.Decls = append(gen.Decls, decl)
 					continue
 				}
@@ -334,7 +334,6 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 				if err := unsupported(decl, p.TypesInfo); err != nil {
 					return err
 				}
-
 				scope := &scope{compiler: c, colors: colorsByFunc}
 				gen.Decls = append(gen.Decls, scope.compileFuncDecl(p, decl, color))
 			}
@@ -356,6 +355,19 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 	}
 
 	return nil
+}
+
+func containsColoredFuncLit(decl *ast.FuncDecl, colorsByFunc map[ast.Node]*types.Signature) (yes bool) {
+	ast.Inspect(decl, func(n ast.Node) bool {
+		if lit, ok := n.(*ast.FuncLit); ok {
+			if _, ok := colorsByFunc[lit]; ok {
+				yes = true
+				return false
+			}
+		}
+		return true
+	})
+	return
 }
 
 func addImports(p *packages.Package, gen *ast.File) *ast.File {
@@ -470,7 +482,7 @@ func (scope *scope) compileFuncDecl(p *packages.Package, fn *ast.FuncDecl, color
 	gen.Doc.List = appendCommentGroup(gen.Doc.List, fn.Doc)
 	gen.Doc.List = appendComment(gen.Doc.List, "//go:noinline\n")
 
-	if !isExpr(gen.Body) {
+	if color != nil && !isExpr(gen.Body) {
 		scope.colors[gen] = color
 	}
 	return gen
@@ -491,6 +503,12 @@ func (scope *scope) compileFuncLit(p *packages.Package, fn *ast.FuncLit, color *
 }
 
 func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, recv *ast.FieldList, color *types.Signature) *ast.BlockStmt {
+	// If the function itself doesn't yield, but it contains a function
+	// literal that does yield, take a slightly different approach.
+	if color == nil {
+		return scope.compileFuncWrapperBody(p, typ, body, recv)
+	}
+
 	var defers *ast.Ident
 
 	mayYield := findCalls(body, p.TypesInfo)
@@ -687,6 +705,45 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 			gen.List = append(gen.List, &ast.ExprStmt{X: panicCall("unreachable")})
 		}
 	}
+
+	return gen
+}
+
+func (scope *scope) compileFuncWrapperBody(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, recv *ast.FieldList) *ast.BlockStmt {
+	frameName := ast.NewIdent(fmt.Sprintf("_f%d", scope.frameIndex))
+	scope.frameIndex++
+
+	renameFuncRecvParamsResults(typ, recv, body, p.TypesInfo)
+
+	decls, frameType, frameInit := extractDecls(p, typ, body, recv, nil, p.TypesInfo)
+	renameObjects(typ, body, p.TypesInfo, decls, frameName, frameType, frameInit, scope)
+
+	body = astutil.Apply(body,
+		func(cursor *astutil.Cursor) bool {
+			if lit, ok := cursor.Node().(*ast.FuncLit); ok {
+				if color, ok := scope.colors[lit]; ok {
+					cursor.Replace(scope.compileFuncLit(p, lit, color))
+				}
+				return false
+			}
+			return true
+		},
+		nil,
+	).(*ast.BlockStmt)
+
+	gen := new(ast.BlockStmt)
+	for _, decl := range decls {
+		gen.List = append(gen.List, &ast.DeclStmt{Decl: decl})
+	}
+	gen.List = append(gen.List, &ast.DeclStmt{Decl: &ast.GenDecl{
+		Tok: token.VAR,
+		Specs: []ast.Spec{&ast.ValueSpec{
+			Names:  []*ast.Ident{frameName},
+			Type:   &ast.StarExpr{X: frameType},
+			Values: []ast.Expr{&ast.UnaryExpr{Op: token.AND, X: frameInit}},
+		}},
+	}})
+	gen.List = append(gen.List, body.List...)
 
 	return gen
 }
