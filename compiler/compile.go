@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"cmp"
 	"fmt"
 	"go/ast"
 	"go/build/constraint"
@@ -12,7 +13,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -405,8 +405,8 @@ func addImports(p *packages.Package, gen *ast.File) *ast.File {
 
 	// Imports don't require to be sorted but it helps with output
 	// stability. The format pass does not take care of this.
-	sort.Slice(importspecs, func(i, j int) bool {
-		return importspecs[i].(*ast.ImportSpec).Name.Name < importspecs[j].(*ast.ImportSpec).Name.Name
+	slices.SortFunc(importspecs, func(a, b ast.Spec) int {
+		return cmp.Compare(a.(*ast.ImportSpec).Name.Name, b.(*ast.ImportSpec).Name.Name)
 	})
 
 	gen.Decls = append([]ast.Decl{&ast.GenDecl{
