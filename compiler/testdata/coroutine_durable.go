@@ -3384,7 +3384,7 @@ func IdentityGenericInt(n int) { IdentityGeneric[int](n) }
 
 //go:noinline
 func IdentityGenericClosure[T any](_fn0 T) {
-	_c := coroutine.LoadContext[T, any]()
+	_c := coroutine.LoadContext[int, any]()
 	var _f0 *struct {
 		IP int
 		X0 T
@@ -3420,12 +3420,17 @@ func IdentityGenericClosure[T any](_fn0 T) {
 	}
 }
 
-// TODO: add this go:noinline directive automatically (once stealthrocket/coroutine#84 is fixed)
-//
 //go:noinline
-func buildClosure[T any](n T) func() {
+func buildClosure[T any](_fn0 T) (_ func()) {
+	var _f0 *struct {
+		IP int
+		X0 T
+	} = &struct {
+		IP int
+		X0 T
+	}{X0: _fn0}
 	return func() {
-		coroutine.Yield[T, any](n)
+		coroutine.Yield[T, any](_f0.X0)
 	}
 }
 
@@ -3718,11 +3723,14 @@ func init() {
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.YieldingExpressionDesugaring")
 	_types.RegisterFunc[func(_fn0 int) (_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.a")
 	_types.RegisterFunc[func(_fn0 int) (_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.b")
-	_types.RegisterFunc[func(n int) func()]("github.com/stealthrocket/coroutine/compiler/testdata.buildClosure[go.shape.int]")
+	_types.RegisterFunc[func(_fn0 int) (_ func())]("github.com/stealthrocket/coroutine/compiler/testdata.buildClosure[go.shape.int]")
 	_types.RegisterClosure[func(), struct {
 		F  uintptr
-		X0 int
-		D  uintptr
+		X0 *struct {
+			IP int
+			X0 int
+		}
+		D uintptr
 	}]("github.com/stealthrocket/coroutine/compiler/testdata.buildClosure[go.shape.int].func1")
 	_types.RegisterFunc[func(_fn0 ...int)]("github.com/stealthrocket/coroutine/compiler/testdata.varArgs")
 }
