@@ -563,10 +563,6 @@ type Box struct {
 }
 
 func (b *Box) Closure(y int) func(int) {
-	// Force compilation of this method and the closure within.
-	// Remove once #84 is fixed.
-	coroutine.Yield[int, any](-1)
-
 	return func(z int) {
 		coroutine.Yield[int, any](b.x)
 		coroutine.Yield[int, any](y)
@@ -622,9 +618,6 @@ func (i *IdentityGenericStruct[T]) Run() {
 }
 
 func (i *IdentityGenericStruct[T]) Closure(n T) func(T) {
-	// Force compilation of this method. Remove once #84 is fixed.
-	coroutine.Yield[T, any](-1)
-
 	return func(x T) {
 		coroutine.Yield[T, any](i.n)
 		i.n++
