@@ -558,26 +558,6 @@ func ReturnNamedValue() (out int) {
 	return
 }
 
-func IdentityGeneric[T any](n T) {
-	coroutine.Yield[T, any](n)
-}
-
-type IdentityGenericStruct[T any] struct {
-	n T
-}
-
-func (i *IdentityGenericStruct[T]) Run() {
-	coroutine.Yield[T, any](i.n)
-}
-
-func IdentityGenericInt(n int) {
-	IdentityGeneric[int](n)
-}
-
-func IdentityGenericStructInt(n int) {
-	(&IdentityGenericStruct[int]{n: n}).Run()
-}
-
 type Box struct {
 	x int
 }
@@ -603,4 +583,66 @@ func StructClosure(n int) {
 	for i := 0; i < n; i++ {
 		fn(1000)
 	}
+}
+
+func IdentityGeneric[T any](n T) {
+	coroutine.Yield[T, any](n)
+}
+
+func IdentityGenericInt(n int) {
+	IdentityGeneric[int](n)
+}
+
+func IdentityGenericClosure[T any](n T) {
+	fn := buildClosure(n)
+	fn()
+	fn()
+}
+
+// TODO: add this go:noinline directive automatically (once stealthrocket/coroutine#84 is fixed)
+//
+//go:noinline
+func buildClosure[T any](n T) func() {
+	return func() {
+		coroutine.Yield[T, any](n)
+	}
+}
+
+func IdentityGenericClosureInt(n int) {
+	IdentityGenericClosure[int](n)
+}
+
+type integer interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64
+}
+
+type IdentityGenericStruct[T integer] struct {
+	n T
+}
+
+func (i *IdentityGenericStruct[T]) Run() {
+	coroutine.Yield[T, any](i.n)
+}
+
+func (i *IdentityGenericStruct[T]) Closure(n T) func(T) {
+	// Force compilation of this method. Remove once #84 is fixed.
+	coroutine.Yield[T, any](-1)
+
+	return func(x T) {
+		coroutine.Yield[T, any](i.n)
+		i.n++
+		coroutine.Yield[T, any](n)
+		n++
+		coroutine.Yield[T, any](x)
+	}
+}
+
+func IdentityGenericStructInt(n int) {
+	(&IdentityGenericStruct[int]{n: n}).Run()
+}
+
+func IdentityGenericStructClosureInt(n int) {
+	fn := (&IdentityGenericStruct[int]{n: n}).Closure(100)
+	fn(23)
+	fn(45)
 }

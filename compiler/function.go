@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/ssa"
 )
 
 type functype struct {
@@ -58,7 +59,7 @@ type funcvar struct {
 	typ   ast.Expr
 }
 
-func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *funcscope, colors map[ast.Node]*types.Signature, functypes map[string]functype) {
+func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *funcscope, colors map[ast.Node]*types.Signature, functypes map[string]functype, g *genericInstance) {
 	type function struct {
 		node  ast.Node
 		scope *funcscope
@@ -82,12 +83,27 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 		return v
 	}
 
-	signature := functionTypeOf(fn)
-	recv := functionRecvOf(fn)
+	// The function syntax may be generic, requiring translation of type param
+	// placeholders to known type args.
+	var typeArg func(*types.TypeParam) types.Type
+	if g != nil {
+		typeArg = g.typeArgOf
+	}
+
+	signature := copyFunctionType(functionTypeOf(fn))
+	signature.TypeParams = nil
+
+	recv := copyFieldList(functionRecvOf(fn))
 	for _, fields := range []*ast.FieldList{recv, signature.Params, signature.Results} {
 		if fields != nil {
 			for _, field := range fields.List {
 				for _, name := range field.Names {
+					typ := p.TypesInfo.TypeOf(name)
+					_, ellipsis := field.Type.(*ast.Ellipsis)
+					field.Type = typeExpr(p, typ, typeArg)
+					if a, ok := field.Type.(*ast.ArrayType); ok && a.Len == nil && ellipsis {
+						field.Type = &ast.Ellipsis{Elt: a.Elt}
+					}
 					scope.insert(name, field.Type)
 				}
 			}
@@ -110,11 +126,16 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 					switch s := spec.(type) {
 					case *ast.ValueSpec:
 						for _, name := range s.Names {
-							typ := s.Type
+							typ := p.TypesInfo.TypeOf(name)
 							if typ == nil {
-								typ = typeExpr(p, p.TypesInfo.TypeOf(name))
+								// FIXME: this means that TypesInfo was not updated when syntax was
+								// generated or mutated. The following workaround is required as a
+								// result.
+								e := substituteTypeArgs(p, s.Type, typeArg)
+								scope.insert(name, e)
+							} else {
+								scope.insert(name, typeExpr(p, typ, typeArg))
 							}
-							scope.insert(name, typ)
 						}
 					}
 				}
@@ -151,10 +172,11 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 		signature: signature,
 	}
 	if len(freeVars) > 0 {
-		fields := make([]*ast.Field, 1+len(freeVars))
-		fields[0] = &ast.Field{
-			Type:  ast.NewIdent("uintptr"),
-			Names: []*ast.Ident{ast.NewIdent("F")},
+		fields := []*ast.Field{
+			{
+				Type:  ast.NewIdent("uintptr"),
+				Names: []*ast.Ident{ast.NewIdent("F")},
+			},
 		}
 		for i, freeVar := range freeVars {
 			fieldName := ast.NewIdent(fmt.Sprintf("X%d", i))
@@ -170,10 +192,17 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 			// and pointers will be less than 128 bytes on all platforms, which
 			// means that the stack frame pointer is always captured by value.
 
-			fields[i+1] = &ast.Field{
+			fields = append(fields, &ast.Field{
 				Type:  fieldType,
 				Names: []*ast.Ident{fieldName},
-			}
+			})
+		}
+		if g != nil {
+			// Append a field for the dictionary.
+			fields = append(fields, &ast.Field{
+				Type:  ast.NewIdent("uintptr"),
+				Names: []*ast.Ident{ast.NewIdent("D")},
+			})
 		}
 		functype.closure = &ast.StructType{
 			Fields: &ast.FieldList{List: fields},
@@ -193,7 +222,7 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 
 		for i, anonFunc := range anonFuncs[index:] {
 			anonFuncName := anonFuncLinkName(name, index+i+1)
-			collectFunctypes(p, anonFuncName, anonFunc.node, anonFunc.scope, colors, functypes)
+			collectFunctypes(p, anonFuncName, anonFunc.node, anonFunc.scope, colors, functypes, g)
 		}
 	}
 }
@@ -245,13 +274,28 @@ func (c *compiler) generateFunctypes(p *packages.Package, f *ast.File, colors ma
 			obj := p.TypesInfo.ObjectOf(d.Name).(*types.Func)
 			fn := c.prog.FuncValue(obj)
 			if fn.TypeParams() != nil {
-				// TODO: support generics. Generate type func/closure type information for each instance from: instances := c.generics[fn]
-				log.Printf("warning: cannot register runtime type information for generic function %s", fn)
-				continue
+				instances := c.generics[fn]
+				if len(instances) == 0 {
+					// This can occur when a generic function is never instantiated/used,
+					// or when it's instantiated in a package not known to the compiler.
+					log.Printf("warning: cannot register runtime type information for generic function %s", fn)
+					continue
+				}
+				for _, instance := range instances {
+					g := newGenericInstance(fn, instance)
+					if g.partial() {
+						// Skip instances where not all type params have concrete types.
+						// I'm not sure why these are generated in the SSA program.
+						continue
+					}
+					scope := &funcscope{vars: map[string]*funcvar{}}
+					name := g.gcshapePath()
+					collectFunctypes(p, name, d, scope, colors, functypes, g)
+				}
 			} else {
 				scope := &funcscope{vars: map[string]*funcvar{}}
 				name := functionPath(p, d)
-				collectFunctypes(p, name, d, scope, colors, functypes)
+				collectFunctypes(p, name, d, scope, colors, functypes, nil)
 			}
 		}
 	}
@@ -330,6 +374,17 @@ func functionTypeOf(fn ast.Node) *ast.FuncType {
 	}
 }
 
+func functionSignatureOf(p *packages.Package, fn ast.Node) *types.Signature {
+	switch f := fn.(type) {
+	case *ast.FuncDecl:
+		return p.TypesInfo.Defs[f.Name].Type().(*types.Signature)
+	case *ast.FuncLit:
+		return p.TypesInfo.TypeOf(f).(*types.Signature)
+	default:
+		panic("node is neither *ast.FuncDecl or *ast.FuncLit")
+	}
+}
+
 func functionRecvOf(fn ast.Node) *ast.FieldList {
 	switch f := fn.(type) {
 	case *ast.FuncDecl:
@@ -341,6 +396,30 @@ func functionRecvOf(fn ast.Node) *ast.FieldList {
 	}
 }
 
+func copyFunctionType(f *ast.FuncType) *ast.FuncType {
+	return &ast.FuncType{
+		TypeParams: copyFieldList(f.TypeParams),
+		Params:     copyFieldList(f.Params),
+		Results:    copyFieldList(f.Results),
+	}
+}
+
+func copyFieldList(f *ast.FieldList) *ast.FieldList {
+	if f == nil {
+		return nil
+	}
+	list := make([]*ast.Field, len(f.List))
+	for i := range f.List {
+		list[i] = copyField(f.List[i])
+	}
+	return &ast.FieldList{List: list}
+}
+
+func copyField(f *ast.Field) *ast.Field {
+	c := *f
+	return &c
+}
+
 func functionBodyOf(fn ast.Node) *ast.BlockStmt {
 	switch f := fn.(type) {
 	case *ast.FuncDecl:
@@ -349,5 +428,159 @@ func functionBodyOf(fn ast.Node) *ast.BlockStmt {
 		return f.Body
 	default:
 		panic("node is neither *ast.FuncDecl or *ast.FuncLit")
+	}
+}
+
+type genericInstance struct {
+	origin   *ssa.Function
+	instance *ssa.Function
+
+	recvPtr  bool
+	recvType *types.Named
+
+	typeArgs map[*types.TypeParam]types.Type
+}
+
+func newGenericInstance(origin, instance *ssa.Function) *genericInstance {
+	g := &genericInstance{origin: origin, instance: instance}
+
+	if recv := g.instance.Signature.Recv(); recv != nil {
+		switch t := recv.Type().(type) {
+		case *types.Pointer:
+			g.recvPtr = true
+			switch pt := t.Elem().(type) {
+			case *types.Named:
+				g.recvType = pt
+			default:
+				panic(fmt.Sprintf("not implemented: %T", t))
+			}
+
+		case *types.Named:
+			g.recvType = t
+		default:
+			panic(fmt.Sprintf("not implemented: %T", t))
+		}
+	}
+
+	g.typeArgs = map[*types.TypeParam]types.Type{}
+	if g.recvType != nil {
+		g.scanRecvTypeArgs(func(p *types.TypeParam, _ int, arg types.Type) {
+			g.typeArgs[p] = arg
+		})
+	}
+	g.scanTypeArgs(func(p *types.TypeParam, _ int, arg types.Type) {
+		g.typeArgs[p] = arg
+	})
+
+	return g
+}
+
+func (g *genericInstance) typeArgOf(param *types.TypeParam) types.Type {
+	arg, ok := g.typeArgs[param]
+	if !ok {
+		panic(fmt.Sprintf("not type arg found for %s", param))
+	}
+	return arg
+}
+
+func (g *genericInstance) partial() bool {
+	sig := g.instance.Signature
+	params := sig.Params()
+	for i := 0; i < params.Len(); i++ {
+		if _, ok := params.At(i).Type().(*types.TypeParam); ok {
+			return true
+		}
+	}
+	results := sig.Results()
+	for i := 0; i < results.Len(); i++ {
+		if _, ok := results.At(i).Type().(*types.TypeParam); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (g *genericInstance) scanRecvTypeArgs(fn func(*types.TypeParam, int, types.Type)) {
+	typeParams := g.instance.Signature.RecvTypeParams()
+	typeArgs := g.recvType.TypeArgs()
+	for i := 0; i < typeArgs.Len(); i++ {
+		arg := typeArgs.At(i)
+		param := typeParams.At(i)
+
+		fn(param, i, arg)
+	}
+}
+
+func (g *genericInstance) scanTypeArgs(fn func(*types.TypeParam, int, types.Type)) {
+	params := g.origin.TypeParams()
+	args := g.instance.TypeArgs()
+
+	for i := 0; i < params.Len(); i++ {
+		fn(params.At(i), i, args[i])
+	}
+}
+
+func (g *genericInstance) gcshapePath() string {
+	var path strings.Builder
+
+	path.WriteString(g.origin.Pkg.Pkg.Path())
+
+	if g.recvType != nil {
+		path.WriteByte('.')
+		if g.recvPtr {
+			path.WriteString("(*")
+		}
+		path.WriteString(g.recvType.Obj().Name())
+
+		if g.recvType.TypeParams() != nil {
+			path.WriteByte('[')
+			g.scanRecvTypeArgs(func(_ *types.TypeParam, i int, arg types.Type) {
+				if i > 0 {
+					path.WriteString(",")
+				}
+				writeGoShape(&path, arg)
+			})
+			path.WriteByte(']')
+		}
+
+		if g.recvPtr {
+			path.WriteByte(')')
+		}
+	}
+
+	path.WriteByte('.')
+	path.WriteString(g.instance.Object().(*types.Func).Name())
+
+	if g.origin.Signature.TypeParams() != nil {
+		path.WriteByte('[')
+		g.scanTypeArgs(func(_ *types.TypeParam, i int, arg types.Type) {
+			if i > 0 {
+				path.WriteString(",")
+			}
+			writeGoShape(&path, arg)
+		})
+		path.WriteByte(']')
+	}
+
+	return path.String()
+}
+
+func writeGoShape(b *strings.Builder, tt types.Type) {
+	b.WriteString("go.shape.")
+
+	switch t := tt.Underlying().(type) {
+	case *types.Basic:
+		b.WriteString(t.Name())
+	case *types.Pointer:
+		// All pointers resolve to *uint8.
+		b.WriteString("*uint8")
+	case *types.Interface:
+		if t.Empty() {
+			b.WriteString("interface{}")
+		} else {
+			panic(fmt.Sprintf("not implemented: %#v (%T)", tt, t))
+		}
+	default:
+		panic(fmt.Sprintf("not implemented: %#v (%T)", tt, t))
 	}
 }

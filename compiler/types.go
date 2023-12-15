@@ -10,7 +10,10 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
+// typeExpr converts a types.Type to an ast.Expr.
+//
+// If typeArg is provided, it's used to resolve type parameters.
+func typeExpr(p *packages.Package, typ types.Type, typeArg func(*types.TypeParam) types.Type) ast.Expr {
 	switch t := typ.(type) {
 	case *types.Basic:
 		switch t {
@@ -19,22 +22,22 @@ func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
 		}
 		return ast.NewIdent(t.String())
 	case *types.Slice:
-		return &ast.ArrayType{Elt: typeExpr(p, t.Elem())}
+		return &ast.ArrayType{Elt: typeExpr(p, t.Elem(), typeArg)}
 	case *types.Array:
 		return &ast.ArrayType{
 			Len: &ast.BasicLit{Kind: token.INT, Value: strconv.FormatInt(t.Len(), 10)},
-			Elt: typeExpr(p, t.Elem()),
+			Elt: typeExpr(p, t.Elem(), typeArg),
 		}
 	case *types.Map:
 		return &ast.MapType{
-			Key:   typeExpr(p, t.Key()),
-			Value: typeExpr(p, t.Elem()),
+			Key:   typeExpr(p, t.Key(), typeArg),
+			Value: typeExpr(p, t.Elem(), typeArg),
 		}
 	case *types.Struct:
 		fields := make([]*ast.Field, t.NumFields())
 		for i := range fields {
 			f := t.Field(i)
-			fields[i] = &ast.Field{Type: typeExpr(p, f.Type())}
+			fields[i] = &ast.Field{Type: typeExpr(p, f.Type(), typeArg)}
 			if !f.Anonymous() {
 				fields[i].Names = []*ast.Ident{ast.NewIdent(f.Name())}
 			}
@@ -44,13 +47,13 @@ func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
 		}
 		return &ast.StructType{Fields: &ast.FieldList{List: fields}}
 	case *types.Pointer:
-		return &ast.StarExpr{X: typeExpr(p, t.Elem())}
+		return &ast.StarExpr{X: typeExpr(p, t.Elem(), typeArg)}
 	case *types.Interface:
 		if t.Empty() {
 			return ast.NewIdent("any")
 		}
 	case *types.Signature:
-		return newFuncType(p, t)
+		return newFuncType(p, t, typeArg)
 	case *types.Named:
 		obj := t.Obj()
 		name := ast.NewIdent(obj.Name())
@@ -70,7 +73,7 @@ func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
 		if typeArgs := t.TypeArgs(); typeArgs != nil {
 			indices := make([]ast.Expr, typeArgs.Len())
 			for i := range indices {
-				indices[i] = typeExpr(p, typeArgs.At(i))
+				indices[i] = typeExpr(p, typeArgs.At(i), typeArg)
 			}
 			namedExpr = &ast.IndexListExpr{
 				X:       namedExpr,
@@ -81,7 +84,7 @@ func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
 
 	case *types.Chan:
 		c := &ast.ChanType{
-			Value: typeExpr(p, t.Elem()),
+			Value: typeExpr(p, t.Elem(), typeArg),
 		}
 		switch t.Dir() {
 		case types.SendRecv:
@@ -94,6 +97,9 @@ func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
 		return c
 
 	case *types.TypeParam:
+		if typeArg != nil {
+			return typeExpr(p, typeArg(t), typeArg)
+		}
 		obj := t.Obj()
 		ident := ast.NewIdent(obj.Name())
 		p.TypesInfo.Defs[ident] = obj
@@ -102,25 +108,102 @@ func typeExpr(p *packages.Package, typ types.Type) ast.Expr {
 	panic(fmt.Sprintf("not implemented: %T", typ))
 }
 
-func newFuncType(p *packages.Package, signature *types.Signature) *ast.FuncType {
+func newFuncType(p *packages.Package, signature *types.Signature, typeArg func(*types.TypeParam) types.Type) *ast.FuncType {
 	return &ast.FuncType{
-		Params:  newFieldList(p, signature.Params()),
-		Results: newFieldList(p, signature.Results()),
+		Params:  newFieldList(p, signature.Params(), typeArg),
+		Results: newFieldList(p, signature.Results(), typeArg),
 	}
 }
 
-func newFieldList(p *packages.Package, tuple *types.Tuple) *ast.FieldList {
+func newFieldList(p *packages.Package, tuple *types.Tuple, typeArg func(*types.TypeParam) types.Type) *ast.FieldList {
 	return &ast.FieldList{
-		List: newFields(p, tuple),
+		List: newFields(p, tuple, typeArg),
 	}
 }
 
-func newFields(p *packages.Package, tuple *types.Tuple) []*ast.Field {
+func newFields(p *packages.Package, tuple *types.Tuple, typeArg func(*types.TypeParam) types.Type) []*ast.Field {
 	fields := make([]*ast.Field, tuple.Len())
 	for i := range fields {
 		fields[i] = &ast.Field{
-			Type: typeExpr(p, tuple.At(i).Type()),
+			Type: typeExpr(p, tuple.At(i).Type(), typeArg),
 		}
 	}
 	return fields
+}
+
+// substituteTypeArgs replaces all type parameter placeholders
+// with type args.
+//
+// It returns a deep copy of the input expr.
+func substituteTypeArgs(p *packages.Package, expr ast.Expr, typeArg func(*types.TypeParam) types.Type) ast.Expr {
+	if expr == nil {
+		return nil
+	}
+	switch e := expr.(type) {
+	case *ast.ArrayType:
+		return &ast.ArrayType{
+			Elt: substituteTypeArgs(p, e.Elt, typeArg),
+			Len: substituteTypeArgs(p, e.Len, typeArg),
+		}
+	case *ast.MapType:
+		return &ast.MapType{
+			Key:   substituteTypeArgs(p, e.Key, typeArg),
+			Value: substituteTypeArgs(p, e.Value, typeArg),
+		}
+	case *ast.FuncType:
+		return &ast.FuncType{
+			TypeParams: substituteFieldList(p, e.TypeParams, typeArg),
+			Params:     substituteFieldList(p, e.Params, typeArg),
+			Results:    substituteFieldList(p, e.Results, typeArg),
+		}
+	case *ast.ChanType:
+		return &ast.ChanType{
+			Dir:   e.Dir,
+			Value: substituteTypeArgs(p, e.Value, typeArg),
+		}
+	case *ast.StructType:
+		return &ast.StructType{
+			Fields: substituteFieldList(p, e.Fields, typeArg),
+		}
+	case *ast.StarExpr:
+		return &ast.StarExpr{
+			X: substituteTypeArgs(p, e.X, typeArg),
+		}
+	case *ast.SelectorExpr:
+		return &ast.SelectorExpr{
+			X:   substituteTypeArgs(p, e.X, typeArg),
+			Sel: e.Sel,
+		}
+	case *ast.IndexExpr:
+		return &ast.IndexExpr{
+			X:     substituteTypeArgs(p, e.X, typeArg),
+			Index: substituteTypeArgs(p, e.Index, typeArg),
+		}
+	case *ast.Ident:
+		t := p.TypesInfo.TypeOf(e)
+		tp, ok := t.(*types.TypeParam)
+		if !ok {
+			return e
+		}
+		return typeExpr(p, typeArg(tp), typeArg)
+	case *ast.BasicLit:
+		return e
+	default:
+		panic(fmt.Sprintf("not implemented: %T", e))
+	}
+}
+
+func substituteFieldList(p *packages.Package, f *ast.FieldList, typeArg func(*types.TypeParam) types.Type) *ast.FieldList {
+	if f == nil || f.List == nil {
+		return f
+	}
+	fields := make([]*ast.Field, len(f.List))
+	for i, field := range f.List {
+		fields[i] = &ast.Field{
+			Names: field.Names,
+			Type:  substituteTypeArgs(p, field.Type, typeArg),
+			Tag:   field.Tag,
+		}
+	}
+	return &ast.FieldList{List: fields}
 }

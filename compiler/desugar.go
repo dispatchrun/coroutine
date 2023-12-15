@@ -314,7 +314,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 							&ast.CallExpr{
 								Fun: d.builtin("make"),
 								Args: []ast.Expr{
-									typeExpr(d.pkg, keySliceType),
+									typeExpr(d.pkg, keySliceType, nil),
 									&ast.BasicLit{Kind: token.INT, Value: "0"},
 									&ast.CallExpr{Fun: d.builtin("len"), Args: []ast.Expr{x}},
 								},
@@ -476,7 +476,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 							Specs: []ast.Spec{
 								&ast.ValueSpec{
 									Names: []*ast.Ident{tmpLhs},
-									Type:  typeExpr(d.pkg, lhsType),
+									Type:  typeExpr(d.pkg, lhsType, nil),
 								},
 							},
 						}})

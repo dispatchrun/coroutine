@@ -96,7 +96,7 @@ func extractDecls(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, r
 			} else {
 				for _, spec := range n.Specs {
 					valueSpec := spec.(*ast.ValueSpec)
-					valueType := typeExpr(p, info.TypeOf(valueSpec.Names[0]))
+					valueType := typeExpr(p, info.TypeOf(valueSpec.Names[0]), nil)
 					for _, ident := range valueSpec.Names {
 						if ident.Name != "_" {
 							frameType.Fields.List = append(frameType.Fields.List, &ast.Field{
@@ -132,7 +132,7 @@ func extractDecls(p *packages.Package, typ *ast.FuncType, body *ast.BlockStmt, r
 				}
 				frameType.Fields.List = append(frameType.Fields.List, &ast.Field{
 					Names: []*ast.Ident{name},
-					Type:  typeExpr(p, t),
+					Type:  typeExpr(p, t, nil),
 				})
 			}
 		}

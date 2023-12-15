@@ -435,7 +435,7 @@ func (scope *scope) compileFuncDecl(p *packages.Package, fn *ast.FuncDecl, color
 	// Generate the coroutine function. At this stage, use the same name
 	// as the source function (and require that the caller use build tags
 	// to disambiguate function calls).
-	fnType := funcTypeWithNamedResults(fn.Type)
+	fnType := funcTypeWithNamedResults(p, fn)
 	gen := &ast.FuncDecl{
 		Recv: fn.Recv,
 		Doc:  &ast.CommentGroup{},
@@ -473,7 +473,7 @@ func (scope *scope) compileFuncLit(p *packages.Package, fn *ast.FuncLit, color *
 	log.Printf("compiling function literal %s", p.Name)
 
 	gen := &ast.FuncLit{
-		Type: funcTypeWithNamedResults(fn.Type),
+		Type: funcTypeWithNamedResults(p, fn),
 		Body: scope.compileFuncBody(p, fn.Type, fn.Body, nil, color),
 	}
 
@@ -534,8 +534,8 @@ func (scope *scope) compileFuncBody(p *packages.Package, typ *ast.FuncType, body
 	ctx := ast.NewIdent("_c")
 
 	yieldTypeExpr := make([]ast.Expr, 2)
-	yieldTypeExpr[0] = typeExpr(p, color.Params().At(0).Type())
-	yieldTypeExpr[1] = typeExpr(p, color.Results().At(0).Type())
+	yieldTypeExpr[0] = typeExpr(p, color.Params().At(0).Type(), nil)
+	yieldTypeExpr[1] = typeExpr(p, color.Results().At(0).Type(), nil)
 
 	coroutineIdent := ast.NewIdent("coroutine")
 	p.TypesInfo.Uses[coroutineIdent] = types.NewPkgName(token.NoPos, p.Types, "coroutine", scope.compiler.coroutinePkg.Types)
@@ -710,21 +710,42 @@ func isExpr(body *ast.BlockStmt) bool {
 	return false
 }
 
-func funcTypeWithNamedResults(t *ast.FuncType) *ast.FuncType {
+func funcTypeWithNamedResults(p *packages.Package, n ast.Node) *ast.FuncType {
+	t := functionTypeOf(n)
+	signature := functionSignatureOf(p, n)
+	if signature == nil {
+		panic("missing type info for func decl or lit")
+	}
 	if t.Results == nil {
 		return t
 	}
-	underscore := ast.NewIdent("_")
 	funcType := *t
 	funcType.Results = &ast.FieldList{
 		List: slices.Clone(t.Results.List),
 	}
+	resultTypes := signature.Results()
+	if resultTypes == nil || resultTypes.Len() == 0 {
+		panic("result type count mismatch")
+	}
+	typePos := 0
 	for i, f := range t.Results.List {
-		if len(f.Names) == 0 {
-			field := *f
-			field.Names = []*ast.Ident{underscore}
-			funcType.Results.List[i] = &field
+		if len(f.Names) > 0 {
+			typePos += len(f.Names)
+			continue
 		}
+		if typePos >= resultTypes.Len() {
+			panic("result type count mismatch")
+		}
+		t := resultTypes.At(typePos)
+		underscore := ast.NewIdent("_")
+		p.TypesInfo.Defs[underscore] = t
+		field := *f
+		field.Names = []*ast.Ident{underscore}
+		funcType.Results.List[i] = &field
+		typePos++
+	}
+	if typePos != resultTypes.Len() {
+		panic("result type count mismatch")
 	}
 	return &funcType
 }

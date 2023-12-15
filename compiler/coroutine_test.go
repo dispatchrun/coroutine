@@ -220,23 +220,28 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   func() { StructClosure(3) },
 			yields: []int{-1, 10, 100, 1000, 11, 101, 1000, 12, 102, 1000},
 		},
-
 		{
-			name:   "identity generic",
-			coro:   func() { IdentityGeneric[int](11) },
-			yields: []int{11},
-		},
-
-		{
-			name:   "identity generic (2)",
+			name:   "generic function",
 			coro:   func() { IdentityGenericInt(11) },
 			yields: []int{11},
 		},
 
 		{
-			name:   "identity generic (3)",
+			name:   "generic struct",
 			coro:   func() { IdentityGenericStructInt(11) },
 			yields: []int{11},
+		},
+
+		{
+			name:   "generic function closure",
+			coro:   func() { IdentityGenericClosureInt(11) },
+			yields: []int{11, 11},
+		},
+
+		{
+			name:   "generic struct closure",
+			coro:   func() { IdentityGenericStructClosureInt(11) },
+			yields: []int{-1, 11, 100, 23, 12, 101, 45},
 		},
 	}
 
