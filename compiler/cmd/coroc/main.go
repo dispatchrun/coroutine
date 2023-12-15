@@ -67,7 +67,11 @@ func run() error {
 			return err
 		}
 		defer f.Close()
-		defer pprof.WriteHeapProfile(f)
+		defer func() {
+			if err := pprof.WriteHeapProfile(f); err != nil {
+				log.Printf("warning: failed to write heap profile: %v", err)
+			}
+		}()
 	}
 
 	if cpuProfile != "" {
