@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"cmp"
 	"fmt"
 	"go/ast"
 	"go/build/constraint"
@@ -401,6 +402,12 @@ func addImports(p *packages.Package, gen *ast.File) *ast.File {
 			Path: &ast.BasicLit{Kind: token.STRING, Value: strconv.Quote(path)},
 		})
 	}
+
+	// Imports don't require to be sorted but it helps with output
+	// stability. The format pass does not take care of this.
+	slices.SortFunc(importspecs, func(a, b ast.Spec) int {
+		return cmp.Compare(a.(*ast.ImportSpec).Name.Name, b.(*ast.ImportSpec).Name.Name)
+	})
 
 	gen.Decls = append([]ast.Decl{&ast.GenDecl{
 		Tok:   token.IMPORT,
