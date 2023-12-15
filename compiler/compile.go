@@ -327,6 +327,9 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 			case *ast.FuncDecl:
 				color, ok := colorsByFunc[decl]
 				if !ok {
+					if containsColoredFuncLit(decl, colorsByFunc) {
+						// TODO
+					}
 					gen.Decls = append(gen.Decls, decl)
 					continue
 				}
@@ -356,6 +359,19 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 	}
 
 	return nil
+}
+
+func containsColoredFuncLit(decl *ast.FuncDecl, colorsByFunc map[ast.Node]*types.Signature) (yes bool) {
+	ast.Inspect(decl, func(n ast.Node) bool {
+		if lit, ok := n.(*ast.FuncLit); ok {
+			if _, ok := colorsByFunc[lit]; ok {
+				yes = true
+				return false
+			}
+		}
+		return true
+	})
+	return
 }
 
 func addImports(p *packages.Package, gen *ast.File) *ast.File {
