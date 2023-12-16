@@ -46,6 +46,7 @@ func Compile(path string, options ...Option) error {
 
 type compiler struct {
 	onlyListFiles bool
+	debugColors   bool
 
 	prog         *ssa.Program
 	generics     map[*ssa.Function][]*ssa.Function
@@ -154,7 +155,7 @@ func (c *compiler) compile(path string) error {
 	}
 
 	log.Printf("coloring functions")
-	colors, err := colorFunctions(cg, yieldInstances)
+	colors, err := c.colorFunctions(cg, yieldInstances)
 	if err != nil {
 		return err
 	}

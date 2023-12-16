@@ -24,6 +24,7 @@ OPTIONS:
   -v, --version   Show the compiler version
 
 ADVANCED OPTIONS:
+  -colors         Print debug information about function colors
   -cpuprofile     Write CPU profile to file
   -memprofile     Write memory profile to file
 `
@@ -31,13 +32,15 @@ ADVANCED OPTIONS:
 var (
 	showVersion   bool
 	onlyListFiles bool
+	debugColors   bool
 	cpuProfile    string
 	memProfile    string
 )
 
-func boolFlag(ptr *bool, short, long string) {
-	flag.BoolVar(ptr, short, false, "")
-	flag.BoolVar(ptr, long, false, "")
+func boolFlag(ptr *bool, names ...string) {
+	for _, name := range names {
+		flag.BoolVar(ptr, name, false, "")
+	}
 }
 
 func main() {
@@ -52,6 +55,7 @@ func run() error {
 
 	boolFlag(&showVersion, "v", "version")
 	boolFlag(&onlyListFiles, "l", "list")
+	boolFlag(&debugColors, "colors")
 	flag.StringVar(&cpuProfile, "cpuprofile", "", "")
 	flag.StringVar(&memProfile, "memprofile", "", "")
 	flag.Parse()
@@ -106,6 +110,7 @@ func run() error {
 
 	return compiler.Compile(path,
 		compiler.OnlyListFiles(onlyListFiles),
+		compiler.DebugColors(debugColors),
 	)
 }
 

@@ -8,3 +8,9 @@ func OnlyListFiles(enabled bool) Option {
 		c.onlyListFiles = enabled
 	}
 }
+
+func DebugColors(enabled bool) Option {
+	return func(c *compiler) {
+		c.debugColors = enabled
+	}
+}
