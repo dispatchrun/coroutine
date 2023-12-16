@@ -199,6 +199,9 @@ func (c *compiler) compile(path string) error {
 			}
 		}
 		if pkg == nil {
+			if fn.Synthetic != "" {
+				continue
+			}
 			return fmt.Errorf("unsupported yield function %s (Pkg is nil)", fn)
 		}
 
@@ -320,7 +323,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 		case *ast.FuncDecl:
 		case *ast.FuncLit:
 		default:
-			return fmt.Errorf("unsupported yield function %s (Syntax is %T, not *ast.FuncDecl or *ast.FuncLit)", fn, decl)
+			continue
 		}
 		colorsByFunc[decl] = color
 	}
