@@ -243,6 +243,12 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   func() { IdentityGenericStructClosureInt(11) },
 			yields: []int{11, 100, 23, 12, 101, 45},
 		},
+
+		{
+			name:   "indirect closure",
+			coro:   func() { IndirectClosure(1) },
+			yields: []int{-1, 1, 2, 3},
+		},
 	}
 
 	// This emulates the installation of function type information by the
