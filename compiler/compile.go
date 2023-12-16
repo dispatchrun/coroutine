@@ -17,7 +17,10 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/callgraph/cha"
+	"golang.org/x/tools/go/callgraph/rta"
+	"golang.org/x/tools/go/callgraph/static"
 	"golang.org/x/tools/go/callgraph/vta"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
@@ -45,7 +48,9 @@ func Compile(path string, options ...Option) error {
 }
 
 type compiler struct {
+	callgraphType string
 	onlyListFiles bool
+	debugColors   bool
 
 	prog         *ssa.Program
 	generics     map[*ssa.Function][]*ssa.Function
@@ -116,10 +121,32 @@ func (c *compiler) compile(path string) error {
 	log.Printf("building SSA program")
 	c.prog, _ = ssautil.AllPackages(pkgs, ssa.InstantiateGenerics|ssa.GlobalDebug)
 	c.prog.Build()
-
-	log.Printf("building call graph")
 	functions := ssautil.AllFunctions(c.prog)
-	cg := vta.CallGraph(functions, cha.CallGraph(c.prog))
+
+	if c.callgraphType == "" {
+		c.callgraphType = "vta"
+	}
+	log.Printf("building callgraph using %s algorithm", c.callgraphType)
+	var cg *callgraph.Graph
+	// See https://cs.opensource.google/go/x/tools/+/refs/tags/v0.16.1:cmd/callgraph/main.go
+	switch c.callgraphType {
+	case "static":
+		cg = static.CallGraph(c.prog)
+	case "cha":
+		cg = cha.CallGraph(c.prog)
+	case "vta":
+		cg = vta.CallGraph(functions, cha.CallGraph(c.prog))
+	case "rta":
+		mains := ssautil.MainPackages(c.prog.AllPackages())
+		var roots []*ssa.Function
+		for _, main := range mains {
+			roots = append(roots, main.Func("init"), main.Func("main"))
+		}
+		rtares := rta.Analyze(roots, true)
+		cg = rtares.CallGraph
+	default:
+		return fmt.Errorf("invalid or unsupported callgraph construction algorithm %q", c.callgraphType)
+	}
 
 	log.Printf("collecting generic instances")
 	c.generics = map[*ssa.Function][]*ssa.Function{}
@@ -154,7 +181,7 @@ func (c *compiler) compile(path string) error {
 	}
 
 	log.Printf("coloring functions")
-	colors, err := colorFunctions(cg, yieldInstances)
+	colors, err := c.colorFunctions(cg, yieldInstances)
 	if err != nil {
 		return err
 	}

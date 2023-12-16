@@ -19,25 +19,33 @@ USAGE:
   coroc [OPTIONS] [PATH]
 
 OPTIONS:
-  -h, --help      Show this help information
-  -l, --list      List all files that would be compiled
-  -v, --version   Show the compiler version
+  -h, --help         Show this help information
+  -l, --list         List all files that would be compiled
+  -v, --version      Show the compiler version
 
 ADVANCED OPTIONS:
-  -cpuprofile     Write CPU profile to file
-  -memprofile     Write memory profile to file
+  -callgraph <TYPE>  Set the callgraph construction algorithm
+                     (static, cha, rta, vta). Default is vta.
+
+  -colors            Print debug information about function colors
+
+  -cpuprofile        Write CPU profile to file
+  -memprofile        Write memory profile to file
 `
 
 var (
 	showVersion   bool
 	onlyListFiles bool
+	debugColors   bool
+	callgraphType string
 	cpuProfile    string
 	memProfile    string
 )
 
-func boolFlag(ptr *bool, short, long string) {
-	flag.BoolVar(ptr, short, false, "")
-	flag.BoolVar(ptr, long, false, "")
+func boolFlag(ptr *bool, names ...string) {
+	for _, name := range names {
+		flag.BoolVar(ptr, name, false, "")
+	}
 }
 
 func main() {
@@ -52,6 +60,8 @@ func run() error {
 
 	boolFlag(&showVersion, "v", "version")
 	boolFlag(&onlyListFiles, "l", "list")
+	boolFlag(&debugColors, "colors")
+	flag.StringVar(&callgraphType, "callgraph", "", "")
 	flag.StringVar(&cpuProfile, "cpuprofile", "", "")
 	flag.StringVar(&memProfile, "memprofile", "", "")
 	flag.Parse()
@@ -105,7 +115,9 @@ func run() error {
 	}
 
 	return compiler.Compile(path,
+		compiler.CallgraphType(callgraphType),
 		compiler.OnlyListFiles(onlyListFiles),
+		compiler.DebugColors(debugColors),
 	)
 }
 

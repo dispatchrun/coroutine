@@ -3,6 +3,7 @@ package compiler
 import (
 	"fmt"
 	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa"
@@ -11,14 +12,17 @@ import (
 // colorFunctions walks the call graph, coloring functions that yield (or may
 // yield) by their yield type. It's an error if a function has more than one
 // yield type.
-func colorFunctions(cg *callgraph.Graph, yieldInstances functionColors) (functionColors, error) {
+func (c *compiler) colorFunctions(cg *callgraph.Graph, yieldInstances functionColors) (functionColors, error) {
 	colors := map[*ssa.Function]*types.Signature{}
 	for yieldInstance, color := range yieldInstances {
-		for _, edge := range cg.Nodes[yieldInstance].In {
-			caller := edge.Caller.Func
-			if err := colorFunctions0(cg, colors, caller, color); err != nil {
-				return nil, err
-			}
+		if c.debugColors {
+			fmt.Println("[color] scanning root", yieldInstance, "with color:", color)
+		}
+		if err := c.colorFunctions0(cg, colors, yieldInstance, color, 1); err != nil {
+			return nil, err
+		}
+		if c.debugColors {
+			fmt.Println("[color]")
 		}
 	}
 	return colors, nil
@@ -26,7 +30,25 @@ func colorFunctions(cg *callgraph.Graph, yieldInstances functionColors) (functio
 
 type functionColors map[*ssa.Function]*types.Signature
 
-func colorFunctions0(cg *callgraph.Graph, colors functionColors, fn *ssa.Function, color *types.Signature) error {
+func (c *compiler) colorFunctions0(cg *callgraph.Graph, colors functionColors, fn *ssa.Function, color *types.Signature, depth int) error {
+	var prevCaller *ssa.Function
+	for _, edge := range cg.Nodes[fn].In {
+		caller := edge.Caller.Func
+		if caller == prevCaller {
+			continue
+		}
+		if err := c.colorFunctions1(cg, colors, edge.Caller.Func, color, depth); err != nil {
+			return err
+		}
+		prevCaller = caller
+	}
+	return nil
+}
+
+func (c *compiler) colorFunctions1(cg *callgraph.Graph, colors functionColors, fn *ssa.Function, color *types.Signature, depth int) error {
+	if c.debugColors {
+		fmt.Println("[color] ", strings.Repeat("  ", depth-1), "<~", fn)
+	}
 	if origin := fn.Origin(); origin != nil && origin.Pkg != nil {
 		// Don't follow edges into and through the coroutine package.
 		if pkgPath := origin.Pkg.Pkg.Path(); pkgPath == coroutinePackage {
@@ -41,11 +63,7 @@ func colorFunctions0(cg *callgraph.Graph, colors functionColors, fn *ssa.Functio
 		}
 		return nil // already walked
 	}
+
 	colors[fn] = color
-	for _, edge := range cg.Nodes[fn].In {
-		if err := colorFunctions0(cg, colors, edge.Caller.Func, color); err != nil {
-			return err
-		}
-	}
-	return nil
+	return c.colorFunctions0(cg, colors, fn, color, depth+1)
 }
