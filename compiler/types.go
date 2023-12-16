@@ -52,6 +52,20 @@ func typeExpr(p *packages.Package, typ types.Type, typeArg func(*types.TypeParam
 		if t.Empty() {
 			return ast.NewIdent("any")
 		}
+		if t.NumEmbeddeds() > 0 {
+			panic("not implemented: interface with embeddeds")
+		}
+		methods := make([]*ast.Field, t.NumExplicitMethods())
+		for i := range methods {
+			m := t.ExplicitMethod(i)
+			methods[i] = &ast.Field{
+				Names: []*ast.Ident{ast.NewIdent(m.Name())},
+				Type:  typeExpr(p, m.Type(), typeArg),
+			}
+		}
+		return &ast.InterfaceType{
+			Methods: &ast.FieldList{List: methods},
+		}
 	case *types.Signature:
 		return newFuncType(p, t, typeArg)
 	case *types.Named:
@@ -164,6 +178,10 @@ func substituteTypeArgs(p *packages.Package, expr ast.Expr, typeArg func(*types.
 	case *ast.StructType:
 		return &ast.StructType{
 			Fields: substituteFieldList(p, e.Fields, typeArg),
+		}
+	case *ast.InterfaceType:
+		return &ast.InterfaceType{
+			Methods: substituteFieldList(p, e.Methods, typeArg),
 		}
 	case *ast.StarExpr:
 		return &ast.StarExpr{
