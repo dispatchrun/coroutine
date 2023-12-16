@@ -19,20 +19,25 @@ USAGE:
   coroc [OPTIONS] [PATH]
 
 OPTIONS:
-  -h, --help      Show this help information
-  -l, --list      List all files that would be compiled
-  -v, --version   Show the compiler version
+  -h, --help         Show this help information
+  -l, --list         List all files that would be compiled
+  -v, --version      Show the compiler version
 
 ADVANCED OPTIONS:
-  -colors         Print debug information about function colors
-  -cpuprofile     Write CPU profile to file
-  -memprofile     Write memory profile to file
+  -callgraph <TYPE>  Set the callgraph construction algorithm
+                     (static, cha, rta, vta). Default is vta.
+
+  -colors            Print debug information about function colors
+
+  -cpuprofile        Write CPU profile to file
+  -memprofile        Write memory profile to file
 `
 
 var (
 	showVersion   bool
 	onlyListFiles bool
 	debugColors   bool
+	callgraphType string
 	cpuProfile    string
 	memProfile    string
 )
@@ -56,6 +61,7 @@ func run() error {
 	boolFlag(&showVersion, "v", "version")
 	boolFlag(&onlyListFiles, "l", "list")
 	boolFlag(&debugColors, "colors")
+	flag.StringVar(&callgraphType, "callgraph", "", "")
 	flag.StringVar(&cpuProfile, "cpuprofile", "", "")
 	flag.StringVar(&memProfile, "memprofile", "", "")
 	flag.Parse()
@@ -109,6 +115,7 @@ func run() error {
 	}
 
 	return compiler.Compile(path,
+		compiler.CallgraphType(callgraphType),
 		compiler.OnlyListFiles(onlyListFiles),
 		compiler.DebugColors(debugColors),
 	)
