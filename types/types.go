@@ -202,7 +202,7 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 		Kind:    kindOf(t.Kind()),
 	}
 
-	if t.Name() != "" {
+	if t.Name() != "" || t.Kind() == reflect.Interface {
 		ti.MemoryOffset = uint64(offsetForType(t))
 	}
 
