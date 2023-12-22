@@ -562,6 +562,11 @@ type Box struct {
 	x int
 }
 
+func (b *Box) YieldAndInc() {
+	coroutine.Yield[int, any](b.x)
+	b.x++
+}
+
 func (b *Box) Closure(y int) func(int) {
 	return func(z int) {
 		coroutine.Yield[int, any](b.x)
@@ -635,4 +640,19 @@ func IdentityGenericStructClosureInt(n int) {
 	fn := (&IdentityGenericStruct[int]{n: n}).Closure(100)
 	fn(23)
 	fn(45)
+}
+
+func IndirectClosure(n int) {
+	box := &Box{n}
+	fn := indirectClosure(box)
+	fn()
+	fn()
+	fn()
+}
+
+func indirectClosure(m interface{ YieldAndInc() }) func() {
+	coroutine.Yield[int, any](-1)
+	return func() {
+		m.YieldAndInc()
+	}
 }
