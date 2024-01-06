@@ -246,7 +246,39 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 		}
 		prologue := d.desugarList([]ast.Stmt{init}, nil, nil)
 
+		intType := types.Typ[types.Int]
+
 		switch rangeElemType := d.info.TypeOf(s.X).(type) {
+		case *types.Basic:
+			switch rangeElemType.Kind() {
+			case types.Int:
+				// Rewrite for range loops over int:
+				// - `for range x {}` => `{ _x := x; for _i := 0; _i < _x; _i++ {} }`
+				// - `for _ := range x {}` => `{ _x := x; for _i := 0; _i < _x; _i++ {} }`
+				// - `for i := range x {}` => `{ _x := x; for i := 0; i < _x; i++ {} }`
+				var i *ast.Ident
+				if s.Key == nil || isUnderscore(s.Key) {
+					i = d.newVar(intType)
+				} else {
+					i = s.Key.(*ast.Ident)
+				}
+				forStmt := &ast.ForStmt{
+					Init: &ast.AssignStmt{Lhs: []ast.Expr{i}, Tok: token.DEFINE, Rhs: []ast.Expr{&ast.BasicLit{Kind: token.INT, Value: "0"}}},
+					Post: &ast.IncDecStmt{X: i, Tok: token.INC},
+					Cond: &ast.BinaryExpr{X: i, Op: token.LSS, Y: x},
+					Body: s.Body,
+				}
+				if d.mayYield(s.Body) {
+					d.nodesThatMayYield[forStmt] = struct{}{}
+				}
+				stmt = &ast.BlockStmt{
+					List: append(prologue, d.desugar(forStmt, breakTo, continueTo, userLabel)),
+				}
+
+			default:
+				panic(fmt.Sprintf("not implemented: for range over %T", rangeElemType))
+			}
+
 		case *types.Array, *types.Slice:
 			// Rewrite for range loops over arrays/slices:
 			// - `for range x {}` => `{ _x := x; for _i := 0; _i < len(_x); _i++ {} }`
@@ -259,7 +291,7 @@ func (d *desugarer) desugar(stmt ast.Stmt, breakTo, continueTo, userLabel *ast.I
 			// Then, desugar loops further (see ast.ForStmt case above).
 			var i *ast.Ident
 			if s.Key == nil || isUnderscore(s.Key) {
-				i = d.newVar(types.Typ[types.Int])
+				i = d.newVar(intType)
 			} else {
 				i = s.Key.(*ast.Ident)
 			}

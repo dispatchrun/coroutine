@@ -656,3 +656,9 @@ func indirectClosure(m interface{ YieldAndInc() }) func() {
 		m.YieldAndInc()
 	}
 }
+
+func RangeOverInt(n int) {
+	for i := range n {
+		coroutine.Yield[int, any](i)
+	}
+}

@@ -1146,6 +1146,63 @@ defer func() {
 }
 `,
 		},
+		{
+			name: "for range over int",
+			body: "for range n { foo }",
+			info: func(stmts []ast.Stmt, info *types.Info) {
+				n := stmts[0].(*ast.RangeStmt).X
+				info.Types[n] = types.TypeAndValue{Type: intType}
+			},
+			expect: `
+{
+	_v0 := n
+	{
+		_v1 := 0
+		for ; _v1 < _v0; _v1++ {
+			foo
+		}
+	}
+}
+`,
+		},
+		{
+			name: "for range over int, with underscore index",
+			body: "for _ := range n { foo }",
+			info: func(stmts []ast.Stmt, info *types.Info) {
+				n := stmts[0].(*ast.RangeStmt).X
+				info.Types[n] = types.TypeAndValue{Type: intType}
+			},
+			expect: `
+{
+	_v0 := n
+	{
+		_v1 := 0
+		for ; _v1 < _v0; _v1++ {
+			foo
+		}
+	}
+}
+`,
+		},
+		{
+			name: "for range over int, with index",
+			body: "for i := range n { foo }",
+			info: func(stmts []ast.Stmt, info *types.Info) {
+				n := stmts[0].(*ast.RangeStmt).X
+				info.Types[n] = types.TypeAndValue{Type: intType}
+			},
+			expect: `
+{
+	_v0 := n
+	{
+		i := 0
+		for ; i < _v0; i++ {
+			foo
+		}
+	}
+}
+`,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			expr, err := parser.ParseExpr("func() {\n" + test.body + "\n}()")
