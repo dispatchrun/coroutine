@@ -249,6 +249,12 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   func() { IndirectClosure(1) },
 			yields: []int{-1, 1, 2, 3},
 		},
+
+		{
+			name:   "range over int",
+			coro:   func() { RangeOverInt(3) },
+			yields: []int{0, 1, 2},
+		},
 	}
 
 	// This emulates the installation of function type information by the

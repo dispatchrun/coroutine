@@ -3634,6 +3634,53 @@ func indirectClosure(_fn0 interface{ YieldAndInc() }) (_ func()) {
 	}
 	panic("unreachable")
 }
+
+//go:noinline
+func RangeOverInt(_fn0 int) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 int
+		X1 int
+		X2 int
+	} = coroutine.Push[struct {
+		IP int
+		X0 int
+		X1 int
+		X2 int
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 int
+			X1 int
+			X2 int
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X1 = _f0.X0
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 4:
+		switch {
+		case _f0.IP < 3:
+			_f0.X2 = 0
+			_f0.IP = 3
+			fallthrough
+		case _f0.IP < 4:
+			for ; _f0.X2 < _f0.X1; _f0.X2, _f0.IP = _f0.X2+1, 3 {
+
+				coroutine.Yield[int, any](_f0.X2)
+			}
+		}
+	}
+}
 func init() {
 	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/stealthrocket/coroutine/compiler/testdata.(*Box).Closure")
 	_types.RegisterClosure[func(_fn0 int), struct {
@@ -3741,6 +3788,7 @@ func init() {
 	}]("github.com/stealthrocket/coroutine/compiler/testdata.Range10ClosureHeterogenousCapture.func3")
 	_types.RegisterFunc[func()]("github.com/stealthrocket/coroutine/compiler/testdata.Range10Heterogenous")
 	_types.RegisterFunc[func(_ int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeArrayIndexValueGenerator")
+	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeOverInt")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeOverMaps")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/stealthrocket/coroutine/compiler/testdata.RangeReverseClosureCaptureByValue")
 	_types.RegisterClosure[func(), struct {
