@@ -197,6 +197,15 @@ func substituteTypeArgs(p *packages.Package, expr ast.Expr, typeArg func(*types.
 			X:     substituteTypeArgs(p, e.X, typeArg),
 			Index: substituteTypeArgs(p, e.Index, typeArg),
 		}
+	case *ast.IndexListExpr:
+		indices := make([]ast.Expr, len(e.Indices))
+		for i, index := range e.Indices {
+			indices[i] = substituteTypeArgs(p, index, typeArg)
+		}
+		return &ast.IndexListExpr{
+			X:       substituteTypeArgs(p, e.X, typeArg),
+			Indices: indices,
+		}
 	case *ast.Ident:
 		t := p.TypesInfo.TypeOf(e)
 		tp, ok := t.(*types.TypeParam)
