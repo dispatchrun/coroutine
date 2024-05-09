@@ -343,7 +343,7 @@ func (c *compiler) generateFunctypes(p *packages.Package, f *ast.File, colors ma
 	}
 
 	if len(init.List) > 0 {
-		astutil.AddNamedImport(nil, f, "_types", "github.com/stealthrocket/coroutine/types")
+		astutil.AddNamedImport(nil, f, "_types", "github.com/dispatchrun/coroutine/types")
 
 		f.Decls = append(f.Decls,
 			&ast.FuncDecl{

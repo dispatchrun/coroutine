@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/stealthrocket/coroutine"
+	"github.com/dispatchrun/coroutine"
 )
 
 // Scraper recursively scrapes URLs.

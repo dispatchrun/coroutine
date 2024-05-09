@@ -15,7 +15,7 @@ import (
 	"time"
 	"unsafe"
 
-	coroutinev1 "github.com/stealthrocket/coroutine/gen/proto/go/coroutine/v1"
+	coroutinev1 "github.com/dispatchrun/coroutine/gen/proto/go/coroutine/v1"
 )
 
 func TestSerdeTime(t *testing.T) {
@@ -98,7 +98,7 @@ func TestReflect(t *testing.T) {
 	intpp := &intp
 	type ctxKey1 struct{}
 
-	RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/types.identity")
+	RegisterFunc[func(int) int]("github.com/dispatchrun/coroutine/types.identity")
 
 	var emptyMap map[string]struct{}
 
@@ -250,7 +250,7 @@ func TestReflectUnsafePointer(t *testing.T) {
 }
 
 func TestReflectFunc(t *testing.T) {
-	RegisterFunc[func(int) int]("github.com/stealthrocket/coroutine/types.identity")
+	RegisterFunc[func(int) int]("github.com/dispatchrun/coroutine/types.identity")
 
 	b, err := Serialize(reflect.ValueOf(identity))
 	if err != nil {
@@ -278,7 +278,7 @@ func TestReflectClosure(t *testing.T) {
 	RegisterClosure[func() int, struct {
 		F  uintptr
 		X0 int
-	}]("github.com/stealthrocket/coroutine/types.TestReflectClosure.func1")
+	}]("github.com/dispatchrun/coroutine/types.TestReflectClosure.func1")
 
 	t.Run("raw", func(t *testing.T) {
 		b, err := Serialize(fn)

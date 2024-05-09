@@ -7,7 +7,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GOPRIVATE: github.com/stealthrocket/*
+  GOPRIVATE: github.com/dispatchrun/*
   GH_ACCESS_TOKEN: ${{ secrets.PRIVATE_ACCESS_TOKEN }}
 
 jobs:

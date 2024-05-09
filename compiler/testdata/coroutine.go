@@ -6,7 +6,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/stealthrocket/coroutine"
+	"github.com/dispatchrun/coroutine"
 )
 
 //go:generate coroc
