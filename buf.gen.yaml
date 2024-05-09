@@ -2,7 +2,7 @@ version: v1
 managed:
   enabled: true
   go_package_prefix:
-    default: github.com/stealthrocket/coroutine/gen/proto/go
+    default: github.com/dispatchrun/coroutine/gen/proto/go
 
 plugins:
   - plugin: buf.build/protocolbuffers/go:v1.31.0

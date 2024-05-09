@@ -31,7 +31,7 @@ func TestFunctionAddress(t *testing.T) {
 }
 
 func TestFunctionLookup(t *testing.T) {
-	name := "github.com/stealthrocket/coroutine/types.TestFunctionLookup"
+	name := "github.com/dispatchrun/coroutine/types.TestFunctionLookup"
 	sym1 := FuncByName(name)
 	sym2 := FuncByAddr(FuncAddr(TestFunctionLookup))
 
@@ -45,7 +45,7 @@ func TestClosureAddress(t *testing.T) {
 	p := *(*unsafe.Pointer)(unsafe.Pointer(&f))
 	c := (*closure)(p)
 
-	name := "github.com/stealthrocket/coroutine/types.op.func1"
+	name := "github.com/dispatchrun/coroutine/types.op.func1"
 	addr1 := c.addr
 	addr2 := FuncAddr(f)
 
@@ -57,7 +57,7 @@ func TestClosureAddress(t *testing.T) {
 func TestClosureLookup(t *testing.T) {
 	f := op(1, 2)
 
-	name := "github.com/stealthrocket/coroutine/types.op.func1"
+	name := "github.com/dispatchrun/coroutine/types.op.func1"
 	sym1 := FuncByName(name)
 	sym2 := FuncByAddr(FuncAddr(f))
 
@@ -67,7 +67,7 @@ func TestClosureLookup(t *testing.T) {
 }
 
 func TestRehydrateFunction(t *testing.T) {
-	f := FuncByName("github.com/stealthrocket/coroutine/types.op")
+	f := FuncByName("github.com/dispatchrun/coroutine/types.op")
 	v := reflect.New(f.Type)
 	p := v.UnsafePointer()
 
@@ -88,7 +88,7 @@ func TestRehydrateFunction(t *testing.T) {
 }
 
 func TestRehydrateClosure(t *testing.T) {
-	f := FuncByName("github.com/stealthrocket/coroutine/types.op.func1")
+	f := FuncByName("github.com/dispatchrun/coroutine/types.op.func1")
 	v := reflect.New(f.Closure)
 	p := v.UnsafePointer()
 
@@ -125,10 +125,10 @@ type opFunc1Closure struct {
 // This init function contains the work that would normally be done by the
 // compiler to generate the reflect data necessary to serialize functions.
 func init() {
-	op := FuncByName("github.com/stealthrocket/coroutine/types.op")
+	op := FuncByName("github.com/dispatchrun/coroutine/types.op")
 	op.Type = reflect.TypeOf(func(int, int) (_ func() int) { return })
 
-	fn := FuncByName("github.com/stealthrocket/coroutine/types.op.func1")
+	fn := FuncByName("github.com/dispatchrun/coroutine/types.op.func1")
 	fn.Type = reflect.TypeOf(func() (_ int) { return })
 	fn.Closure = reflect.TypeOf(opFunc1Closure{})
 }

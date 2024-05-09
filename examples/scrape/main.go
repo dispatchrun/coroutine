@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/stealthrocket/coroutine"
+	"github.com/dispatchrun/coroutine"
 )
 
 func main() {

@@ -1,7 +1,7 @@
-module github.com/stealthrocket/coroutine/compiler/testdata/http
+module github.com/dispatchrun/coroutine/compiler/testdata/http
 
 go 1.21.0
 
-require github.com/stealthrocket/coroutine v0.0.0-20230906012022-7474cda88ddc
+require github.com/dispatchrun/coroutine v0.0.0-20230906012022-7474cda88ddc
 
-replace github.com/stealthrocket/coroutine => ../../../
+replace github.com/dispatchrun/coroutine => ../../../

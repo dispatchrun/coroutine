@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/stealthrocket/coroutine"
+	"github.com/dispatchrun/coroutine"
 )
 
 type yieldingRoundTripper struct{}

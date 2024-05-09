@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"unsafe"
 
-	"github.com/stealthrocket/coroutine/types"
+	"github.com/dispatchrun/coroutine/types"
 )
 
 // Durable is a constant which takes the values true or false depending on

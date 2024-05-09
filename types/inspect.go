@@ -7,7 +7,7 @@ import (
 	"math"
 	"reflect"
 
-	coroutinev1 "github.com/stealthrocket/coroutine/gen/proto/go/coroutine/v1"
+	coroutinev1 "github.com/dispatchrun/coroutine/gen/proto/go/coroutine/v1"
 )
 
 // Inspect inspects serialized durable coroutine state.

@@ -9,7 +9,7 @@ import (
 	"runtime/debug"
 	"runtime/pprof"
 
-	"github.com/stealthrocket/coroutine/compiler"
+	"github.com/dispatchrun/coroutine/compiler"
 )
 
 const usage = `

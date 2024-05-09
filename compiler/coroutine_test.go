@@ -4,9 +4,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/stealthrocket/coroutine"
-	. "github.com/stealthrocket/coroutine/compiler/testdata"
-	"github.com/stealthrocket/coroutine/types"
+	"github.com/dispatchrun/coroutine"
+	. "github.com/dispatchrun/coroutine/compiler/testdata"
+	"github.com/dispatchrun/coroutine/types"
 )
 
 func init() {

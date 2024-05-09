@@ -1,5 +1,5 @@
-[![build](https://github.com/stealthrocket/coroutine/actions/workflows/build.yml/badge.svg)](https://github.com/stealthrocket/coroutine/actions/workflows/build.yml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/stealthrocket/coroutine.svg)](https://pkg.go.dev/github.com/stealthrocket/coroutine)
+[![build](https://github.com/dispatchrun/coroutine/actions/workflows/build.yml/badge.svg)](https://github.com/dispatchrun/coroutine/actions/workflows/build.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/dispatchrun/coroutine.svg)](https://pkg.go.dev/github.com/dispatchrun/coroutine)
 [![Apache 2 License](https://img.shields.io/badge/license-Apache%202-blue.svg)](LICENSE)
 [![Discord](https://img.shields.io/discord/1126309607166464131?label=Discord)](Discord)
 
@@ -8,7 +8,7 @@
 This project contains a durable coroutine compiler and runtime library for Go.
 
 > **Note**
-> Read our announcement blog post: [Fairy tales of workflow orchestration](https://blog.stealthrocket.tech/fairy-tales-of-workflow-orchestration/).
+> Read our announcement blog post: [Fairy tales of workflow orchestration](https://blog.dispatch.run/fairy-tales-of-workflow-orchestration/).
 
 ## Usage
 
@@ -29,7 +29,7 @@ the caller:
 // main.go
 package main
 
-import "github.com/stealthrocket/coroutine"
+import "github.com/dispatchrun/coroutine"
 
 func main() {
     coro := coroutine.New[int, any](func() {
@@ -82,7 +82,7 @@ Often times, the simplest construct to drive coroutine executions is to use the
 ```go
 package main
 
-import "github.com/stealthrocket/coroutine"
+import "github.com/dispatchrun/coroutine"
 
 func main() {
     coro := coroutine.New[int, any](func() {
@@ -174,7 +174,7 @@ storage medium and later reloaded to restart computation where it was left off.
 
 To install the `coroc` compiler:
 ```
-go install github.com/stealthrocket/coroutine/compiler/cmd/coroc@latest
+go install github.com/dispatchrun/coroutine/compiler/cmd/coroc@latest
 ```
 
 Then to compile a package:
@@ -233,7 +233,7 @@ import (
     "log"
     "os"
 
-    "github.com/stealthrocket/coroutine"
+    "github.com/dispatchrun/coroutine"
 )
 
 func work() {
@@ -313,7 +313,7 @@ decide that some values need specific logic to be functional upon
 deserialization. See [the `coroutine/types` package][coro-types] for the tools
 to take control of serialization of the coroutine state.
 
-[coro-types]: https://pkg.go.dev/github.com/stealthrocket/coroutine/types
+[coro-types]: https://pkg.go.dev/github.com/dispatchrun/coroutine/types
 
 ### Scheduling
 
@@ -354,5 +354,5 @@ Remember to be respectful and open minded!
 
 ## Community
 
-- [Join us on Discord](https://stealthrocket.tech/discord)
-- [Follow us on Twitter](https://twitter.com/_stealthrocket)
+- [Join us on Discord](https://dispatch.run/discord)
+- [Follow us on Twitter](https://twitter.com/_dispatchrun)

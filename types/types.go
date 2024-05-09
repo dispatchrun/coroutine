@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"unsafe"
 
-	coroutinev1 "github.com/stealthrocket/coroutine/gen/proto/go/coroutine/v1"
+	coroutinev1 "github.com/dispatchrun/coroutine/gen/proto/go/coroutine/v1"
 )
 
 type typeid = uint32

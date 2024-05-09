@@ -13,7 +13,7 @@ import (
 	"runtime"
 	"unsafe"
 
-	coroutinev1 "github.com/stealthrocket/coroutine/gen/proto/go/coroutine/v1"
+	coroutinev1 "github.com/dispatchrun/coroutine/gen/proto/go/coroutine/v1"
 )
 
 // sID is the unique sID of a pointer or type in the serialized format.

@@ -1,4 +1,4 @@
-module github.com/stealthrocket/coroutine
+module github.com/dispatchrun/coroutine
 
 go 1.22.0
 

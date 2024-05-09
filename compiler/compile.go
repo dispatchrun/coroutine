@@ -27,7 +27,7 @@ import (
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
-const coroutinePackage = "github.com/stealthrocket/coroutine"
+const coroutinePackage = "github.com/dispatchrun/coroutine"
 
 // Compile compiles coroutines in a module.
 //
