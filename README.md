@@ -8,7 +8,7 @@
 This project contains a durable coroutine compiler and runtime library for Go.
 
 > **Note**
-> Read our announcement blog post: [Fairy tales of workflow orchestration](https://blog.dispatch.run/fairy-tales-of-workflow-orchestration/).
+> Read our announcement blog post: [Fairy tales of workflow orchestration](https://dispatch.run/blog/fairy-tales-of-workflow-orchestration/).
 
 ## Usage
 
