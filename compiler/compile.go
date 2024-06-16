@@ -526,6 +526,8 @@ func (scope *scope) compileFuncLit(p *packages.Package, fn *ast.FuncLit, color *
 		Body: scope.compileFuncBody(p, fn.Type, fn.Body, nil, color),
 	}
 
+	p.TypesInfo.Types[gen] = types.TypeAndValue{Type: p.TypesInfo.TypeOf(fn)}
+
 	if !isExpr(gen.Body) {
 		scope.colors[gen] = color
 	}

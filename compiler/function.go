@@ -90,7 +90,7 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 		typeArg = g.typeArgOf
 	}
 
-	signature := copyFunctionType(functionTypeOf(fn))
+	signature := copyFunctionType(funcTypeWithNamedResults(p, fn))
 	signature.TypeParams = nil
 
 	recv := copyFieldList(functionRecvOf(fn))
