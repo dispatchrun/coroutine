@@ -372,7 +372,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 		c.generateFunctypes(p, gen, colorsByFunc)
 
 		// Find all the required imports for this file.
-		gen = addImports(p, gen)
+		gen = addImports(p, f, gen)
 
 		outputPath := strings.TrimSuffix(p.GoFiles[i], ".go")
 		outputPath += "_durable.go"
@@ -400,7 +400,7 @@ func containsColoredFuncLit(decl *ast.FuncDecl, colorsByFunc map[ast.Node]*types
 	return
 }
 
-func addImports(p *packages.Package, gen *ast.File) *ast.File {
+func addImports(p *packages.Package, f *ast.File, gen *ast.File) *ast.File {
 	imports := map[string]string{}
 
 	ast.Inspect(gen, func(n ast.Node) bool {
@@ -438,6 +438,15 @@ func addImports(p *packages.Package, gen *ast.File) *ast.File {
 	}
 
 	importspecs := make([]ast.Spec, 0, len(imports))
+
+	// Preserve underscore (side effect) imports.
+	for _, imp := range f.Imports {
+		if imp.Name != nil && imp.Name.Name == "_" {
+			importspecs = append(importspecs, imp)
+		}
+	}
+
+	// Add imports for all packages used in the file.
 	for name, path := range imports {
 		importspecs = append(importspecs, &ast.ImportSpec{
 			Name: ast.NewIdent(name),
