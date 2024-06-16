@@ -182,6 +182,11 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 			fieldName := ast.NewIdent(fmt.Sprintf("X%d", i))
 			fieldType := freeVar.typ
 
+			// Convert ellipsis into slice (...X => []X).
+			if e, ok := fieldType.(*ast.Ellipsis); ok {
+				fieldType = &ast.ArrayType{Elt: e.Elt}
+			}
+
 			// The Go compiler uses a more advanced mechanism to determine if a
 			// free variable should be captured by pointer or by value: it looks
 			// at whether the variable is reassigned, its address taken, and if
