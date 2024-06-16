@@ -52,9 +52,6 @@ func typeExpr(p *packages.Package, typ types.Type, typeArg func(*types.TypeParam
 		if t.Empty() {
 			return ast.NewIdent("any")
 		}
-		if t.NumEmbeddeds() > 0 {
-			panic("not implemented: interface with embeddeds")
-		}
 		methods := make([]*ast.Field, t.NumExplicitMethods())
 		for i := range methods {
 			m := t.ExplicitMethod(i)
@@ -63,8 +60,16 @@ func typeExpr(p *packages.Package, typ types.Type, typeArg func(*types.TypeParam
 				Type:  typeExpr(p, m.Type(), typeArg),
 			}
 		}
+		embeddeds := make([]*ast.Field, t.NumEmbeddeds())
+		for i := range embeddeds {
+			embeddeds[i] = &ast.Field{
+				Type: typeExpr(p, t.EmbeddedType(i), typeArg),
+			}
+		}
 		return &ast.InterfaceType{
-			Methods: &ast.FieldList{List: methods},
+			Methods: &ast.FieldList{
+				List: append(methods, embeddeds...),
+			},
 		}
 	case *types.Signature:
 		return newFuncType(p, t, typeArg)
