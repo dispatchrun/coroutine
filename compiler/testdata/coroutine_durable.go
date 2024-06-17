@@ -3385,6 +3385,127 @@ func StructClosure(_fn0 int) {
 	}
 }
 
+type GenericBox[T integer] struct {
+	x T
+}
+
+func (b *GenericBox[T]) YieldAndInc() {
+	coroutine.Yield[T, any](b.x)
+	b.x++
+}
+
+//go:noinline
+func (_fn0 *GenericBox[T]) Closure(_fn1 T) (_ func(T)) {
+	var _f0 *struct {
+		IP int
+		X0 *GenericBox[T]
+		X1 T
+	} = &struct {
+		IP int
+		X0 *GenericBox[T]
+		X1 T
+	}{X0: _fn0, X1: _fn1}
+	return func(_fn0 T) {
+		_c := coroutine.LoadContext[int, any]()
+		var _f1 *struct {
+			IP int
+			X0 T
+		} = coroutine.Push[struct {
+			IP int
+			X0 T
+		}](&_c.Stack)
+		if _f1.IP == 0 {
+			*_f1 = struct {
+				IP int
+				X0 T
+			}{X0: _fn0}
+		}
+		defer func() {
+			if !_c.Unwinding() {
+				coroutine.Pop(&_c.Stack)
+			}
+		}()
+		switch {
+		case _f1.IP < 2:
+			coroutine.Yield[T, any](_f0.X0.x)
+			_f1.IP = 2
+			fallthrough
+		case _f1.IP < 3:
+			coroutine.Yield[T, any](_f0.X1)
+			_f1.IP = 3
+			fallthrough
+		case _f1.IP < 4:
+			coroutine.Yield[T, any](_f1.X0)
+			_f1.IP = 4
+			fallthrough
+		case _f1.IP < 5:
+			_f0.X0.
+				x++
+			_f1.IP = 5
+			fallthrough
+		case _f1.IP < 6:
+			_f0.X1++
+			_f1.IP = 6
+			fallthrough
+		case _f1.IP < 7:
+			_f1.X0++
+		}
+	}
+}
+
+//go:noinline
+func StructGenericClosure(_fn0 int) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 int
+		X1 GenericBox[int]
+		X2 func(int)
+		X3 int
+	} = coroutine.Push[struct {
+		IP int
+		X0 int
+		X1 GenericBox[int]
+		X2 func(int)
+		X3 int
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 int
+			X1 GenericBox[int]
+			X2 func(int)
+			X3 int
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X1 = GenericBox[int]{10}
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 3:
+		_f0.X2 = _f0.X1.Closure(100)
+		_f0.IP = 3
+		fallthrough
+	case _f0.IP < 5:
+		switch {
+		case _f0.IP < 4:
+			_f0.X3 = 0
+			_f0.IP = 4
+			fallthrough
+		case _f0.IP < 5:
+			for ; _f0.X3 < _f0.X0; _f0.X3, _f0.IP = _f0.X3+1, 4 {
+				_f0.X2(1000)
+			}
+		}
+	}
+}
+
 //go:noinline
 func IdentityGeneric[T any](n T) { coroutine.Yield[T, any](n) }
 
@@ -3692,6 +3813,16 @@ func init() {
 		}
 	}]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).Closure.func1")
 	_types.RegisterFunc[func()]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).YieldAndInc")
+	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/dispatchrun/coroutine/compiler/testdata.(*GenericBox[go.shape.int]).Closure")
+	_types.RegisterClosure[func(_fn0 int), struct {
+		F  uintptr
+		X0 *struct {
+			IP int
+			X0 *GenericBox[int]
+			X1 int
+		}
+		D uintptr
+	}]("github.com/dispatchrun/coroutine/compiler/testdata.(*GenericBox[go.shape.int]).Closure.func1")
 	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/dispatchrun/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure")
 	_types.RegisterClosure[func(_fn0 int), struct {
 		F  uintptr
@@ -3746,7 +3877,7 @@ func init() {
 		}
 	}]("github.com/dispatchrun/coroutine/compiler/testdata.Range10ClosureCapturingValues.func2")
 	_types.RegisterFunc[func()]("github.com/dispatchrun/coroutine/compiler/testdata.Range10ClosureHeterogenousCapture")
-	_types.RegisterClosure[func() int, struct {
+	_types.RegisterClosure[func() (_ int), struct {
 		F  uintptr
 		X0 *struct {
 			IP  int
@@ -3814,6 +3945,7 @@ func init() {
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.SquareGeneratorTwice")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.SquareGeneratorTwiceLoop")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.StructClosure")
+	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.StructGenericClosure")
 	_types.RegisterFunc[func(_ int)]("github.com/dispatchrun/coroutine/compiler/testdata.TypeSwitchingGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.VarArgs")
 	_types.RegisterFunc[func(_fn0 *int, _fn1, _fn2 int)]("github.com/dispatchrun/coroutine/compiler/testdata.YieldAndDeferAssign")

@@ -586,6 +586,34 @@ func StructClosure(n int) {
 	}
 }
 
+type GenericBox[T integer] struct {
+	x T
+}
+
+func (b *GenericBox[T]) YieldAndInc() {
+	coroutine.Yield[T, any](b.x)
+	b.x++
+}
+
+func (b *GenericBox[T]) Closure(y T) func(T) {
+	return func(z T) {
+		coroutine.Yield[T, any](b.x)
+		coroutine.Yield[T, any](y)
+		coroutine.Yield[T, any](z)
+		b.x++
+		y++
+		z++ // mutation is lost
+	}
+}
+
+func StructGenericClosure(n int) {
+	box := GenericBox[int]{10}
+	fn := box.Closure(100)
+	for i := 0; i < n; i++ {
+		fn(1000)
+	}
+}
+
 func IdentityGeneric[T any](n T) {
 	coroutine.Yield[T, any](n)
 }
