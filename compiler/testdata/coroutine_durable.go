@@ -4,6 +4,8 @@ package testdata
 
 import (
 	coroutine "github.com/dispatchrun/coroutine"
+	math "math"
+	reflect "reflect"
 	time "time"
 	unsafe "unsafe"
 )
@@ -3385,6 +3387,127 @@ func StructClosure(_fn0 int) {
 	}
 }
 
+type GenericBox[T integer] struct {
+	x T
+}
+
+func (b *GenericBox[T]) YieldAndInc() {
+	coroutine.Yield[T, any](b.x)
+	b.x++
+}
+
+//go:noinline
+func (_fn0 *GenericBox[T]) Closure(_fn1 T) (_ func(T)) {
+	var _f0 *struct {
+		IP int
+		X0 *GenericBox[T]
+		X1 T
+	} = &struct {
+		IP int
+		X0 *GenericBox[T]
+		X1 T
+	}{X0: _fn0, X1: _fn1}
+	return func(_fn0 T) {
+		_c := coroutine.LoadContext[int, any]()
+		var _f1 *struct {
+			IP int
+			X0 T
+		} = coroutine.Push[struct {
+			IP int
+			X0 T
+		}](&_c.Stack)
+		if _f1.IP == 0 {
+			*_f1 = struct {
+				IP int
+				X0 T
+			}{X0: _fn0}
+		}
+		defer func() {
+			if !_c.Unwinding() {
+				coroutine.Pop(&_c.Stack)
+			}
+		}()
+		switch {
+		case _f1.IP < 2:
+			coroutine.Yield[T, any](_f0.X0.x)
+			_f1.IP = 2
+			fallthrough
+		case _f1.IP < 3:
+			coroutine.Yield[T, any](_f0.X1)
+			_f1.IP = 3
+			fallthrough
+		case _f1.IP < 4:
+			coroutine.Yield[T, any](_f1.X0)
+			_f1.IP = 4
+			fallthrough
+		case _f1.IP < 5:
+			_f0.X0.
+				x++
+			_f1.IP = 5
+			fallthrough
+		case _f1.IP < 6:
+			_f0.X1++
+			_f1.IP = 6
+			fallthrough
+		case _f1.IP < 7:
+			_f1.X0++
+		}
+	}
+}
+
+//go:noinline
+func StructGenericClosure(_fn0 int) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 int
+		X1 GenericBox[int]
+		X2 func(int)
+		X3 int
+	} = coroutine.Push[struct {
+		IP int
+		X0 int
+		X1 GenericBox[int]
+		X2 func(int)
+		X3 int
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 int
+			X1 GenericBox[int]
+			X2 func(int)
+			X3 int
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X1 = GenericBox[int]{10}
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 3:
+		_f0.X2 = _f0.X1.Closure(100)
+		_f0.IP = 3
+		fallthrough
+	case _f0.IP < 5:
+		switch {
+		case _f0.IP < 4:
+			_f0.X3 = 0
+			_f0.IP = 4
+			fallthrough
+		case _f0.IP < 5:
+			for ; _f0.X3 < _f0.X0; _f0.X3, _f0.IP = _f0.X3+1, 4 {
+				_f0.X2(1000)
+			}
+		}
+	}
+}
+
 //go:noinline
 func IdentityGeneric[T any](n T) { coroutine.Yield[T, any](n) }
 
@@ -3681,6 +3804,325 @@ func RangeOverInt(_fn0 int) {
 		}
 	}
 }
+
+//go:noinline
+func ReflectType(_fn0 ...reflect.Type) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 []reflect.Type
+		X1 []reflect.Type
+		X2 int
+		X3 reflect.Type
+		X4 reflect.Value
+		X5 reflect.Value
+		X6 bool
+		X7 bool
+		X8 uint64
+		X9 int
+	} = coroutine.Push[struct {
+		IP int
+		X0 []reflect.Type
+		X1 []reflect.Type
+		X2 int
+		X3 reflect.Type
+		X4 reflect.Value
+		X5 reflect.Value
+		X6 bool
+		X7 bool
+		X8 uint64
+		X9 int
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 []reflect.Type
+			X1 []reflect.Type
+			X2 int
+			X3 reflect.Type
+			X4 reflect.Value
+			X5 reflect.Value
+			X6 bool
+			X7 bool
+			X8 uint64
+			X9 int
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X1 = _f0.X0
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 13:
+		switch {
+		case _f0.IP < 3:
+			_f0.X2 = 0
+			_f0.IP = 3
+			fallthrough
+		case _f0.IP < 13:
+			for ; _f0.X2 < len(_f0.X1); _f0.X2, _f0.IP = _f0.X2+1, 3 {
+				switch {
+				case _f0.IP < 4:
+					_f0.X3 = _f0.X1[_f0.X2]
+					_f0.IP = 4
+					fallthrough
+				case _f0.IP < 5:
+					_f0.X4 = reflect.New(_f0.X3)
+					_f0.IP = 5
+					fallthrough
+				case _f0.IP < 6:
+					_f0.X5 = _f0.X4.Elem()
+					_f0.IP = 6
+					fallthrough
+				case _f0.IP < 9:
+					switch {
+					case _f0.IP < 7:
+						_f0.X6 = _f0.X5.
+							CanUint()
+						_f0.IP = 7
+						fallthrough
+					case _f0.IP < 8:
+						_f0.X7 = !_f0.X6
+						_f0.IP = 8
+						fallthrough
+					case _f0.IP < 9:
+						if _f0.X7 {
+							panic("expected uint type")
+						}
+					}
+					_f0.IP = 9
+					fallthrough
+				case _f0.IP < 10:
+					_f0.X5.
+						SetUint(math.MaxUint64)
+					_f0.IP = 10
+					fallthrough
+				case _f0.IP < 11:
+					_f0.X8 = _f0.X5.
+						Uint()
+					_f0.IP = 11
+					fallthrough
+				case _f0.IP < 12:
+					_f0.X9 = int(_f0.X8)
+					_f0.IP = 12
+					fallthrough
+				case _f0.IP < 13:
+					coroutine.Yield[int, any](_f0.X9)
+				}
+			}
+		}
+	}
+}
+
+//go:noinline
+func MakeEllipsisClosure(_fn0 ...int) (_ func()) {
+	var _f0 *struct {
+		IP int
+		X0 []int
+	} = &struct {
+		IP int
+		X0 []int
+	}{X0: _fn0}
+	return func() {
+		_c := coroutine.LoadContext[int, any]()
+		var _f1 *struct {
+			IP int
+			X0 []int
+			X1 []int
+			X2 int
+			X3 int
+		} = coroutine.Push[struct {
+			IP int
+			X0 []int
+			X1 []int
+			X2 int
+			X3 int
+		}](&_c.Stack)
+		if _f1.IP == 0 {
+			*_f1 = struct {
+				IP int
+				X0 []int
+				X1 []int
+				X2 int
+				X3 int
+			}{}
+		}
+		defer func() {
+			if !_c.Unwinding() {
+				coroutine.Pop(&_c.Stack)
+			}
+		}()
+		switch {
+		case _f1.IP < 2:
+			_f1.X0 = _f0.X0
+			_f1.IP = 2
+			fallthrough
+		case _f1.IP < 6:
+			switch {
+			case _f1.IP < 3:
+				_f1.X1 = _f1.X0
+				_f1.IP = 3
+				fallthrough
+			case _f1.IP < 6:
+				switch {
+				case _f1.IP < 4:
+					_f1.X2 = 0
+					_f1.IP = 4
+					fallthrough
+				case _f1.IP < 6:
+					for ; _f1.X2 < len(_f1.X1); _f1.X2, _f1.IP = _f1.X2+1, 4 {
+						switch {
+						case _f1.IP < 5:
+							_f1.X3 = _f1.X1[_f1.X2]
+							_f1.IP = 5
+							fallthrough
+						case _f1.IP < 6:
+
+							coroutine.Yield[int, any](_f1.X3)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+//go:noinline
+func EllipsisClosure(_fn0 int) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 int
+		X1 []int
+		X2 func()
+	} = coroutine.Push[struct {
+		IP int
+		X0 int
+		X1 []int
+		X2 func()
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 int
+			X1 []int
+			X2 func()
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X1 = make([]int, _f0.X0)
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 3:
+		for i := range _f0.X1 {
+			_f0.X1[i] = i
+		}
+		_f0.IP = 3
+		fallthrough
+	case _f0.IP < 4:
+		_f0.X2 = MakeEllipsisClosure(_f0.X1...)
+		_f0.IP = 4
+		fallthrough
+	case _f0.IP < 5:
+		coroutine.Yield[int, any](-1)
+		_f0.IP = 5
+		fallthrough
+	case _f0.IP < 6:
+		_f0.X2()
+	}
+}
+
+type innerInterface interface {
+	Value() int
+}
+
+type innerInterfaceImpl int
+
+func (i innerInterfaceImpl) Value() int { return int(i) }
+
+type outerInterface interface {
+	innerInterface
+}
+
+//go:noinline
+func InterfaceEmbedded() {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 interface {
+			outerInterface
+		}
+		X1 int
+		X2 int
+		X3 int
+	} = coroutine.Push[struct {
+		IP int
+		X0 interface {
+			outerInterface
+		}
+		X1 int
+		X2 int
+		X3 int
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 interface {
+				outerInterface
+			}
+			X1 int
+			X2 int
+			X3 int
+		}{}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X0 = innerInterfaceImpl(1)
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 3:
+		_f0.X1 = _f0.X0.
+			Value()
+		_f0.IP = 3
+		fallthrough
+	case _f0.IP < 4:
+		coroutine.Yield[int, any](_f0.X1)
+		_f0.IP = 4
+		fallthrough
+	case _f0.IP < 5:
+		_f0.X2 = _f0.X0.
+			Value()
+		_f0.IP = 5
+		fallthrough
+	case _f0.IP < 6:
+		coroutine.Yield[int, any](_f0.X2)
+		_f0.IP = 6
+		fallthrough
+	case _f0.IP < 7:
+		_f0.X3 = _f0.X0.
+			Value()
+		_f0.IP = 7
+		fallthrough
+	case _f0.IP < 8:
+		coroutine.Yield[int, any](_f0.X3)
+	}
+}
 func init() {
 	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).Closure")
 	_types.RegisterClosure[func(_fn0 int), struct {
@@ -3692,6 +4134,16 @@ func init() {
 		}
 	}]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).Closure.func1")
 	_types.RegisterFunc[func()]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).YieldAndInc")
+	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/dispatchrun/coroutine/compiler/testdata.(*GenericBox[go.shape.int]).Closure")
+	_types.RegisterClosure[func(_fn0 int), struct {
+		F  uintptr
+		X0 *struct {
+			IP int
+			X0 *GenericBox[int]
+			X1 int
+		}
+		D uintptr
+	}]("github.com/dispatchrun/coroutine/compiler/testdata.(*GenericBox[go.shape.int]).Closure.func1")
 	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/dispatchrun/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure")
 	_types.RegisterClosure[func(_fn0 int), struct {
 		F  uintptr
@@ -3705,6 +4157,7 @@ func init() {
 	_types.RegisterFunc[func()]("github.com/dispatchrun/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Run")
 	_types.RegisterFunc[func(_fn1 int)]("github.com/dispatchrun/coroutine/compiler/testdata.(*MethodGeneratorState).MethodGenerator")
 	_types.RegisterFunc[func(n int)]("github.com/dispatchrun/coroutine/compiler/testdata.Double")
+	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.EllipsisClosure")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.EvenSquareGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.FizzBuzzIfGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.FizzBuzzSwitchGenerator")
@@ -3716,7 +4169,16 @@ func init() {
 	_types.RegisterFunc[func(n int)]("github.com/dispatchrun/coroutine/compiler/testdata.IdentityGenericStructInt")
 	_types.RegisterFunc[func(n int)]("github.com/dispatchrun/coroutine/compiler/testdata.IdentityGeneric[go.shape.int]")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.IndirectClosure")
+	_types.RegisterFunc[func()]("github.com/dispatchrun/coroutine/compiler/testdata.InterfaceEmbedded")
 	_types.RegisterFunc[func(_ int)]("github.com/dispatchrun/coroutine/compiler/testdata.LoopBreakAndContinue")
+	_types.RegisterFunc[func(_fn0 ...int) (_ func())]("github.com/dispatchrun/coroutine/compiler/testdata.MakeEllipsisClosure")
+	_types.RegisterClosure[func(), struct {
+		F  uintptr
+		X0 *struct {
+			IP int
+			X0 []int
+		}
+	}]("github.com/dispatchrun/coroutine/compiler/testdata.MakeEllipsisClosure.func1")
 	_types.RegisterFunc[func(_fn0 int) (_ int)]("github.com/dispatchrun/coroutine/compiler/testdata.NestedLoops")
 	_types.RegisterFunc[func(_fn0 int, _fn1 func(int))]("github.com/dispatchrun/coroutine/compiler/testdata.Range")
 	_types.RegisterFunc[func()]("github.com/dispatchrun/coroutine/compiler/testdata.Range10ClosureCapturingPointers")
@@ -3746,7 +4208,7 @@ func init() {
 		}
 	}]("github.com/dispatchrun/coroutine/compiler/testdata.Range10ClosureCapturingValues.func2")
 	_types.RegisterFunc[func()]("github.com/dispatchrun/coroutine/compiler/testdata.Range10ClosureHeterogenousCapture")
-	_types.RegisterClosure[func() int, struct {
+	_types.RegisterClosure[func() (_ int), struct {
 		F  uintptr
 		X0 *struct {
 			IP  int
@@ -3806,6 +4268,7 @@ func init() {
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.RangeTripleFuncValue")
 	_types.RegisterFunc[func(i int)]("github.com/dispatchrun/coroutine/compiler/testdata.RangeTripleFuncValue.func2")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.RangeYieldAndDeferAssign")
+	_types.RegisterFunc[func(_fn0 ...reflect.Type)]("github.com/dispatchrun/coroutine/compiler/testdata.ReflectType")
 	_types.RegisterFunc[func() (_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.ReturnNamedValue")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.Select")
 	_types.RegisterFunc[func(_ int)]("github.com/dispatchrun/coroutine/compiler/testdata.Shadowing")
@@ -3814,6 +4277,7 @@ func init() {
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.SquareGeneratorTwice")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.SquareGeneratorTwiceLoop")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.StructClosure")
+	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.StructGenericClosure")
 	_types.RegisterFunc[func(_ int)]("github.com/dispatchrun/coroutine/compiler/testdata.TypeSwitchingGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.VarArgs")
 	_types.RegisterFunc[func(_fn0 *int, _fn1, _fn2 int)]("github.com/dispatchrun/coroutine/compiler/testdata.YieldAndDeferAssign")
@@ -3862,5 +4326,6 @@ func init() {
 			}
 		}
 	}]("github.com/dispatchrun/coroutine/compiler/testdata.indirectClosure.func2")
+	_types.RegisterFunc[func() (_ int)]("github.com/dispatchrun/coroutine/compiler/testdata.innerInterfaceImpl.Value")
 	_types.RegisterFunc[func(_fn0 ...int)]("github.com/dispatchrun/coroutine/compiler/testdata.varArgs")
 }

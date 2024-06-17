@@ -90,7 +90,7 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 		typeArg = g.typeArgOf
 	}
 
-	signature := copyFunctionType(functionTypeOf(fn))
+	signature := copyFunctionType(funcTypeWithNamedResults(p, fn))
 	signature.TypeParams = nil
 
 	recv := copyFieldList(functionRecvOf(fn))
@@ -181,6 +181,11 @@ func collectFunctypes(p *packages.Package, name string, fn ast.Node, scope *func
 		for i, freeVar := range freeVars {
 			fieldName := ast.NewIdent(fmt.Sprintf("X%d", i))
 			fieldType := freeVar.typ
+
+			// Convert ellipsis into slice (...X => []X).
+			if e, ok := fieldType.(*ast.Ellipsis); ok {
+				fieldType = &ast.ArrayType{Elt: e.Elt}
+			}
 
 			// The Go compiler uses a more advanced mechanism to determine if a
 			// free variable should be captured by pointer or by value: it looks

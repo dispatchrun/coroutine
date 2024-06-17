@@ -3,6 +3,8 @@
 package testdata
 
 import (
+	"math"
+	"reflect"
 	"time"
 	"unsafe"
 
@@ -586,6 +588,34 @@ func StructClosure(n int) {
 	}
 }
 
+type GenericBox[T integer] struct {
+	x T
+}
+
+func (b *GenericBox[T]) YieldAndInc() {
+	coroutine.Yield[T, any](b.x)
+	b.x++
+}
+
+func (b *GenericBox[T]) Closure(y T) func(T) {
+	return func(z T) {
+		coroutine.Yield[T, any](b.x)
+		coroutine.Yield[T, any](y)
+		coroutine.Yield[T, any](z)
+		b.x++
+		y++
+		z++ // mutation is lost
+	}
+}
+
+func StructGenericClosure(n int) {
+	box := GenericBox[int]{10}
+	fn := box.Closure(100)
+	for i := 0; i < n; i++ {
+		fn(1000)
+	}
+}
+
 func IdentityGeneric[T any](n T) {
 	coroutine.Yield[T, any](n)
 }
@@ -661,4 +691,53 @@ func RangeOverInt(n int) {
 	for i := range n {
 		coroutine.Yield[int, any](i)
 	}
+}
+
+func ReflectType(types ...reflect.Type) {
+	for _, t := range types {
+		v := reflect.New(t).Elem()
+		if !v.CanUint() {
+			panic("expected uint type")
+		}
+		v.SetUint(math.MaxUint64)
+		coroutine.Yield[int, any](int(v.Uint()))
+	}
+}
+
+func MakeEllipsisClosure(ints ...int) func() {
+	return func() {
+		x := ints
+		for _, v := range x {
+			coroutine.Yield[int, any](v)
+		}
+	}
+}
+
+func EllipsisClosure(n int) {
+	ints := make([]int, n)
+	for i := range ints {
+		ints[i] = i
+	}
+	c := MakeEllipsisClosure(ints...)
+	coroutine.Yield[int, any](-1)
+	c()
+}
+
+type innerInterface interface {
+	Value() int
+}
+
+type innerInterfaceImpl int
+
+func (i innerInterfaceImpl) Value() int { return int(i) }
+
+type outerInterface interface {
+	innerInterface
+}
+
+func InterfaceEmbedded() {
+	var x interface{ outerInterface } = innerInterfaceImpl(1)
+	coroutine.Yield[int, any](x.Value())
+	coroutine.Yield[int, any](x.Value())
+	coroutine.Yield[int, any](x.Value())
 }

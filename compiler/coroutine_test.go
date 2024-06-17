@@ -1,6 +1,8 @@
 package compiler
 
 import (
+	"math"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -221,6 +223,11 @@ func TestCoroutineYield(t *testing.T) {
 			yields: []int{10, 100, 1000, 11, 101, 1000, 12, 102, 1000},
 		},
 		{
+			name:   "generic closure capturing receiver and param",
+			coro:   func() { StructGenericClosure(3) },
+			yields: []int{10, 100, 1000, 11, 101, 1000, 12, 102, 1000},
+		},
+		{
 			name:   "generic function",
 			coro:   func() { IdentityGenericInt(11) },
 			yields: []int{11},
@@ -254,6 +261,26 @@ func TestCoroutineYield(t *testing.T) {
 			name:   "range over int",
 			coro:   func() { RangeOverInt(3) },
 			yields: []int{0, 1, 2},
+		},
+
+		{
+			name: "reflect type",
+			coro: func() {
+				ReflectType(reflect.TypeFor[uint8](), reflect.TypeFor[uint16]())
+			},
+			yields: []int{math.MaxUint8, math.MaxUint16},
+		},
+
+		{
+			name:   "ellipsis closure",
+			coro:   func() { EllipsisClosure(3) },
+			yields: []int{-1, 0, 1, 2},
+		},
+
+		{
+			name:   "interface embedded",
+			coro:   func() { InterfaceEmbedded() },
+			yields: []int{1, 1, 1},
 		},
 	}
 
