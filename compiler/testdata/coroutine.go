@@ -703,3 +703,41 @@ func ReflectType(types ...reflect.Type) {
 		coroutine.Yield[int, any](int(v.Uint()))
 	}
 }
+
+func MakeEllipsisClosure(ints ...int) func() {
+	return func() {
+		x := ints
+		for _, v := range x {
+			coroutine.Yield[int, any](v)
+		}
+	}
+}
+
+func EllipsisClosure(n int) {
+	ints := make([]int, n)
+	for i := range ints {
+		ints[i] = i
+	}
+	c := MakeEllipsisClosure(ints...)
+	coroutine.Yield[int, any](-1)
+	c()
+}
+
+type innerInterface interface {
+	Value() int
+}
+
+type innerInterfaceImpl int
+
+func (i innerInterfaceImpl) Value() int { return int(i) }
+
+type outerInterface interface {
+	innerInterface
+}
+
+func InterfaceEmbedded() {
+	var x interface{ outerInterface } = innerInterfaceImpl(1)
+	coroutine.Yield[int, any](x.Value())
+	coroutine.Yield[int, any](x.Value())
+	coroutine.Yield[int, any](x.Value())
+}

@@ -270,6 +270,18 @@ func TestCoroutineYield(t *testing.T) {
 			},
 			yields: []int{math.MaxUint8, math.MaxUint16},
 		},
+
+		{
+			name:   "ellipsis closure",
+			coro:   func() { EllipsisClosure(3) },
+			yields: []int{-1, 0, 1, 2},
+		},
+
+		{
+			name:   "interface embedded",
+			coro:   func() { InterfaceEmbedded() },
+			yields: []int{1, 1, 1},
+		},
 	}
 
 	// This emulates the installation of function type information by the
