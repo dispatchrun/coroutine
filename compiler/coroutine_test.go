@@ -1,6 +1,8 @@
 package compiler
 
 import (
+	"math"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -259,6 +261,14 @@ func TestCoroutineYield(t *testing.T) {
 			name:   "range over int",
 			coro:   func() { RangeOverInt(3) },
 			yields: []int{0, 1, 2},
+		},
+
+		{
+			name: "reflect type",
+			coro: func() {
+				ReflectType(reflect.TypeFor[uint8](), reflect.TypeFor[uint16]())
+			},
+			yields: []int{math.MaxUint8, math.MaxUint16},
 		},
 	}
 

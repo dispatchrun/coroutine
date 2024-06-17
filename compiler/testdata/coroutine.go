@@ -3,6 +3,8 @@
 package testdata
 
 import (
+	"math"
+	"reflect"
 	"time"
 	"unsafe"
 
@@ -688,5 +690,16 @@ func indirectClosure(m interface{ YieldAndInc() }) func() {
 func RangeOverInt(n int) {
 	for i := range n {
 		coroutine.Yield[int, any](i)
+	}
+}
+
+func ReflectType(types ...reflect.Type) {
+	for _, t := range types {
+		v := reflect.New(t).Elem()
+		if !v.CanUint() {
+			panic("expected uint type")
+		}
+		v.SetUint(math.MaxUint64)
+		coroutine.Yield[int, any](int(v.Uint()))
 	}
 }

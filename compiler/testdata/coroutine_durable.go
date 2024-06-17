@@ -4,6 +4,8 @@ package testdata
 
 import (
 	coroutine "github.com/dispatchrun/coroutine"
+	math "math"
+	reflect "reflect"
 	time "time"
 	unsafe "unsafe"
 )
@@ -3514,7 +3516,7 @@ func IdentityGenericInt(n int) { IdentityGeneric[int](n) }
 
 //go:noinline
 func IdentityGenericClosure[T any](_fn0 T) {
-	_c := coroutine.LoadContext[T, any]()
+	_c := coroutine.LoadContext[int, any]()
 	var _f0 *struct {
 		IP int
 		X0 T
@@ -3802,6 +3804,120 @@ func RangeOverInt(_fn0 int) {
 		}
 	}
 }
+
+//go:noinline
+func ReflectType(_fn0 ...reflect.Type) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 []reflect.Type
+		X1 []reflect.Type
+		X2 int
+		X3 reflect.Type
+		X4 reflect.Value
+		X5 reflect.Value
+		X6 bool
+		X7 bool
+		X8 uint64
+		X9 int
+	} = coroutine.Push[struct {
+		IP int
+		X0 []reflect.Type
+		X1 []reflect.Type
+		X2 int
+		X3 reflect.Type
+		X4 reflect.Value
+		X5 reflect.Value
+		X6 bool
+		X7 bool
+		X8 uint64
+		X9 int
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 []reflect.Type
+			X1 []reflect.Type
+			X2 int
+			X3 reflect.Type
+			X4 reflect.Value
+			X5 reflect.Value
+			X6 bool
+			X7 bool
+			X8 uint64
+			X9 int
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X1 = _f0.X0
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 13:
+		switch {
+		case _f0.IP < 3:
+			_f0.X2 = 0
+			_f0.IP = 3
+			fallthrough
+		case _f0.IP < 13:
+			for ; _f0.X2 < len(_f0.X1); _f0.X2, _f0.IP = _f0.X2+1, 3 {
+				switch {
+				case _f0.IP < 4:
+					_f0.X3 = _f0.X1[_f0.X2]
+					_f0.IP = 4
+					fallthrough
+				case _f0.IP < 5:
+					_f0.X4 = reflect.New(_f0.X3)
+					_f0.IP = 5
+					fallthrough
+				case _f0.IP < 6:
+					_f0.X5 = _f0.X4.Elem()
+					_f0.IP = 6
+					fallthrough
+				case _f0.IP < 9:
+					switch {
+					case _f0.IP < 7:
+						_f0.X6 = _f0.X5.
+							CanUint()
+						_f0.IP = 7
+						fallthrough
+					case _f0.IP < 8:
+						_f0.X7 = !_f0.X6
+						_f0.IP = 8
+						fallthrough
+					case _f0.IP < 9:
+						if _f0.X7 {
+							panic("expected uint type")
+						}
+					}
+					_f0.IP = 9
+					fallthrough
+				case _f0.IP < 10:
+					_f0.X5.
+						SetUint(math.MaxUint64)
+					_f0.IP = 10
+					fallthrough
+				case _f0.IP < 11:
+					_f0.X8 = _f0.X5.
+						Uint()
+					_f0.IP = 11
+					fallthrough
+				case _f0.IP < 12:
+					_f0.X9 = int(_f0.X8)
+					_f0.IP = 12
+					fallthrough
+				case _f0.IP < 13:
+					coroutine.Yield[int, any](_f0.X9)
+				}
+			}
+		}
+	}
+}
 func init() {
 	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).Closure")
 	_types.RegisterClosure[func(_fn0 int), struct {
@@ -3937,6 +4053,7 @@ func init() {
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.RangeTripleFuncValue")
 	_types.RegisterFunc[func(i int)]("github.com/dispatchrun/coroutine/compiler/testdata.RangeTripleFuncValue.func2")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.RangeYieldAndDeferAssign")
+	_types.RegisterFunc[func(_fn0 ...reflect.Type)]("github.com/dispatchrun/coroutine/compiler/testdata.ReflectType")
 	_types.RegisterFunc[func() (_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.ReturnNamedValue")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.Select")
 	_types.RegisterFunc[func(_ int)]("github.com/dispatchrun/coroutine/compiler/testdata.Shadowing")

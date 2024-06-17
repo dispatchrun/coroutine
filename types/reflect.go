@@ -41,7 +41,7 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 
 	switch t {
 	case reflectTypeType:
-		serializeType(s, t)
+		serializeType(s, *(*reflect.Type)(p))
 		return
 	case reflectValueType:
 		v := *(*reflect.Value)(p)
