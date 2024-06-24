@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"github.com/dispatchrun/coroutine"
+	"github.com/dispatchrun/coroutine/compiler/testdata/subpkg"
 )
 
 //go:generate coroc
@@ -740,4 +741,39 @@ func InterfaceEmbedded() {
 	coroutine.Yield[int, any](x.Value())
 	coroutine.Yield[int, any](x.Value())
 	coroutine.Yield[int, any](x.Value())
+}
+
+func ClosureInSeparatePackage(n int) {
+	adder := subpkg.Adder(n)
+	for i := 0; i < n; i++ {
+		coroutine.Yield[int, any](adder(i))
+	}
+}
+
+func GenericStructClosure(n int) {
+	impl := AdderImpl{base: n, mul: 2}
+
+	boxed := &GenericAdder[AdderImpl]{adder: impl}
+	for i := 0; i < n; i++ {
+		coroutine.Yield[int, any](boxed.Add(i))
+	}
+}
+
+type adder interface {
+	Add(int) int
+}
+
+type AdderImpl struct {
+	base int
+	mul  int
+}
+
+func (a AdderImpl) Add(n int) int { return a.base + n*a.mul }
+
+var _ adder = AdderImpl{}
+
+type GenericAdder[A adder] struct{ adder A }
+
+func (b *GenericAdder[A]) Add(n int) int {
+	return b.adder.Add(n)
 }

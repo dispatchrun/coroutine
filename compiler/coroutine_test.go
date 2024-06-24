@@ -282,6 +282,18 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   func() { InterfaceEmbedded() },
 			yields: []int{1, 1, 1},
 		},
+
+		{
+			name:   "closure in separate package",
+			coro:   func() { ClosureInSeparatePackage(3) },
+			yields: []int{3, 4, 5},
+		},
+
+		{
+			name:   "closure via generic with struct type param",
+			coro:   func() { GenericStructClosure(3) },
+			yields: []int{3, 5, 7},
+		},
 	}
 
 	// This emulates the installation of function type information by the

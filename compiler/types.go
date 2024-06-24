@@ -117,7 +117,9 @@ func typeExpr(p *packages.Package, typ types.Type, typeArg func(*types.TypeParam
 
 	case *types.TypeParam:
 		if typeArg != nil {
-			return typeExpr(p, typeArg(t), typeArg)
+			if known := typeArg(t); known != nil {
+				return typeExpr(p, known, typeArg)
+			}
 		}
 		obj := t.Obj()
 		ident := ast.NewIdent(obj.Name())
@@ -238,4 +240,56 @@ func substituteFieldList(p *packages.Package, f *ast.FieldList, typeArg func(*ty
 		}
 	}
 	return &ast.FieldList{List: fields}
+}
+
+func containsTypeParam(typ types.Type) bool {
+	if typ == nil {
+		return false
+	}
+	switch t := typ.(type) {
+	case *types.Basic:
+	case *types.Slice:
+		return containsTypeParam(t.Elem())
+	case *types.Array:
+		return containsTypeParam(t.Elem())
+	case *types.Pointer:
+		return containsTypeParam(t.Elem())
+	case *types.Map:
+		return containsTypeParam(t.Elem()) || containsTypeParam(t.Key())
+	case *types.Chan:
+		return containsTypeParam(t.Elem())
+	case *types.Named:
+		if args := t.TypeArgs(); args != nil {
+			for i := 0; i < args.Len(); i++ {
+				if containsTypeParam(args.At(i)) {
+					return true
+				}
+			}
+		}
+	case *types.Tuple:
+		for i := 0; i < t.Len(); i++ {
+			if containsTypeParam(t.At(i).Type()) {
+				return true
+			}
+		}
+	case *types.Signature:
+		if recv := t.Recv(); recv != nil {
+			if containsTypeParam(recv.Type()) {
+				return true
+			}
+		}
+		if containsTypeParam(t.Params()) {
+			return true
+		}
+		if containsTypeParam(t.Results()) {
+			return true
+		}
+	case *types.TypeParam:
+		return true
+	case *types.Interface:
+	case *types.Struct:
+	default:
+		panic(fmt.Sprintf("not implemented: %T", typ))
+	}
+	return false
 }

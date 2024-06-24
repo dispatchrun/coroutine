@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"log"
 	"maps"
 	"slices"
 	"strconv"
@@ -283,7 +282,6 @@ func (c *compiler) generateFunctypes(p *packages.Package, f *ast.File, colors ma
 				if len(instances) == 0 {
 					// This can occur when a generic function is never instantiated/used,
 					// or when it's instantiated in a package not known to the compiler.
-					log.Printf("warning: cannot register runtime type information for generic function %s", fn)
 					continue
 				}
 				for _, instance := range instances {
@@ -489,20 +487,7 @@ func (g *genericInstance) typeArgOf(param *types.TypeParam) types.Type {
 }
 
 func (g *genericInstance) partial() bool {
-	sig := g.instance.Signature
-	params := sig.Params()
-	for i := 0; i < params.Len(); i++ {
-		if _, ok := params.At(i).Type().(*types.TypeParam); ok {
-			return true
-		}
-	}
-	results := sig.Results()
-	for i := 0; i < results.Len(); i++ {
-		if _, ok := results.At(i).Type().(*types.TypeParam); ok {
-			return true
-		}
-	}
-	return false
+	return containsTypeParam(g.instance.Signature)
 }
 
 func (g *genericInstance) scanRecvTypeArgs(fn func(*types.TypeParam, int, types.Type)) {
@@ -585,6 +570,24 @@ func writeGoShape(b *strings.Builder, tt types.Type) {
 		} else {
 			panic(fmt.Sprintf("not implemented: %#v (%T)", tt, t))
 		}
+	case *types.Struct:
+		b.WriteString("struct { ")
+		for i := 0; i < t.NumFields(); i++ {
+			if i > 0 {
+				b.WriteString("; ")
+			}
+			f := t.Field(i)
+
+			if f.Embedded() {
+				panic(fmt.Sprintf("not implemented: %#v (%T)", tt, t))
+			}
+			b.WriteString(f.Pkg().Path())
+			b.WriteByte('.')
+			b.WriteString(f.Name())
+			b.WriteByte(' ')
+			b.WriteString(f.Type().String())
+		}
+		b.WriteString(" }")
 	default:
 		panic(fmt.Sprintf("not implemented: %#v (%T)", tt, t))
 	}
