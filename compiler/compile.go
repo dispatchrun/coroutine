@@ -566,8 +566,6 @@ func (scope *scope) compileFuncDecl(p *packages.Package, fn *ast.FuncDecl, color
 }
 
 func (scope *scope) compileFuncLit(p *packages.Package, fn *ast.FuncLit, color *types.Signature) *ast.FuncLit {
-	log.Printf("compiling function literal %s", p.Name)
-
 	gen := &ast.FuncLit{
 		Type: funcTypeWithNamedResults(p, fn),
 		Body: scope.compileFuncBody(p, fn.Type, fn.Body, nil, color),
