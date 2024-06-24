@@ -224,6 +224,9 @@ func (c *compiler) compile(path string) error {
 		if p.Module == nil || p.Module.Dir != moduleDir {
 			return true
 		}
+		if p.PkgPath == coroutinePackage {
+			return true
+		}
 		if _, ok := colorsByPkg[p]; !ok {
 			colorsByPkg[p] = functionColors{}
 		}
