@@ -585,6 +585,24 @@ func writeGoShape(b *strings.Builder, tt types.Type) {
 		} else {
 			panic(fmt.Sprintf("not implemented: %#v (%T)", tt, t))
 		}
+	case *types.Struct:
+		b.WriteString("struct { ")
+		for i := 0; i < t.NumFields(); i++ {
+			if i > 0 {
+				b.WriteString("; ")
+			}
+			f := t.Field(i)
+
+			if f.Embedded() {
+				panic(fmt.Sprintf("not implemented: %#v (%T)", tt, t))
+			}
+			b.WriteString(f.Pkg().Path())
+			b.WriteByte('.')
+			b.WriteString(f.Name())
+			b.WriteByte(' ')
+			b.WriteString(f.Type().String())
+		}
+		b.WriteString(" }")
 	default:
 		panic(fmt.Sprintf("not implemented: %#v (%T)", tt, t))
 	}

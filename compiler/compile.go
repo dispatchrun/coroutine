@@ -488,7 +488,7 @@ type scope struct {
 }
 
 func (scope *scope) compileFuncDecl(p *packages.Package, fn *ast.FuncDecl, color *types.Signature) *ast.FuncDecl {
-	log.Printf("compiling function %s %s", p.Name, fn.Name)
+	log.Printf("compiling function %s.%s", p.Name, fn.Name)
 
 	// Generate the coroutine function. At this stage, use the same name
 	// as the source function (and require that the caller use build tags
