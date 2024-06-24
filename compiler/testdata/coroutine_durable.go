@@ -4,6 +4,7 @@ package testdata
 
 import (
 	coroutine "github.com/dispatchrun/coroutine"
+	subpkg "github.com/dispatchrun/coroutine/compiler/testdata/subpkg"
 	math "math"
 	reflect "reflect"
 	time "time"
@@ -4123,6 +4124,62 @@ func InterfaceEmbedded() {
 		coroutine.Yield[int, any](_f0.X3)
 	}
 }
+
+//go:noinline
+func ClosureInSeparatePackage(_fn0 int) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 int
+		X1 func(int) int
+		X2 int
+		X3 int
+	} = coroutine.Push[struct {
+		IP int
+		X0 int
+		X1 func(int) int
+		X2 int
+		X3 int
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 int
+			X1 func(int) int
+			X2 int
+			X3 int
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X1 = subpkg.Adder(_f0.X0)
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 5:
+		switch {
+		case _f0.IP < 3:
+			_f0.X2 = 0
+			_f0.IP = 3
+			fallthrough
+		case _f0.IP < 5:
+			for ; _f0.X2 < _f0.X0; _f0.X2, _f0.IP = _f0.X2+1, 3 {
+				switch {
+				case _f0.IP < 4:
+					_f0.X3 = _f0.X1(_f0.X2)
+					_f0.IP = 4
+					fallthrough
+				case _f0.IP < 5:
+					coroutine.Yield[int, any](_f0.X3)
+				}
+			}
+		}
+	}
+}
 func init() {
 	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).Closure")
 	_types.RegisterClosure[func(_fn0 int), struct {
@@ -4156,6 +4213,7 @@ func init() {
 	}]("github.com/dispatchrun/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure.func1")
 	_types.RegisterFunc[func()]("github.com/dispatchrun/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Run")
 	_types.RegisterFunc[func(_fn1 int)]("github.com/dispatchrun/coroutine/compiler/testdata.(*MethodGeneratorState).MethodGenerator")
+	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.ClosureInSeparatePackage")
 	_types.RegisterFunc[func(n int)]("github.com/dispatchrun/coroutine/compiler/testdata.Double")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.EllipsisClosure")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.EvenSquareGenerator")

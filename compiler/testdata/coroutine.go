@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"github.com/dispatchrun/coroutine"
+	"github.com/dispatchrun/coroutine/compiler/testdata/subpkg"
 )
 
 //go:generate coroc
@@ -740,4 +741,11 @@ func InterfaceEmbedded() {
 	coroutine.Yield[int, any](x.Value())
 	coroutine.Yield[int, any](x.Value())
 	coroutine.Yield[int, any](x.Value())
+}
+
+func ClosureInSeparatePackage(n int) {
+	adder := subpkg.Adder(n)
+	for i := 0; i < n; i++ {
+		coroutine.Yield[int, any](adder(i))
+	}
 }
