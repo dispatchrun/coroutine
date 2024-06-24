@@ -4180,6 +4180,89 @@ func ClosureInSeparatePackage(_fn0 int) {
 		}
 	}
 }
+
+//go:noinline
+func GenericStructClosure(_fn0 int) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 int
+		X1 AdderImpl
+		X2 *GenericAdder[AdderImpl]
+		X3 int
+		X4 int
+	} = coroutine.Push[struct {
+		IP int
+		X0 int
+		X1 AdderImpl
+		X2 *GenericAdder[AdderImpl]
+		X3 int
+		X4 int
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 int
+			X1 AdderImpl
+			X2 *GenericAdder[AdderImpl]
+			X3 int
+			X4 int
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X1 = AdderImpl{base: _f0.X0, mul: 2}
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 3:
+		_f0.X2 = &GenericAdder[AdderImpl]{adder: _f0.X1}
+		_f0.IP = 3
+		fallthrough
+	case _f0.IP < 6:
+		switch {
+		case _f0.IP < 4:
+			_f0.X3 = 0
+			_f0.IP = 4
+			fallthrough
+		case _f0.IP < 6:
+			for ; _f0.X3 < _f0.X0; _f0.X3, _f0.IP = _f0.X3+1, 4 {
+				switch {
+				case _f0.IP < 5:
+					_f0.X4 = _f0.X2.
+						Add(_f0.X3)
+					_f0.IP = 5
+					fallthrough
+				case _f0.IP < 6:
+					coroutine.Yield[int, any](_f0.X4)
+				}
+			}
+		}
+	}
+}
+
+type adder interface {
+	Add(int) int
+}
+
+type AdderImpl struct {
+	base int
+	mul  int
+}
+
+func (a AdderImpl) Add(n int) int { return a.base + n*a.mul }
+
+var _ adder = AdderImpl{}
+
+type GenericAdder[A adder] struct{ adder A }
+
+func (b *GenericAdder[A]) Add(n int) int {
+	return b.adder.Add(n)
+}
 func init() {
 	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).Closure")
 	_types.RegisterClosure[func(_fn0 int), struct {
@@ -4191,6 +4274,7 @@ func init() {
 		}
 	}]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).Closure.func1")
 	_types.RegisterFunc[func()]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).YieldAndInc")
+	_types.RegisterFunc[func(n int) (_ int)]("github.com/dispatchrun/coroutine/compiler/testdata.(*GenericAdder[go.shape.struct { github.com/dispatchrun/coroutine/compiler/testdata.base int; github.com/dispatchrun/coroutine/compiler/testdata.mul int }]).Add")
 	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/dispatchrun/coroutine/compiler/testdata.(*GenericBox[go.shape.int]).Closure")
 	_types.RegisterClosure[func(_fn0 int), struct {
 		F  uintptr
@@ -4213,12 +4297,14 @@ func init() {
 	}]("github.com/dispatchrun/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Closure.func1")
 	_types.RegisterFunc[func()]("github.com/dispatchrun/coroutine/compiler/testdata.(*IdentityGenericStruct[go.shape.int]).Run")
 	_types.RegisterFunc[func(_fn1 int)]("github.com/dispatchrun/coroutine/compiler/testdata.(*MethodGeneratorState).MethodGenerator")
+	_types.RegisterFunc[func(n int) (_ int)]("github.com/dispatchrun/coroutine/compiler/testdata.AdderImpl.Add")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.ClosureInSeparatePackage")
 	_types.RegisterFunc[func(n int)]("github.com/dispatchrun/coroutine/compiler/testdata.Double")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.EllipsisClosure")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.EvenSquareGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.FizzBuzzIfGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.FizzBuzzSwitchGenerator")
+	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.GenericStructClosure")
 	_types.RegisterFunc[func(n int)]("github.com/dispatchrun/coroutine/compiler/testdata.Identity")
 	_types.RegisterFunc[func(n int)]("github.com/dispatchrun/coroutine/compiler/testdata.IdentityGenericClosureInt")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.IdentityGenericClosure[go.shape.int]")

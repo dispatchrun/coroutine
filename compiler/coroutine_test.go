@@ -288,6 +288,12 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   func() { ClosureInSeparatePackage(3) },
 			yields: []int{3, 4, 5},
 		},
+
+		{
+			name:   "closure via generic with struct type param",
+			coro:   func() { GenericStructClosure(3) },
+			yields: []int{3, 5, 7},
+		},
 	}
 
 	// This emulates the installation of function type information by the
