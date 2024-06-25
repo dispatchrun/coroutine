@@ -379,7 +379,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 				compiled := false
 				if color != nil || containsColoredFuncLit(decl, colorsByFunc) {
 					// Reject certain language features for now.
-					if err := unsupported(decl, p.TypesInfo); err != nil {
+					if err := c.unsupported(decl, p.TypesInfo, colorsByFunc); err != nil {
 						return err
 					}
 					scope := &scope{compiler: c, colors: colorsByFunc}
@@ -433,7 +433,7 @@ func (c *compiler) compilePackage(p *packages.Package, colors functionColors) er
 	return nil
 }
 
-func containsColoredFuncLit(decl *ast.FuncDecl, colorsByFunc map[ast.Node]*types.Signature) (yes bool) {
+func containsColoredFuncLit(decl ast.Node, colorsByFunc map[ast.Node]*types.Signature) (yes bool) {
 	ast.Inspect(decl, func(n ast.Node) bool {
 		if lit, ok := n.(*ast.FuncLit); ok {
 			if _, ok := colorsByFunc[lit]; ok {

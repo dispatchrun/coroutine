@@ -5,17 +5,35 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"log"
 )
 
 // unsupported checks a function for unsupported language features.
-func unsupported(decl ast.Node, info *types.Info) (err error) {
+func (c *compiler) unsupported(decl ast.Node, info *types.Info, colorsByFunc map[ast.Node]*types.Signature) (err error) {
 	ast.Inspect(decl, func(node ast.Node) bool {
 		switch nn := node.(type) {
 		case ast.Stmt:
 			switch n := nn.(type) {
 			// Not yet supported:
 			case *ast.GoStmt:
-				err = fmt.Errorf("not implemented: go")
+				if _, inColoredFunc := colorsByFunc[decl]; inColoredFunc {
+					err = fmt.Errorf("not implemented: go")
+				} else {
+					// Allow go statement in certain limited circumstances.
+					_, goColoredFunc := colorsByFunc[n.Call.Fun]
+					if !goColoredFunc {
+						switch fn := n.Call.Fun.(type) {
+						case *ast.FuncLit:
+							goColoredFunc = containsColoredFuncLit(fn, colorsByFunc)
+						}
+					}
+					if goColoredFunc {
+						err = fmt.Errorf("not implemented: go")
+					} else {
+						pos := c.fset.Position(n.Pos())
+						log.Printf("warning: goroutine mutations at %s may not be durable", pos)
+					}
+				}
 
 			// Partially supported:
 			case *ast.BranchStmt:
