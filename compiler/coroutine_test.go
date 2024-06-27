@@ -294,6 +294,12 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   func() { GenericStructClosure(3) },
 			yields: []int{3, 5, 7},
 		},
+
+		{
+			name:   "JSON roundtrip",
+			coro:   func() { JSONRoundTrip(3) },
+			yields: []int{3, 3},
+		},
 	}
 
 	// This emulates the installation of function type information by the

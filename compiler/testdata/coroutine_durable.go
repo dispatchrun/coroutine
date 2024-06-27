@@ -3,6 +3,8 @@
 package testdata
 
 import (
+	json "encoding/json"
+	fmt "fmt"
 	coroutine "github.com/dispatchrun/coroutine"
 	subpkg "github.com/dispatchrun/coroutine/compiler/testdata/subpkg"
 	math "math"
@@ -3517,7 +3519,7 @@ func IdentityGenericInt(n int) { IdentityGeneric[int](n) }
 
 //go:noinline
 func IdentityGenericClosure[T any](_fn0 T) {
-	_c := coroutine.LoadContext[T, any]()
+	_c := coroutine.LoadContext[int, any]()
 	var _f0 *struct {
 		IP int
 		X0 T
@@ -4263,6 +4265,117 @@ type GenericAdder[A adder] struct{ adder A }
 func (b *GenericAdder[A]) Add(n int) int {
 	return b.adder.Add(n)
 }
+
+//go:noinline
+func JSONRoundTrip(_fn0 int) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 int
+		X1 []byte
+		X2 error
+		X3 string
+		X4 bool
+		X5 error
+		X6 struct {
+			N int "json:\"n\""
+		}
+		X7 error
+	} = coroutine.Push[struct {
+		IP int
+		X0 int
+		X1 []byte
+		X2 error
+		X3 string
+		X4 bool
+		X5 error
+		X6 struct {
+			N int "json:\"n\""
+		}
+		X7 error
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 int
+			X1 []byte
+			X2 error
+			X3 string
+			X4 bool
+			X5 error
+			X6 struct {
+				N int "json:\"n\""
+			}
+			X7 error
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X1, _f0.X2 = json.Marshal(struct {
+			N int `json:"n"`
+		}{_f0.X0})
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 3:
+		if _f0.X2 != nil {
+			panic(_f0.X2)
+		}
+		_f0.IP = 3
+		fallthrough
+	case _f0.IP < 7:
+		switch {
+		case _f0.IP < 4:
+			_f0.X3 = fmt.Sprintf(`{"n":%d}`, _f0.X0)
+			_f0.IP = 4
+			fallthrough
+		case _f0.IP < 5:
+			_f0.X4 = string(_f0.X1) != _f0.X3
+			_f0.IP = 5
+			fallthrough
+		case _f0.IP < 7:
+			if _f0.X4 {
+				switch {
+				case _f0.IP < 6:
+					_f0.X5 = fmt.Errorf("unexpected JSON: %v", _f0.X1)
+					_f0.IP = 6
+					fallthrough
+				case _f0.IP < 7:
+					panic(_f0.X5)
+				}
+			}
+		}
+		_f0.IP = 7
+		fallthrough
+	case _f0.IP < 8:
+
+		coroutine.Yield[int, any](_f0.X0)
+		_f0.IP = 8
+		fallthrough
+	case _f0.IP < 9:
+		_f0.IP = 9
+		fallthrough
+	case _f0.IP < 11:
+		switch {
+		case _f0.IP < 10:
+			_f0.X7 = json.Unmarshal(_f0.X1, &_f0.X6)
+			_f0.IP = 10
+			fallthrough
+		case _f0.IP < 11:
+			if _f0.X7 != nil {
+				panic(_f0.X7)
+			}
+		}
+		_f0.IP = 11
+		fallthrough
+	case _f0.IP < 12:
+		coroutine.Yield[int, any](_f0.X6.N)
+	}
+}
 func init() {
 	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).Closure")
 	_types.RegisterClosure[func(_fn0 int), struct {
@@ -4314,6 +4427,7 @@ func init() {
 	_types.RegisterFunc[func(n int)]("github.com/dispatchrun/coroutine/compiler/testdata.IdentityGeneric[go.shape.int]")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.IndirectClosure")
 	_types.RegisterFunc[func()]("github.com/dispatchrun/coroutine/compiler/testdata.InterfaceEmbedded")
+	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.JSONRoundTrip")
 	_types.RegisterFunc[func(_ int)]("github.com/dispatchrun/coroutine/compiler/testdata.LoopBreakAndContinue")
 	_types.RegisterFunc[func(_fn0 ...int) (_ func())]("github.com/dispatchrun/coroutine/compiler/testdata.MakeEllipsisClosure")
 	_types.RegisterClosure[func(), struct {
