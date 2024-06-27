@@ -42,7 +42,7 @@ func typeExpr(p *packages.Package, typ types.Type, typeArg func(*types.TypeParam
 				fields[i].Names = []*ast.Ident{ast.NewIdent(f.Name())}
 			}
 			if tag := t.Tag(i); tag != "" {
-				panic("not implemented: struct tags")
+				fields[i].Tag = &ast.BasicLit{Kind: token.STRING, Value: strconv.Quote(tag)}
 			}
 		}
 		return &ast.StructType{Fields: &ast.FieldList{List: fields}}
