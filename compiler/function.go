@@ -558,6 +558,10 @@ func (g *genericInstance) gcshapePath() string {
 func writeGoShape(b *strings.Builder, tt types.Type) {
 	b.WriteString("go.shape.")
 
+	writeGoShapeType(b, tt)
+}
+
+func writeGoShapeType(b *strings.Builder, tt types.Type) {
 	switch t := tt.Underlying().(type) {
 	case *types.Basic:
 		b.WriteString(t.Name())
@@ -588,6 +592,9 @@ func writeGoShape(b *strings.Builder, tt types.Type) {
 			b.WriteString(f.Type().String())
 		}
 		b.WriteString(" }")
+	case *types.Slice:
+		b.WriteString("[]")
+		writeGoShapeType(b, t.Elem())
 	default:
 		panic(fmt.Sprintf("not implemented: %#v (%T)", tt, t))
 	}

@@ -3,6 +3,8 @@
 package testdata
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
 	"reflect"
 	"time"
@@ -776,4 +778,55 @@ type GenericAdder[A adder] struct{ adder A }
 
 func (b *GenericAdder[A]) Add(n int) int {
 	return b.adder.Add(n)
+}
+
+func JSONRoundTrip(n int) {
+	b, err := json.Marshal(struct {
+		N int `json:"n"`
+	}{n})
+	if err != nil {
+		panic(err)
+	}
+	if string(b) != fmt.Sprintf(`{"n":%d}`, n) {
+		panic(fmt.Errorf("unexpected JSON: %v", b))
+	}
+
+	coroutine.Yield[int, any](n)
+
+	var result struct {
+		N int `json:"n"`
+	}
+	if err := json.Unmarshal(b, &result); err != nil {
+		panic(err)
+	}
+	coroutine.Yield[int, any](result.N)
+}
+
+type Cloner[S ~[]E, E any] struct {
+	Slice S
+}
+
+func (c *Cloner[S, E]) Clone() S {
+	s2 := make(S, len(c.Slice))
+	copy(s2, c.Slice)
+	return s2
+}
+
+func GenericSlice(n int) {
+	ints := make([]int, n)
+	for i := range ints {
+		ints[i] = i
+	}
+	for _, x := range ints {
+		coroutine.Yield[int, any](x)
+	}
+
+	cloner := &Cloner[[]int, int]{Slice: ints}
+	ints2 := cloner.Clone()
+
+	clear(ints)
+
+	for _, x := range ints2 {
+		coroutine.Yield[int, any](x)
+	}
 }

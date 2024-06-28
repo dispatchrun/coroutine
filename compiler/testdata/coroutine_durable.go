@@ -3,6 +3,8 @@
 package testdata
 
 import (
+	json "encoding/json"
+	fmt "fmt"
 	coroutine "github.com/dispatchrun/coroutine"
 	subpkg "github.com/dispatchrun/coroutine/compiler/testdata/subpkg"
 	math "math"
@@ -3517,7 +3519,7 @@ func IdentityGenericInt(n int) { IdentityGeneric[int](n) }
 
 //go:noinline
 func IdentityGenericClosure[T any](_fn0 T) {
-	_c := coroutine.LoadContext[T, any]()
+	_c := coroutine.LoadContext[int, any]()
 	var _f0 *struct {
 		IP int
 		X0 T
@@ -4263,6 +4265,256 @@ type GenericAdder[A adder] struct{ adder A }
 func (b *GenericAdder[A]) Add(n int) int {
 	return b.adder.Add(n)
 }
+
+//go:noinline
+func JSONRoundTrip(_fn0 int) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 int
+		X1 []byte
+		X2 error
+		X3 string
+		X4 bool
+		X5 error
+		X6 struct {
+			N int "json:\"n\""
+		}
+		X7 error
+	} = coroutine.Push[struct {
+		IP int
+		X0 int
+		X1 []byte
+		X2 error
+		X3 string
+		X4 bool
+		X5 error
+		X6 struct {
+			N int "json:\"n\""
+		}
+		X7 error
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 int
+			X1 []byte
+			X2 error
+			X3 string
+			X4 bool
+			X5 error
+			X6 struct {
+				N int "json:\"n\""
+			}
+			X7 error
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X1, _f0.X2 = json.Marshal(struct {
+			N int `json:"n"`
+		}{_f0.X0})
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 3:
+		if _f0.X2 != nil {
+			panic(_f0.X2)
+		}
+		_f0.IP = 3
+		fallthrough
+	case _f0.IP < 7:
+		switch {
+		case _f0.IP < 4:
+			_f0.X3 = fmt.Sprintf(`{"n":%d}`, _f0.X0)
+			_f0.IP = 4
+			fallthrough
+		case _f0.IP < 5:
+			_f0.X4 = string(_f0.X1) != _f0.X3
+			_f0.IP = 5
+			fallthrough
+		case _f0.IP < 7:
+			if _f0.X4 {
+				switch {
+				case _f0.IP < 6:
+					_f0.X5 = fmt.Errorf("unexpected JSON: %v", _f0.X1)
+					_f0.IP = 6
+					fallthrough
+				case _f0.IP < 7:
+					panic(_f0.X5)
+				}
+			}
+		}
+		_f0.IP = 7
+		fallthrough
+	case _f0.IP < 8:
+
+		coroutine.Yield[int, any](_f0.X0)
+		_f0.IP = 8
+		fallthrough
+	case _f0.IP < 9:
+		_f0.IP = 9
+		fallthrough
+	case _f0.IP < 11:
+		switch {
+		case _f0.IP < 10:
+			_f0.X7 = json.Unmarshal(_f0.X1, &_f0.X6)
+			_f0.IP = 10
+			fallthrough
+		case _f0.IP < 11:
+			if _f0.X7 != nil {
+				panic(_f0.X7)
+			}
+		}
+		_f0.IP = 11
+		fallthrough
+	case _f0.IP < 12:
+		coroutine.Yield[int, any](_f0.X6.N)
+	}
+}
+
+type Cloner[S ~[]E, E any] struct {
+	Slice S
+}
+
+func (c *Cloner[S, E]) Clone() S {
+	s2 := make(S, len(c.Slice))
+	copy(s2, c.Slice)
+	return s2
+}
+
+//go:noinline
+func GenericSlice(_fn0 int) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 int
+		X1 []int
+		X2 []int
+		X3 int
+		X4 int
+		X5 *Cloner[[]int, int]
+		X6 []int
+		X7 []int
+		X8 int
+		X9 int
+	} = coroutine.Push[struct {
+		IP int
+		X0 int
+		X1 []int
+		X2 []int
+		X3 int
+		X4 int
+		X5 *Cloner[[]int, int]
+		X6 []int
+		X7 []int
+		X8 int
+		X9 int
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 int
+			X1 []int
+			X2 []int
+			X3 int
+			X4 int
+			X5 *Cloner[[]int, int]
+			X6 []int
+			X7 []int
+			X8 int
+			X9 int
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		_f0.X1 = make([]int, _f0.X0)
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 3:
+		for i := range _f0.X1 {
+			_f0.X1[i] = i
+		}
+		_f0.IP = 3
+		fallthrough
+	case _f0.IP < 7:
+		switch {
+		case _f0.IP < 4:
+			_f0.X2 = _f0.X1
+			_f0.IP = 4
+			fallthrough
+		case _f0.IP < 7:
+			switch {
+			case _f0.IP < 5:
+				_f0.X3 = 0
+				_f0.IP = 5
+				fallthrough
+			case _f0.IP < 7:
+				for ; _f0.X3 < len(_f0.X2); _f0.X3, _f0.IP = _f0.X3+1, 5 {
+					switch {
+					case _f0.IP < 6:
+						_f0.X4 = _f0.X2[_f0.X3]
+						_f0.IP = 6
+						fallthrough
+					case _f0.IP < 7:
+
+						coroutine.Yield[int, any](_f0.X4)
+					}
+				}
+			}
+		}
+		_f0.IP = 7
+		fallthrough
+	case _f0.IP < 8:
+		_f0.X5 = &Cloner[[]int, int]{Slice: _f0.X1}
+		_f0.IP = 8
+		fallthrough
+	case _f0.IP < 9:
+		_f0.X6 = _f0.X5.Clone()
+		_f0.IP = 9
+		fallthrough
+	case _f0.IP < 10:
+
+		clear(_f0.X1)
+		_f0.IP = 10
+		fallthrough
+	case _f0.IP < 14:
+		switch {
+		case _f0.IP < 11:
+			_f0.X7 = _f0.X6
+			_f0.IP = 11
+			fallthrough
+		case _f0.IP < 14:
+			switch {
+			case _f0.IP < 12:
+				_f0.X8 = 0
+				_f0.IP = 12
+				fallthrough
+			case _f0.IP < 14:
+				for ; _f0.X8 < len(_f0.X7); _f0.X8, _f0.IP = _f0.X8+1, 12 {
+					switch {
+					case _f0.IP < 13:
+						_f0.X9 = _f0.X7[_f0.X8]
+						_f0.IP = 13
+						fallthrough
+					case _f0.IP < 14:
+
+						coroutine.Yield[int, any](_f0.X9)
+					}
+				}
+			}
+		}
+	}
+}
 func init() {
 	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).Closure")
 	_types.RegisterClosure[func(_fn0 int), struct {
@@ -4274,6 +4526,7 @@ func init() {
 		}
 	}]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).Closure.func1")
 	_types.RegisterFunc[func()]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).YieldAndInc")
+	_types.RegisterFunc[func() (_ []int)]("github.com/dispatchrun/coroutine/compiler/testdata.(*Cloner[go.shape.[]int,go.shape.int]).Clone")
 	_types.RegisterFunc[func(n int) (_ int)]("github.com/dispatchrun/coroutine/compiler/testdata.(*GenericAdder[go.shape.struct { github.com/dispatchrun/coroutine/compiler/testdata.base int; github.com/dispatchrun/coroutine/compiler/testdata.mul int }]).Add")
 	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/dispatchrun/coroutine/compiler/testdata.(*GenericBox[go.shape.int]).Closure")
 	_types.RegisterClosure[func(_fn0 int), struct {
@@ -4304,6 +4557,7 @@ func init() {
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.EvenSquareGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.FizzBuzzIfGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.FizzBuzzSwitchGenerator")
+	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.GenericSlice")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.GenericStructClosure")
 	_types.RegisterFunc[func(n int)]("github.com/dispatchrun/coroutine/compiler/testdata.Identity")
 	_types.RegisterFunc[func(n int)]("github.com/dispatchrun/coroutine/compiler/testdata.IdentityGenericClosureInt")
@@ -4314,6 +4568,7 @@ func init() {
 	_types.RegisterFunc[func(n int)]("github.com/dispatchrun/coroutine/compiler/testdata.IdentityGeneric[go.shape.int]")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.IndirectClosure")
 	_types.RegisterFunc[func()]("github.com/dispatchrun/coroutine/compiler/testdata.InterfaceEmbedded")
+	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.JSONRoundTrip")
 	_types.RegisterFunc[func(_ int)]("github.com/dispatchrun/coroutine/compiler/testdata.LoopBreakAndContinue")
 	_types.RegisterFunc[func(_fn0 ...int) (_ func())]("github.com/dispatchrun/coroutine/compiler/testdata.MakeEllipsisClosure")
 	_types.RegisterClosure[func(), struct {
