@@ -312,6 +312,10 @@ func (t *Type) Format(s fmt.State, v rune) {
 		name = pkg + "." + name
 	}
 
+	writeString := func(str string) {
+		_, _ = s.Write([]byte(str))
+	}
+
 	if t.Opaque() {
 		if name == "" {
 			name = fmt.Sprintf("<anon %s>", t.Kind())
@@ -319,13 +323,13 @@ func (t *Type) Format(s fmt.State, v rune) {
 		if t.typ.Kind == coroutinev1.Kind_KIND_POINTER {
 			name = "*" + name
 		}
-		s.Write([]byte(name))
+		writeString(name)
 		return
 	}
 
 	verbose := s.Flag('+') || s.Flag('#')
 	if name != "" && !verbose {
-		s.Write([]byte(name))
+		writeString(name)
 		return
 	}
 
@@ -386,7 +390,7 @@ func (t *Type) Format(s fmt.State, v rune) {
 		default:
 			result = primitiveKind
 		}
-		s.Write([]byte(result))
+		writeString(result)
 		return
 	}
 
@@ -412,82 +416,82 @@ func (t *Type) Format(s fmt.State, v rune) {
 		if name != "" {
 			elemPrefix = fmt.Sprintf("(%s=%s", name, elemPrefix)
 		}
-		s.Write([]byte(elemPrefix))
+		writeString(elemPrefix)
 		t.Elem().Format(withoutFlags{s}, v)
 		if name != "" {
-			s.Write([]byte(")"))
+			writeString(")")
 		}
 		return
 	}
 
 	if name != "" {
-		s.Write([]byte(fmt.Sprintf("(%s=", name)))
+		writeString(fmt.Sprintf("(%s=", name))
 	}
 	switch t.typ.Kind {
 	case coroutinev1.Kind_KIND_FUNC:
-		s.Write([]byte("func("))
+		writeString("func(")
 		paramCount := t.NumParam()
 		for i := 0; i < paramCount; i++ {
 			if i > 0 {
-				s.Write([]byte(", "))
+				writeString(", ")
 			}
 			if i == paramCount-1 && t.Variadic() {
-				s.Write([]byte("..."))
+				writeString("...")
 			}
 			t.Param(i).Format(withoutFlags{s}, v)
 		}
-		s.Write([]byte(")"))
+		writeString(")")
 		n := t.NumResult()
 		if n > 0 {
-			s.Write([]byte(" "))
+			writeString(" ")
 		}
 		if n > 1 {
-			s.Write([]byte("("))
+			writeString("(")
 		}
 		for i := 0; i < n; i++ {
 			if i > 0 {
-				s.Write([]byte(", "))
+				writeString(", ")
 			}
 			t.Result(i).Format(withoutFlags{s}, v)
 		}
 		if n > 1 {
-			s.Write([]byte(")"))
+			writeString(")")
 		}
 		if name != "" {
-			s.Write([]byte(")"))
+			writeString(")")
 		}
 
 	case coroutinev1.Kind_KIND_MAP:
-		s.Write([]byte("map["))
+		writeString("map[")
 		t.Key().Format(withoutFlags{s}, v)
-		s.Write([]byte("]"))
+		writeString("]")
 		t.Elem().Format(withoutFlags{s}, v)
 
 	case coroutinev1.Kind_KIND_STRUCT:
 		n := t.NumField()
 		if n == 0 {
-			s.Write([]byte("struct{}"))
+			writeString("struct{}")
 		} else {
-			s.Write([]byte("struct{ "))
+			writeString("struct{ ")
 			for i := 0; i < n; i++ {
 				if i > 0 {
-					s.Write([]byte("; "))
+					writeString("; ")
 				}
 				f := t.Field(i)
 				if !f.Anonymous() {
-					s.Write([]byte(f.Name()))
-					s.Write([]byte(" "))
+					writeString(f.Name())
+					writeString(" ")
 				}
 				f.Type().Format(withoutFlags{State: s}, v)
 			}
-			s.Write([]byte(" }"))
+			writeString(" }")
 		}
 
 	default:
-		s.Write([]byte("invalid"))
+		writeString("invalid")
 	}
 	if name != "" {
-		s.Write([]byte(")"))
+		writeString(")")
 	}
 }
 
