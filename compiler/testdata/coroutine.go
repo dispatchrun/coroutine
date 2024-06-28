@@ -801,3 +801,32 @@ func JSONRoundTrip(n int) {
 	}
 	coroutine.Yield[int, any](result.N)
 }
+
+type Cloner[S ~[]E, E any] struct {
+	Slice S
+}
+
+func (c *Cloner[S, E]) Clone() S {
+	s2 := make(S, len(c.Slice))
+	copy(s2, c.Slice)
+	return s2
+}
+
+func GenericSlice(n int) {
+	ints := make([]int, n)
+	for i := range ints {
+		ints[i] = i
+	}
+	for _, x := range ints {
+		coroutine.Yield[int, any](x)
+	}
+
+	cloner := &Cloner[[]int, int]{Slice: ints}
+	ints2 := cloner.Clone()
+
+	clear(ints)
+
+	for _, x := range ints2 {
+		coroutine.Yield[int, any](x)
+	}
+}
