@@ -12,6 +12,7 @@ import (
 
 	"github.com/dispatchrun/coroutine"
 	"github.com/dispatchrun/coroutine/compiler/testdata/subpkg"
+	"github.com/dispatchrun/coroutine/compiler/testdata/subpkg3"
 )
 
 //go:generate coroc
@@ -828,5 +829,12 @@ func GenericSlice(n int) {
 
 	for _, x := range ints2 {
 		coroutine.Yield[int, any](x)
+	}
+}
+
+func GenericInstanceInAnotherPackage(n int) {
+	coroutine.Yield[int, any](0)
+	if subpkg3.IsLess(n, n+1) {
+		coroutine.Yield[int, any](n)
 	}
 }

@@ -306,6 +306,12 @@ func TestCoroutineYield(t *testing.T) {
 			coro:   func() { GenericSlice(3) },
 			yields: []int{0, 1, 2, 0, 1, 2},
 		},
+
+		{
+			name:   "generic instance in another package",
+			coro:   func() { GenericInstanceInAnotherPackage(3) },
+			yields: []int{0, 3},
+		},
 	}
 
 	// This emulates the installation of function type information by the

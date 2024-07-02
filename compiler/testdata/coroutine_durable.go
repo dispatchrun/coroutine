@@ -7,6 +7,7 @@ import (
 	fmt "fmt"
 	coroutine "github.com/dispatchrun/coroutine"
 	subpkg "github.com/dispatchrun/coroutine/compiler/testdata/subpkg"
+	subpkg3 "github.com/dispatchrun/coroutine/compiler/testdata/subpkg3"
 	math "math"
 	reflect "reflect"
 	time "time"
@@ -3519,7 +3520,7 @@ func IdentityGenericInt(n int) { IdentityGeneric[int](n) }
 
 //go:noinline
 func IdentityGenericClosure[T any](_fn0 T) {
-	_c := coroutine.LoadContext[int, any]()
+	_c := coroutine.LoadContext[T, any]()
 	var _f0 *struct {
 		IP int
 		X0 T
@@ -4515,6 +4516,49 @@ func GenericSlice(_fn0 int) {
 		}
 	}
 }
+
+//go:noinline
+func GenericInstanceInAnotherPackage(_fn0 int) {
+	_c := coroutine.LoadContext[int, any]()
+	var _f0 *struct {
+		IP int
+		X0 int
+		X1 bool
+	} = coroutine.Push[struct {
+		IP int
+		X0 int
+		X1 bool
+	}](&_c.Stack)
+	if _f0.IP == 0 {
+		*_f0 = struct {
+			IP int
+			X0 int
+			X1 bool
+		}{X0: _fn0}
+	}
+	defer func() {
+		if !_c.Unwinding() {
+			coroutine.Pop(&_c.Stack)
+		}
+	}()
+	switch {
+	case _f0.IP < 2:
+		coroutine.Yield[int, any](0)
+		_f0.IP = 2
+		fallthrough
+	case _f0.IP < 4:
+		switch {
+		case _f0.IP < 3:
+			_f0.X1 = subpkg3.IsLess(_f0.X0, _f0.X0+1)
+			_f0.IP = 3
+			fallthrough
+		case _f0.IP < 4:
+			if _f0.X1 {
+				coroutine.Yield[int, any](_f0.X0)
+			}
+		}
+	}
+}
 func init() {
 	_types.RegisterFunc[func(_fn1 int) (_ func(int))]("github.com/dispatchrun/coroutine/compiler/testdata.(*Box).Closure")
 	_types.RegisterClosure[func(_fn0 int), struct {
@@ -4557,6 +4601,7 @@ func init() {
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.EvenSquareGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.FizzBuzzIfGenerator")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.FizzBuzzSwitchGenerator")
+	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.GenericInstanceInAnotherPackage")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.GenericSlice")
 	_types.RegisterFunc[func(_fn0 int)]("github.com/dispatchrun/coroutine/compiler/testdata.GenericStructClosure")
 	_types.RegisterFunc[func(n int)]("github.com/dispatchrun/coroutine/compiler/testdata.Identity")
