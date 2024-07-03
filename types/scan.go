@@ -231,141 +231,90 @@ func (c *containers) insert(x container) int {
 	return i
 }
 
-// scan the value of type t at address p recursively to build up the serializer
-// state with necessary information for encoding. At the moment it only creates
-// the memory regions table.
-//
-// It uses s.scanptrs to track which pointers it has already visited to avoid
-// infinite loops. It does not clean it up after. I'm sure there is something
-// more useful we could do with that.
 func (s *Serializer) scan(t reflect.Type, p unsafe.Pointer) {
-	s.scan1(t, p, map[reflect.Value]struct{}{})
+	v := reflect.NewAt(t, p).Elem()
+
+	sc := &scanner{
+		seen:       map[reflect.Value]struct{}{},
+		containers: &s.containers,
+		serdes:     s.serdes,
+	}
+
+	sc.Scan(v)
 }
 
-func (s *Serializer) scan1(t reflect.Type, p unsafe.Pointer, seen map[reflect.Value]struct{}) {
-	if p == nil {
-		return
-	}
+type scanner struct {
+	DefaultVisitor
 
-	// Don't scan types where custom serialization routines
+	seen       map[reflect.Value]struct{}
+	containers *containers
+	serdes     *serdemap
+}
+
+func (s *scanner) Scan(v reflect.Value) {
+	Visit(s, v, VisitUnexportedFields|VisitClosures)
+}
+
+func (s *scanner) Visit(v reflect.Value) bool {
+	// Don't scan types where custom serialiazation routines
 	// have been registered.
-	if _, ok := s.serdes.serdeByType(t); ok {
-		return
+	if _, ok := s.serdes.serdeByType(v.Type()); ok {
+		return false
 	}
 
-	r := reflect.NewAt(t, p)
-	if _, ok := seen[r]; ok {
-		return
-	}
-	seen[r] = struct{}{}
-
-	if r.IsNil() {
-		return
+	// Only visit values that may contain pointers.
+	if !canPointer(v.Kind()) {
+		return false
 	}
 
-	switch t.Kind() {
-	case reflect.Invalid:
-		panic("handling invalid reflect.Type")
-	case reflect.Array:
-		s.containers.add(t.Elem(), t.Len(), p)
-		et := t.Elem()
-		es := int(et.Size())
-		for i := 0; i < t.Len(); i++ {
-			ep := unsafe.Add(p, es*i)
-			s.scan1(et, ep, seen)
-		}
-	case reflect.Slice:
-		sr := r.Elem()
-		if sr.IsNil() {
-			return
-		}
-		ep := sr.UnsafePointer()
-		if ep == nil {
-			return
-		}
-		// Estimate size of backing array.
-		et := t.Elem()
-		es := int(et.Size())
+	// Only visit values once.
+	if _, ok := s.seen[v]; ok {
+		return false
+	}
+	s.seen[v] = struct{}{}
 
-		s.containers.add(et, sr.Cap(), ep)
-		for i := 0; i < sr.Len(); i++ {
-			ep := unsafe.Add(ep, es*i)
-			s.scan1(et, ep, seen)
-		}
-	case reflect.Interface:
-		if r.Elem().IsNil() {
-			return
-		}
-		it := r.Elem().Interface()
-		if it == nil {
-			return
-		}
-		et := reflect.TypeOf(it)
+	return true
+}
 
-		eptr := ifacePtr(p, et)
-		s.scan1(et, eptr, seen)
-	case reflect.Struct:
-		s.containers.add(t, -1, p)
-		n := t.NumField()
-		for i := 0; i < n; i++ {
-			f := t.Field(i)
-			ft := f.Type
-			fp := unsafe.Add(p, f.Offset)
-			s.scan1(ft, fp, seen)
-		}
-	case reflect.Pointer:
-		if r.Elem().IsNil() {
-			return
-		}
-		ep := r.Elem().UnsafePointer()
-		s.scan1(t.Elem(), ep, seen)
-	case reflect.String:
-		str := r.Elem()
-		if str.Len() == 0 {
-			return
-		}
-		sp := unsafe.StringData(str.String())
-		s.containers.add(byteT, str.Len(), unsafe.Pointer(sp))
-	case reflect.Map:
-		m := r.Elem()
-		if m.IsNil() || m.Len() == 0 {
-			return
-		}
-		kt := t.Key()
-		vt := t.Elem()
-		iter := m.MapRange()
-		for iter.Next() {
-			k := iter.Key()
-			ki := k.Interface()
-			kp := ifacePtr(unsafe.Pointer(&ki), kt)
-			s.scan1(kt, kp, seen)
+func (s *scanner) VisitString(str string) {
+	if len(str) > 0 {
+		s.containers.add(byteT, len(str), unsafe.Pointer(unsafe.StringData(str)))
+	}
+}
 
-			v := iter.Value()
-			vi := v.Interface()
-			vp := ifacePtr(unsafe.Pointer(&vi), vt)
-			s.scan1(vt, vp, seen)
-		}
+func (s *scanner) VisitSlice(v reflect.Value) bool {
+	if v.IsNil() {
+		return false
+	}
+	s.containers.add(v.Type().Elem(), v.Cap(), v.UnsafePointer())
+	return true
+}
+
+func (s *scanner) VisitPointer(v reflect.Value) bool {
+	if v.IsNil() {
+		return false
+	}
+	if e := v.Elem(); e.Kind() == reflect.Array {
+		s.containers.add(e.Type(), e.Len(), v.UnsafePointer())
+	} else {
+		s.containers.add(e.Type(), -1, v.UnsafePointer())
+	}
+	return true
+}
+
+func canPointer(k reflect.Kind) bool {
+	switch k {
 	case reflect.Bool,
-		reflect.Int,
-		reflect.Int8,
-		reflect.Int16,
-		reflect.Int32,
-		reflect.Int64,
-		reflect.Uint,
-		reflect.Uint8,
-		reflect.Uint16,
-		reflect.Uint32,
-		reflect.Uint64,
-		reflect.Uintptr,
-		reflect.Float32,
-		reflect.Float64,
-		reflect.Complex64,
-		reflect.Complex128:
-		// nothing to do
-	default:
-		// TODO:
-		// Chan
-		// Func
-		// UnsafePointer
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64,
+		reflect.Complex64, reflect.Complex128:
+		// Primitive types aren't / don't contain pointers.
+		return false
+	case reflect.Uintptr:
+		// The uintptr could represent a pointer, but it's opaque
+		// in this form and so not considered.
+		return false
 	}
+	return true
 }
