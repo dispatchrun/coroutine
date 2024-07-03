@@ -97,8 +97,7 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 	case reflect.Complex128:
 		serializeComplex128(s, complex128(v.Complex()))
 	case reflect.String:
-		str := v.String()
-		serializeString(s, &str)
+		serializeString(s, v.String())
 	case reflect.Array:
 		if n := t.Len(); n > 0 {
 			vi := v.Interface()
@@ -660,18 +659,16 @@ func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	}
 }
 
-func serializeString(s *Serializer, x *string) {
+func serializeString(s *Serializer, x string) {
 	// Serialize string as a size and a pointer to an array of bytes.
 
-	l := len(*x)
+	l := len(x)
 	serializeVarint(s, l)
-
 	if l == 0 {
 		return
 	}
 
-	p := unsafe.Pointer(unsafe.StringData(*x))
-
+	p := unsafe.Pointer(unsafe.StringData(x))
 	serializePointedAt(s, byteT, l, p)
 }
 
