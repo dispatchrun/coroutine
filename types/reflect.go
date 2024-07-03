@@ -999,9 +999,3 @@ func deserializeComplex128(d *Deserializer, x *complex128) {
 	deserializeFloat64(d, &imag)
 	*x = complex(real, imag)
 }
-
-func typeof[X any]() reflect.Type {
-	return reflect.TypeOf((*X)(nil)).Elem()
-}
-
-var byteT = typeof[byte]()
