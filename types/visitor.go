@@ -135,20 +135,24 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 		visitor.VisitFloat64(float64(v.Float()))
 	case reflect.String:
 		visitor.VisitString(v.String())
+
 	case reflect.Complex64:
 		c := complex64(v.Complex())
 		if visitor.VisitComplex64(c) {
 			visitor.VisitFloat32(real(c))
 			visitor.VisitFloat32(imag(c))
 		}
+
 	case reflect.Complex128:
 		c := v.Complex()
 		if visitor.VisitComplex128(c) {
 			visitor.VisitFloat64(real(c))
 			visitor.VisitFloat64(imag(c))
 		}
+
 	case reflect.UnsafePointer:
 		visitor.VisitUnsafePointer(v.UnsafePointer())
+
 	case reflect.Pointer:
 		if visitor.VisitPointer(v) && !v.IsNil() {
 			Visit(visitor, v.Elem(), flags)
@@ -159,12 +163,14 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 				Visit(visitor, v.Index(i), flags)
 			}
 		}
+
 	case reflect.Slice:
 		if visitor.VisitSlice(v) {
 			for i := 0; i < v.Len(); i++ {
 				Visit(visitor, v.Index(i), flags)
 			}
 		}
+
 	case reflect.Map:
 		if visitor.VisitMap(v) && !v.IsNil() {
 			iter := v.MapRange()
@@ -173,8 +179,11 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 				Visit(visitor, iter.Value(), flags)
 			}
 		}
+
 	case reflect.Chan:
+		// TODO: visit buffered channel items if possible
 		visitor.VisitChan(v)
+
 	case reflect.Struct:
 		if visitor.VisitStruct(v) {
 			p := unsafePtr(v)
@@ -189,22 +198,29 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 				}
 			}
 		}
+
 	case reflect.Func:
 		if visitor.VisitFunc(v) && !v.IsNil() {
-			if f := FuncByAddr(uintptr(v.UnsafePointer())); f == nil {
+			addr := v.UnsafePointer()
+			if f := FuncByAddr(uintptr(addr)); f == nil {
 				// function not found at addr
 			} else if f.Type == nil {
 				// function type info not registered
 			} else if f.Closure != nil && (flags&VisitClosures) != 0 {
-				// FIXME
-				// closure := reflect.NewAt(f.Closure, unsafePtr(v)).Elem()
-				// Visit(visitor, closure, flags)
+				fp := *(**function)(unsafePtr(v))
+				if fp.addr != addr {
+					panic("invalid closure")
+				}
+				closure := reflect.NewAt(f.Closure, unsafe.Pointer(fp))
+				Visit(visitor, closure, flags)
 			}
 		}
+
 	case reflect.Interface:
 		if visitor.VisitInterface(v) && !v.IsNil() {
 			Visit(visitor, v.Elem(), flags)
 		}
+
 	default:
 		panic("unreachable")
 	}
