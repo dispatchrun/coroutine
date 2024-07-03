@@ -84,19 +84,15 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	switch t.Kind() {
-	case reflect.Interface, reflect.Struct, reflect.Func:
+	case reflect.Struct:
 	default:
 		deserializeReflectValue(d, t, vp.Elem(), vp.UnsafePointer())
 		return
 	}
 
 	switch t.Kind() {
-	case reflect.Interface:
-		deserializeInterface(d, t, p)
 	case reflect.Struct:
 		deserializeStruct(d, t, p)
-	case reflect.Func:
-		deserializeFunc(d, t, p)
 	default:
 		panic(fmt.Errorf("reflection cannot deserialize type %s", t))
 	}
@@ -271,8 +267,27 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type, v reflect.Value, v
 		var fn *Func
 		deserializeFunc(d, t, unsafe.Pointer(&fn))
 		if fn != nil {
-			p := unsafe.Pointer(v.UnsafeAddr())
+			p := v.Addr().UnsafePointer()
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(&fn.Addr)
+		}
+	case reflect.Interface:
+		var ok bool
+		deserializeBool(d, &ok)
+		if ok {
+			et, length := deserializeType(d)
+			if et != nil {
+				if ep := deserializePointedAt(d, et, length); ep != nil {
+					// FIXME: is there a way to avoid ArrayOf+NewAt here? We can
+					//  access the iface via p. We can set the ptr, but not the typ.
+					if length >= 0 {
+						et = reflect.ArrayOf(length, et)
+					}
+					v.Set(reflect.NewAt(et, ep).Elem())
+				} else {
+					v.Set(reflect.Zero(et))
+				}
+
+			}
 		}
 	case reflect.Pointer:
 		ep := deserializePointedAt(d, t.Elem(), -1)
