@@ -96,6 +96,12 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 		return
 	}
 
+	if v.Type() == reflectValueT {
+		rv := v.Interface().(reflect.Value)
+		Visit(visitor, rv, flags)
+		return
+	}
+
 	switch v.Kind() {
 	case reflect.Invalid:
 		panic(fmt.Errorf("can't visit reflect.Invalid"))
@@ -174,7 +180,7 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 				if ft.IsExported() {
 					Visit(visitor, v.Field(i), flags)
 				} else if (flags & VisitUnexportedFields) != 0 {
-					field := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset))
+					field := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset)).Elem()
 					Visit(visitor, field, flags)
 				}
 			}
@@ -186,7 +192,7 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 			} else if f.Type == nil {
 				// function type info not registered
 			} else if f.Closure != nil && (flags&VisitClosures) != 0 {
-				closure := reflect.NewAt(f.Closure, unsafePtr(v))
+				closure := reflect.NewAt(f.Closure, unsafePtr(v)).Elem()
 				Visit(visitor, closure, flags)
 			}
 		}
