@@ -78,54 +78,16 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	switch t.Kind() {
-	case reflect.Invalid:
-		panic(fmt.Errorf("can't deserialize reflect.Invalid"))
-	case reflect.Bool:
-		deserializeBool(d, (*bool)(p))
-	case reflect.Int:
-		deserializeInt(d, (*int)(p))
-	case reflect.Int64:
-		deserializeInt64(d, (*int64)(p))
-	case reflect.Int32:
-		deserializeInt32(d, (*int32)(p))
-	case reflect.Int16:
-		deserializeInt16(d, (*int16)(p))
-	case reflect.Int8:
-		deserializeInt8(d, (*int8)(p))
-	case reflect.Uint:
-		deserializeUint(d, (*uint)(p))
-	case reflect.Uint64:
-		deserializeUint64(d, (*uint64)(p))
-	case reflect.Uint32:
-		deserializeUint32(d, (*uint32)(p))
-	case reflect.Uint16:
-		deserializeUint16(d, (*uint16)(p))
-	case reflect.Uint8:
-		deserializeUint8(d, (*uint8)(p))
-	case reflect.Uintptr:
-		deserializeUintptr(d, (*uintptr)(p))
-	case reflect.Float64:
-		deserializeFloat64(d, (*float64)(p))
-	case reflect.Float32:
-		deserializeFloat32(d, (*float32)(p))
-	case reflect.Complex64:
-		deserializeComplex64(d, (*complex64)(p))
-	case reflect.Complex128:
-		deserializeComplex128(d, (*complex128)(p))
-	case reflect.String:
-		deserializeString(d, (*string)(p))
+	case reflect.Interface, reflect.Struct, reflect.Func:
+	default:
+		rv := deserializeReflectValue(d, t)
+		v.Set(rv)
+		return
+	}
+
+	switch t.Kind() {
 	case reflect.Interface:
 		deserializeInterface(d, t, p)
-	case reflect.Pointer:
-		deserializePointer(d, t, p)
-	case reflect.UnsafePointer:
-		deserializeUnsafePointer(d, p)
-	case reflect.Array:
-		deserializeArray(d, t, p)
-	case reflect.Slice:
-		deserializeSlice(d, t, p)
-	case reflect.Map:
-		deserializeMap(d, t, p)
 	case reflect.Struct:
 		deserializeStruct(d, t, p)
 	case reflect.Func:
