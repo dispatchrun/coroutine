@@ -277,9 +277,10 @@ func (s *scanner) Visit(v reflect.Value) bool {
 }
 
 func (s *scanner) VisitString(str string) {
-	if len(str) > 0 {
-		s.containers.add(byteT, len(str), unsafe.Pointer(unsafe.StringData(str)))
+	if len(str) == 0 {
+		return
 	}
+	s.containers.add(byteT, len(str), unsafe.Pointer(unsafe.StringData(str)))
 }
 
 func (s *scanner) VisitSlice(v reflect.Value) bool {
@@ -302,28 +303,16 @@ func (s *scanner) VisitPointer(v reflect.Value) bool {
 	return true
 }
 
-func (s *scanner) VisitInterface(v reflect.Value) bool {
-	if v.IsNil() {
-		return false
-	}
-	switch e := v.Elem(); v.Kind() {
-	case reflect.Array:
-		s.containers.add(e.Type(), e.Len(), unsafePtr(v))
-	case reflect.Struct:
-		s.containers.add(e.Type(), -1, unsafePtr(v))
-	}
-	return true
-}
-
 func canPointer(k reflect.Kind) bool {
+	// Primitive types aren't / don't contain pointers.
 	switch k {
 	case reflect.Bool,
 		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float32, reflect.Float64,
 		reflect.Complex64, reflect.Complex128:
-		// Primitive types aren't / don't contain pointers.
 		return false
+
 	case reflect.Uintptr:
 		// The uintptr could represent a pointer, but it's opaque
 		// in this form and so not considered.

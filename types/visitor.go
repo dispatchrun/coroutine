@@ -160,7 +160,11 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 			}
 		}
 	case reflect.Slice:
-		visitor.VisitSlice(v)
+		if visitor.VisitSlice(v) {
+			for i := 0; i < v.Len(); i++ {
+				Visit(visitor, v.Index(i), flags)
+			}
+		}
 	case reflect.Map:
 		if visitor.VisitMap(v) && !v.IsNil() {
 			iter := v.MapRange()
@@ -192,8 +196,9 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 			} else if f.Type == nil {
 				// function type info not registered
 			} else if f.Closure != nil && (flags&VisitClosures) != 0 {
-				closure := reflect.NewAt(f.Closure, unsafePtr(v)).Elem()
-				Visit(visitor, closure, flags)
+				// FIXME
+				// closure := reflect.NewAt(f.Closure, unsafePtr(v)).Elem()
+				// Visit(visitor, closure, flags)
 			}
 		}
 	case reflect.Interface:
