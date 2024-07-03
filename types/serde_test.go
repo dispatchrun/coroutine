@@ -318,6 +318,40 @@ func TestReflectClosure(t *testing.T) {
 	})
 }
 
+func TestReflectMaps(t *testing.T) {
+	m := map[int]struct{}{1: {}}
+
+	v1 := reflect.ValueOf(m)
+	v2 := reflect.ValueOf(m)
+
+	combined := [2]reflect.Value{v1, v2}
+
+	b, err := Serialize(combined)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := Deserialize(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vv := out.([2]reflect.Value)
+	m1 := vv[0].Interface().(map[int]struct{})
+	m2 := vv[1].Interface().(map[int]struct{})
+
+	if _, ok := m1[1]; !ok {
+		t.Fatalf("unexpected map: %#v", m1)
+	} else if _, ok := m2[1]; !ok {
+		t.Fatalf("unexpected map: %#v", m2)
+	}
+
+	m1[2] = struct{}{}
+	if _, ok := m2[2]; !ok {
+		t.Fatalf("reference was not preserved")
+	}
+}
+
 func TestErrors(t *testing.T) {
 	s := struct {
 		X5 error

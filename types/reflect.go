@@ -344,9 +344,9 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type) (v reflect.Value) 
 		v = reflect.New(t).Elem()
 		*(*slice)(unsafe.Pointer(v.UnsafeAddr())) = value
 	case reflect.Map:
-		v = reflect.New(t).Elem()
-		var p uintptr // FIXME: what should this be?
-		deserializeMapReflect(d, t, v, unsafe.Pointer(&p))
+		vp := reflect.New(t)
+		deserializeMapReflect(d, t, vp.Elem(), vp.UnsafePointer())
+		v = vp.Elem()
 	case reflect.Struct:
 		v = reflect.New(t).Elem()
 		for i := 0; i < t.NumField(); i++ {
