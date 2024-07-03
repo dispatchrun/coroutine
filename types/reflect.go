@@ -255,7 +255,7 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type, v reflect.Value, v
 	case reflect.Slice:
 		var value slice
 		deserializeSlice(d, t, unsafe.Pointer(&value))
-		*(*slice)(unsafe.Pointer(v.UnsafeAddr())) = value
+		*(*slice)(v.Addr().UnsafePointer()) = value
 	case reflect.Map:
 		deserializeMapReflect(d, t, v, vp)
 	case reflect.Struct:
