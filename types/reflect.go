@@ -146,8 +146,9 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 			}
 		}
 	case reflect.Slice:
-		sl := slice{data: v.UnsafePointer(), len: v.Len(), cap: v.Cap()}
-		serializeSlice(s, t, unsafe.Pointer(&sl))
+		serializeVarint(s, v.Len())
+		serializeVarint(s, v.Cap())
+		serializePointedAt(s, t.Elem(), v.Cap(), v.UnsafePointer())
 	case reflect.Map:
 		serializeMapReflect(s, v)
 	case reflect.Struct:
@@ -324,7 +325,8 @@ func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Poi
 	}
 
 	if r.len < 0 && r.typ.Kind() == reflect.Map {
-		serializeMap(s, r.typ, r.addr)
+		v := reflect.NewAt(r.typ, r.addr).Elem()
+		serializeMapReflect(s, v)
 		return
 	}
 
@@ -434,11 +436,6 @@ func deserializePointedAt(d *Deserializer, t reflect.Type, length int) unsafe.Po
 	return unsafe.Add(p, offset)
 }
 
-func serializeMap(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	v := reflect.NewAt(t, p).Elem()
-	serializeMapReflect(s, v)
-}
-
 func serializeMapReflect(s *Serializer, v reflect.Value) {
 	if v.IsNil() {
 		serializeVarint(s, 0)
@@ -478,11 +475,6 @@ func serializeMapReflect(s *Serializer, v reflect.Value) {
 	}
 
 	region.Data = regionSer.b
-}
-
-func deserializeMap(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	r := reflect.NewAt(t, p).Elem()
-	deserializeMapReflect(d, t, r, p)
 }
 
 func deserializeMapReflect(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.Pointer) {
@@ -525,14 +517,6 @@ func deserializeMapReflect(d *Deserializer, t reflect.Type, r reflect.Value, p u
 	}
 }
 
-func serializeSlice(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	r := reflect.NewAt(t, p).Elem()
-
-	serializeVarint(s, r.Len())
-	serializeVarint(s, r.Cap())
-	serializePointedAt(s, t.Elem(), r.Cap(), r.UnsafePointer())
-}
-
 func deserializeSlice(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	l := deserializeVarint(d)
 	c := deserializeVarint(d)
@@ -567,37 +551,12 @@ func deserializeArray(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	}
 }
 
-func serializePointer(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	r := reflect.NewAt(t, p).Elem()
-	x := r.UnsafePointer()
-	serializePointedAt(s, t.Elem(), -1, x)
-}
-
-func deserializePointer(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	ep := deserializePointedAt(d, t.Elem(), -1)
-	r := reflect.NewAt(t, p)
-	r.Elem().Set(reflect.NewAt(t.Elem(), ep))
-}
-
 func serializeUnsafePointer(s *Serializer, p unsafe.Pointer) {
 	if p == nil {
 		serializePointedAt(s, nil, -1, nil)
 	} else {
 		serializePointedAt(s, nil, -1, *(*unsafe.Pointer)(p))
 	}
-}
-
-func deserializeUnsafePointer(d *Deserializer, p unsafe.Pointer) {
-	r := reflect.NewAt(unsafePointerT, p)
-
-	ep := deserializePointedAt(d, unsafePointerT, -1)
-	if ep != nil {
-		r.Elem().Set(reflect.ValueOf(ep))
-	}
-}
-
-func serializeStruct(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	serializeStructFields(s, p, t.NumField(), t.Field)
 }
 
 func deserializeStruct(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
