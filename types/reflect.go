@@ -256,11 +256,9 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 		}
 	case reflect.Func:
 		if addr := v.Pointer(); addr != 0 {
-			if fn := FuncByAddr(addr); fn != nil && fn.Closure != nil {
-				panic("not implemented: serializing reflect.Value(closure)")
-			}
-			indirect := unsafe.Pointer(&addr)
-			serializeFunc(s, t, unsafe.Pointer(&indirect))
+			vi := v.Interface()
+			p := ifacePtr(unsafe.Pointer(&vi), t)
+			serializeFunc(s, t, p)
 		} else {
 			serializeFunc(s, t, unsafe.Pointer(&addr))
 		}

@@ -298,9 +298,6 @@ func TestReflectClosure(t *testing.T) {
 	})
 
 	t.Run("reflect-value", func(t *testing.T) {
-		// FIXME: get reflect.Value(closure) working
-		t.Skipf("reflect.Value(closure) is not working correctly")
-
 		b, err := Serialize(reflect.ValueOf(fn))
 		if err != nil {
 			t.Fatal(err)
