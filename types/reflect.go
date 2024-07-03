@@ -229,9 +229,15 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 		str := v.String()
 		serializeString(s, &str)
 	case reflect.Array:
-		et := t.Elem()
-		for i := 0; i < t.Len(); i++ {
-			serializeReflectValue(s, et, v.Index(i))
+		if n := t.Len(); n > 0 {
+			vi := v.Interface()
+			p := ifacePtr(unsafe.Pointer(&vi), t)
+			et := t.Elem()
+			es := int(et.Size())
+			for i := 0; i < n; i++ {
+				e := unsafe.Add(p, es*i)
+				serializeAny(s, et, e)
+			}
 		}
 	case reflect.Slice:
 		sl := slice{data: v.UnsafePointer(), len: v.Len(), cap: v.Cap()}
