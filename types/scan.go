@@ -302,6 +302,19 @@ func (s *scanner) VisitPointer(v reflect.Value) bool {
 	return true
 }
 
+func (s *scanner) VisitInterface(v reflect.Value) bool {
+	if v.IsNil() {
+		return false
+	}
+	switch e := v.Elem(); v.Kind() {
+	case reflect.Array:
+		s.containers.add(e.Type(), e.Len(), unsafePtr(v))
+	case reflect.Struct:
+		s.containers.add(e.Type(), -1, unsafePtr(v))
+	}
+	return true
+}
+
 func canPointer(k reflect.Kind) bool {
 	switch k {
 	case reflect.Bool,
