@@ -65,8 +65,6 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	case reflectTypeT:
 		rt, _ := deserializeType(d)
 		vp.Elem().Set(reflect.ValueOf(rt))
-		return
-
 	case reflectValueT:
 		rt, length := deserializeType(d)
 		if length >= 0 {
@@ -80,21 +78,8 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		rp := reflect.New(rt)
 		deserializeReflectValue(d, rt, rp.Elem(), rp.UnsafePointer())
 		vp.Elem().Set(reflect.ValueOf(rp.Elem()))
-		return
-	}
-
-	switch t.Kind() {
-	case reflect.Struct:
 	default:
 		deserializeReflectValue(d, t, vp.Elem(), vp.UnsafePointer())
-		return
-	}
-
-	switch t.Kind() {
-	case reflect.Struct:
-		deserializeStruct(d, t, p)
-	default:
-		panic(fmt.Errorf("reflection cannot deserialize type %s", t))
 	}
 }
 
@@ -259,10 +244,7 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type, v reflect.Value, v
 	case reflect.Map:
 		deserializeMapReflect(d, t, v, vp)
 	case reflect.Struct:
-		for i := 0; i < t.NumField(); i++ {
-			var p unsafe.Pointer // TODO
-			deserializeReflectValue(d, t.Field(i).Type, v.Field(i), p)
-		}
+		deserializeStructFields(d, vp, t.NumField(), t.Field)
 	case reflect.Func:
 		var fn *Func
 		deserializeFunc(d, t, unsafe.Pointer(&fn))
@@ -557,10 +539,6 @@ func serializeUnsafePointer(s *Serializer, p unsafe.Pointer) {
 	} else {
 		serializePointedAt(s, nil, -1, *(*unsafe.Pointer)(p))
 	}
-}
-
-func deserializeStruct(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	deserializeStructFields(d, p, t.NumField(), t.Field)
 }
 
 func serializeStructFields(s *Serializer, p unsafe.Pointer, n int, field func(int) reflect.StructField) {
