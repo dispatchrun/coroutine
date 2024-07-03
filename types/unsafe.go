@@ -11,6 +11,14 @@ type iface struct {
 	ptr unsafe.Pointer
 }
 
+func ifacePtr(p unsafe.Pointer, t reflect.Type) unsafe.Pointer {
+	i := (*iface)(p)
+	if inlined(t) {
+		return unsafe.Pointer(&i.ptr)
+	}
+	return i.ptr
+}
+
 // Used instead of reflect.SliceHeader to use an unsafe.Pointer instead of
 // uintptr.
 type slice struct {
@@ -27,6 +35,9 @@ type function struct {
 
 // returns true iff type t would be inlined in an interface.
 func inlined(t reflect.Type) bool {
+	if t == nil {
+		return false
+	}
 	switch t.Kind() {
 	case reflect.Func:
 		return true
@@ -48,7 +59,7 @@ var staticuint64s unsafe.Pointer
 func init() {
 	zero := 0
 	var x interface{} = zero
-	staticuint64s = (*iface)(unsafe.Pointer(&x)).ptr
+	staticuint64s = ifacePtr(unsafe.Pointer(&x), nil)
 }
 
 func static(p unsafe.Pointer) bool {

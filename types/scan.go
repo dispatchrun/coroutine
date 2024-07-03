@@ -301,15 +301,8 @@ func (s *Serializer) scan1(t reflect.Type, p unsafe.Pointer, seen map[reflect.Va
 			return
 		}
 		et := reflect.TypeOf(it)
-		eptr := (*iface)(p).ptr
-		if eptr == nil {
-			return
-		}
-		if inlined(et) {
-			xp := (*iface)(p).ptr
-			eptr = unsafe.Pointer(&xp)
-		}
 
+		eptr := ifacePtr(p, et)
 		s.scan1(et, eptr, seen)
 	case reflect.Struct:
 		s.containers.add(t, -1, p)
@@ -344,16 +337,13 @@ func (s *Serializer) scan1(t reflect.Type, p unsafe.Pointer, seen map[reflect.Va
 		iter := m.MapRange()
 		for iter.Next() {
 			k := iter.Key()
-			kp := (*iface)(unsafe.Pointer(&k)).ptr
+			ki := k.Interface()
+			kp := ifacePtr(unsafe.Pointer(&ki), kt)
 			s.scan1(kt, kp, seen)
 
 			v := iter.Value()
-			vp := (*iface)(unsafe.Pointer(&v)).ptr
-			if inlined(vt) {
-				xp := vp
-				vp = unsafe.Pointer(&xp)
-			}
-
+			vi := v.Interface()
+			vp := ifacePtr(unsafe.Pointer(&vi), vt)
 			s.scan1(vt, vp, seen)
 		}
 	case reflect.Bool,

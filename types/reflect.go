@@ -773,12 +773,7 @@ func serializeInterface(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	et := reflect.TypeOf(reflect.NewAt(t, p).Elem().Interface())
 	serializeType(s, et)
 
-	eptr := i.ptr
-	if inlined(et) {
-		xp := i.ptr
-		eptr = unsafe.Pointer(&xp)
-		// noescape?
-	}
+	eptr := ifacePtr(p, et)
 
 	if et.Kind() == reflect.Array {
 		serializePointedAt(s, et.Elem(), et.Len(), eptr)
