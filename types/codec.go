@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	Register[time.Time](serializeTime, deserializeTime)
+	Register(serializeTime, deserializeTime)
 }
 
 func serializeTime(s *Serializer, x *time.Time) error {

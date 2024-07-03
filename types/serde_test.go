@@ -420,7 +420,7 @@ func TestReflectCustom(t *testing.T) {
 	}
 
 	testReflect(t, "int wrapper", func(t *testing.T) {
-		Register[int](ser, des)
+		Register(ser, des)
 
 		x := 42
 		p := &x
@@ -446,7 +446,7 @@ func TestReflectCustom(t *testing.T) {
 			y   Y
 		}
 
-		Register[int](ser, des)
+		Register(ser, des)
 
 		x := X{
 			foo: "test",
@@ -474,7 +474,7 @@ func TestReflectCustom(t *testing.T) {
 			y   *Y
 		}
 
-		Register[int](ser, des)
+		Register(ser, des)
 
 		x := &X{y: &Y{}}
 		x.y.foo = "test"
@@ -492,7 +492,7 @@ func TestReflectCustom(t *testing.T) {
 	})
 
 	testReflect(t, "custom type in slice", func(t *testing.T) {
-		Register[int](ser, des)
+		Register(ser, des)
 		x := []int{1, 2, 3, 42, 5, 6}
 		assertRoundTrip(t, x)
 		b, err := Serialize(x)
@@ -518,7 +518,7 @@ func TestReflectCustom(t *testing.T) {
 			return nil
 		}
 
-		Register[http.Client](ser, des)
+		Register(ser, des)
 
 		x := http.Client{
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {

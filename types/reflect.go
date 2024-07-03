@@ -49,7 +49,6 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 
 	v := reflect.NewAt(t, p).Elem()
 	serializeReflectValue(s, t, v)
-	return
 }
 
 func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
@@ -167,9 +166,9 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 		if addr := v.Pointer(); addr != 0 {
 			vi := v.Interface()
 			p := ifacePtr(unsafe.Pointer(&vi), t)
-			serializeFunc(s, t, p)
+			serializeFunc(s, p)
 		} else {
-			serializeFunc(s, t, unsafe.Pointer(&addr))
+			serializeFunc(s, unsafe.Pointer(&addr))
 		}
 	case reflect.Pointer:
 		serializePointedAt(s, t.Elem(), -1, v.UnsafePointer())
@@ -532,16 +531,6 @@ func deserializeSlice(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	s.len = l
 }
 
-func serializeArray(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	n := t.Len()
-	te := t.Elem()
-	ts := int(te.Size())
-	for i := 0; i < n; i++ {
-		pe := unsafe.Add(p, ts*i)
-		serializeAny(s, te, pe)
-	}
-}
-
 func deserializeArray(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	size := int(t.Elem().Size())
 	te := t.Elem()
@@ -579,7 +568,7 @@ func deserializeStructFields(d *Deserializer, p unsafe.Pointer, n int, field fun
 	}
 }
 
-func serializeFunc(s *Serializer, t reflect.Type, p unsafe.Pointer) {
+func serializeFunc(s *Serializer, p unsafe.Pointer) {
 	fn := *(**function)(p)
 	if fn == nil {
 		// Function IDs start at 1; use 0 to represent nil ptr.
@@ -814,16 +803,6 @@ func serializeUint8(s *Serializer, x uint8) {
 func deserializeUint8(d *Deserializer, x *uint8) {
 	*x = uint8(d.b[0])
 	d.b = d.b[1:]
-}
-
-func serializeUintptr(s *Serializer, x uintptr) {
-	serializeUint64(s, uint64(x))
-}
-
-func deserializeUintptr(d *Deserializer, x *uintptr) {
-	u := uint64(0)
-	deserializeUint64(d, &u)
-	*x = uintptr(u)
 }
 
 func serializeFloat32(s *Serializer, x float32) {

@@ -43,7 +43,7 @@ type DeserializerFunc[T any] func(*Deserializer, *T) error
 func Register[T any](
 	serializer SerializerFunc[T],
 	deserializer DeserializerFunc[T]) {
-	registerSerde[T](serdes, serializer, deserializer)
+	registerSerde(serdes, serializer, deserializer)
 }
 
 func registerSerde[T any](serdes *serdemap,
