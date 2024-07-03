@@ -227,25 +227,16 @@ func deserializeVarint(d *Deserializer) int {
 
 // Serialize a value. See [RegisterSerde].
 func SerializeT[T any](s *Serializer, x T) {
-	var p unsafe.Pointer
-	r := reflect.ValueOf(x)
-	t := r.Type()
-	if r.CanAddr() {
-		p = r.Addr().UnsafePointer()
-	} else {
-		n := reflect.New(t)
-		n.Elem().Set(r)
-		p = n.UnsafePointer()
-	}
+	v := reflect.ValueOf(x)
+	t := v.Type()
 	serializeType(s, t)
-	serializeAny(s, t, p)
+	serializeReflectValue(s, t, v)
 }
 
 // Deserialize a value to the provided non-nil pointer. See [RegisterSerde].
 func DeserializeTo[T any](d *Deserializer, x *T) {
-	r := reflect.ValueOf(x)
-	t := r.Type().Elem()
-	p := r.UnsafePointer()
+	v := reflect.ValueOf(x)
+	t := v.Type().Elem()
 	actualType, length := deserializeType(d)
 	if length < 0 {
 		if t != actualType {
@@ -254,5 +245,5 @@ func DeserializeTo[T any](d *Deserializer, x *T) {
 	} else if t.Kind() != reflect.Array || t.Len() != length || t != actualType.Elem() {
 		panic(fmt.Sprintf("cannot deserialize [%d]%s as %s", length, actualType, t))
 	}
-	deserializeAny(d, t, p)
+	deserializeReflectValue(d, t, v)
 }
