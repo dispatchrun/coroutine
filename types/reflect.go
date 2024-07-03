@@ -506,9 +506,9 @@ func deserializeMapReflect(d *Deserializer, t reflect.Type, r reflect.Value, p u
 	d.store(sID(id), p)
 	for i := 0; i < n; i++ {
 		k := reflect.New(t.Key())
-		deserializeAny(regionDeser, t.Key(), k.UnsafePointer())
+		deserializeReflectValue(regionDeser, t.Key(), k)
 		v := reflect.New(t.Elem())
-		deserializeAny(regionDeser, t.Elem(), v.UnsafePointer())
+		deserializeReflectValue(regionDeser, t.Elem(), v)
 		r.SetMapIndex(k.Elem(), v.Elem())
 	}
 }
