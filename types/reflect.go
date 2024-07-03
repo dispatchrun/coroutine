@@ -48,64 +48,8 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	v := reflect.NewAt(t, p).Elem()
-
-	switch t.Kind() {
-	case reflect.Invalid:
-		panic(fmt.Errorf("can't serialize reflect.Invalid"))
-	case reflect.Bool:
-		serializeBool(s, *(*bool)(p))
-	case reflect.Int:
-		serializeInt(s, *(*int)(p))
-	case reflect.Int64:
-		serializeInt64(s, *(*int64)(p))
-	case reflect.Int32:
-		serializeInt32(s, *(*int32)(p))
-	case reflect.Int16:
-		serializeInt16(s, *(*int16)(p))
-	case reflect.Int8:
-		serializeInt8(s, *(*int8)(p))
-	case reflect.Uint:
-		serializeUint(s, *(*uint)(p))
-	case reflect.Uint64:
-		serializeUint64(s, *(*uint64)(p))
-	case reflect.Uint32:
-		serializeUint32(s, *(*uint32)(p))
-	case reflect.Uint16:
-		serializeUint16(s, *(*uint16)(p))
-	case reflect.Uint8:
-		serializeUint8(s, *(*uint8)(p))
-	case reflect.Uintptr:
-		serializeUintptr(s, *(*uintptr)(p))
-	case reflect.Float64:
-		serializeFloat64(s, *(*float64)(p))
-	case reflect.Float32:
-		serializeFloat32(s, *(*float32)(p))
-	case reflect.Complex64:
-		serializeComplex64(s, *(*complex64)(p))
-	case reflect.Complex128:
-		serializeComplex128(s, *(*complex128)(p))
-	case reflect.String:
-		serializeString(s, (*string)(p))
-	case reflect.Array:
-		serializeArray(s, t, p)
-	case reflect.Interface:
-		serializeInterface(s, v)
-	case reflect.Map:
-		serializeMap(s, t, p)
-	case reflect.Pointer:
-		serializePointer(s, t, p)
-	case reflect.UnsafePointer:
-		serializeUnsafePointer(s, p)
-	case reflect.Slice:
-		serializeSlice(s, t, p)
-	case reflect.Struct:
-		serializeStruct(s, t, p)
-	case reflect.Func:
-		serializeFunc(s, t, p)
-	default:
-		// TODO: reflect.Chan
-		panic(fmt.Errorf("reflection cannot serialize type %s", t))
-	}
+	serializeReflectValue(s, t, v)
+	return
 }
 
 func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
