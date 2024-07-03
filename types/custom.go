@@ -3,7 +3,6 @@ package types
 import (
 	"fmt"
 	"reflect"
-	"unsafe"
 )
 
 // Global serde register.
@@ -12,7 +11,7 @@ var serdes *serdemap = newSerdeMap()
 // SerializerFunc is the signature of custom serializer functions. Use the
 // [Serialize] function to drive the [Serializer]. Returning an error results in
 // the program panicking.
-type SerializerFunc[T any] func(*Serializer, *T) error
+type SerializerFunc[T any] func(*Serializer, T) error
 
 // DeserializerFunc is the signature of customer deserializer functions. Use the
 // [Deserialize] function to drive the [Deserializer]. Returning an error
@@ -43,49 +42,44 @@ type DeserializerFunc[T any] func(*Deserializer, *T) error
 func Register[T any](
 	serializer SerializerFunc[T],
 	deserializer DeserializerFunc[T]) {
+
 	registerSerde(serdes, serializer, deserializer)
 }
 
 func registerSerde[T any](serdes *serdemap,
-	serializer func(*Serializer, *T) error,
+	serializer func(*Serializer, T) error,
 	deserializer func(*Deserializer, *T) error) {
 
 	t := reflect.TypeOf((*T)(nil)).Elem()
 
-	s := func(s *Serializer, actualType reflect.Type, p unsafe.Pointer) {
-		if t != actualType {
-			v := reflect.NewAt(actualType, p).Elem()
-			box := reflect.New(t)
-			box.Elem().Set(v.Convert(t))
-			p = box.UnsafePointer()
+	s := func(s *Serializer, v reflect.Value) {
+		if t != v.Type() {
+			v = v.Convert(t)
 		}
-		if err := serializer(s, (*T)(p)); err != nil {
+		if err := serializer(s, v.Interface().(T)); err != nil {
 			panic(fmt.Errorf("serializing %s: %w", t, err))
 		}
 	}
 
-	d := func(d *Deserializer, actualType reflect.Type, p unsafe.Pointer) {
-		if t != actualType {
+	d := func(d *Deserializer, vp reflect.Value) {
+		if et := vp.Type().Elem(); t != et {
 			box := reflect.New(t)
 			boxp := box.UnsafePointer()
 			if err := deserializer(d, (*T)(boxp)); err != nil {
 				panic(fmt.Errorf("deserializing %s: %w", t, err))
 			}
-			v := reflect.NewAt(actualType, p)
 			reinterpreted := reflect.ValueOf(box.Elem().Interface())
-			v.Elem().Set(reinterpreted)
-		} else {
-			if err := deserializer(d, (*T)(p)); err != nil {
-				panic(fmt.Errorf("deserializing %s: %w", t, err))
-			}
+			vp.Elem().Set(reinterpreted)
+		} else if err := deserializer(d, (*T)(vp.UnsafePointer())); err != nil {
+			panic(fmt.Errorf("deserializing %s: %w", t, err))
 		}
 	}
 
 	serdes.attach(t, s, d)
 }
 
-type serializerFunc func(*Serializer, reflect.Type, unsafe.Pointer)
-type deserializerFunc func(*Deserializer, reflect.Type, unsafe.Pointer)
+type serializerFunc func(*Serializer, reflect.Value)
+type deserializerFunc func(*Deserializer, reflect.Value)
 
 type serdeid = uint32
 

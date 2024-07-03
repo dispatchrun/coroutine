@@ -9,7 +9,7 @@ func init() {
 	Register(serializeTime, deserializeTime)
 }
 
-func serializeTime(s *Serializer, x *time.Time) error {
+func serializeTime(s *Serializer, x time.Time) error {
 	data, err := x.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("failed to marshal time.Time: %w", err)

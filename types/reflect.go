@@ -31,30 +31,24 @@ func deserializeType(d *Deserializer) (reflect.Type, int) {
 }
 
 func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	if serde, ok := s.serdes.serdeByType(t); ok {
-		offset := len(s.b)
-		s.b = append(s.b, 0, 0, 0, 0, 0, 0, 0, 0) // store a 64-bit size placeholder
-		serde.ser(s, t, p)
-		binary.LittleEndian.PutUint64(s.b[offset:], uint64(len(s.b)-offset))
-		return
-	}
-
 	v := reflect.NewAt(t, p).Elem()
 	serializeReflectValue(s, t, v)
 }
 
 func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	if serde, ok := d.serdes.serdeByType(t); ok {
-		d.b = d.b[8:] // skip size prefix
-		serde.des(d, t, p)
-		return
-	}
-
 	vp := reflect.NewAt(t, p)
-	deserializeReflectValue(d, t, vp.Elem(), vp.UnsafePointer())
+	deserializeReflectValue(d, t, vp)
 }
 
 func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
+	if serde, ok := s.serdes.serdeByType(t); ok {
+		offset := len(s.b)
+		s.b = append(s.b, 0, 0, 0, 0, 0, 0, 0, 0) // store a 64-bit size placeholder
+		serde.ser(s, v)
+		binary.LittleEndian.PutUint64(s.b[offset:], uint64(len(s.b)-offset))
+		return
+	}
+
 	switch t {
 	case reflectTypeT:
 		rt := v.Interface().(reflect.Type)
@@ -146,7 +140,15 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 	}
 }
 
-func deserializeReflectValue(d *Deserializer, t reflect.Type, v reflect.Value, vp unsafe.Pointer) {
+func deserializeReflectValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
+	v := vp.Elem()
+
+	if serde, ok := d.serdes.serdeByType(t); ok {
+		d.b = d.b[8:] // skip size prefix
+		serde.des(d, vp)
+		return
+	}
+
 	switch t {
 	case reflectTypeT:
 		rt, _ := deserializeType(d)
@@ -163,7 +165,7 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type, v reflect.Value, v
 			rt = reflect.ArrayOf(length, rt)
 		}
 		rp := reflect.New(rt)
-		deserializeReflectValue(d, rt, rp.Elem(), rp.UnsafePointer())
+		deserializeReflectValue(d, rt, rp)
 		v.Set(reflect.ValueOf(rp.Elem()))
 		return
 	}
@@ -246,9 +248,9 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type, v reflect.Value, v
 		deserializeSlice(d, t, unsafe.Pointer(&value))
 		*(*slice)(v.Addr().UnsafePointer()) = value
 	case reflect.Map:
-		deserializeMapReflect(d, t, v, vp)
+		deserializeMapReflect(d, t, v, vp.UnsafePointer())
 	case reflect.Struct:
-		deserializeStructFields(d, vp, t.NumField(), t.Field)
+		deserializeStructFields(d, vp.UnsafePointer(), t.NumField(), t.Field)
 	case reflect.Func:
 		var fn *Func
 		deserializeFunc(d, t, unsafe.Pointer(&fn))

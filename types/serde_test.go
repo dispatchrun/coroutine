@@ -387,8 +387,8 @@ func TestInt257(t *testing.T) {
 }
 
 func TestReflectCustom(t *testing.T) {
-	ser := func(s *Serializer, x *int) error {
-		str := strconv.Itoa(*x)
+	ser := func(s *Serializer, x int) error {
+		str := strconv.Itoa(x)
 		b := binary.BigEndian.AppendUint64(nil, uint64(len(str)))
 		b = append(b, str...)
 		SerializeT(s, b)
@@ -505,7 +505,7 @@ func TestReflectCustom(t *testing.T) {
 	})
 
 	testReflect(t, "custom type of struct", func(t *testing.T) {
-		ser := func(s *Serializer, x *http.Client) error {
+		ser := func(s *Serializer, x http.Client) error {
 			i := uint64(x.Timeout)
 			SerializeT(s, i)
 			return nil
