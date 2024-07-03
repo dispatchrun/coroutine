@@ -461,15 +461,13 @@ func serializeMapReflect(s *Serializer, v reflect.Value) {
 	regionSer := s.fork()
 	serializeVarint(regionSer, size)
 
-	// TODO: allocs
+	keyT := t.Key()
+	valT := t.Elem()
+
 	iter := v.MapRange()
-	mk := reflect.New(t.Key()).Elem()
-	mv := reflect.New(t.Elem()).Elem()
 	for iter.Next() {
-		mk.Set(iter.Key())
-		mv.Set(iter.Value())
-		serializeAny(regionSer, t.Key(), mk.Addr().UnsafePointer())
-		serializeAny(regionSer, t.Elem(), mv.Addr().UnsafePointer())
+		serializeReflectValue(regionSer, keyT, iter.Key())
+		serializeReflectValue(regionSer, valT, iter.Value())
 	}
 
 	region.Data = regionSer.b
