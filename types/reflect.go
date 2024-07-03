@@ -122,6 +122,8 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 		serializeUint32(s, uint32(v.Uint()))
 	case reflect.Uint64:
 		serializeUint64(s, v.Uint())
+	case reflect.Uintptr:
+		serializeUint64(s, v.Uint())
 	case reflect.Float32:
 		serializeFloat32(s, float32(v.Float()))
 	case reflect.Float64:
@@ -230,6 +232,10 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type) (v reflect.Value) 
 		var value uint64
 		deserializeUint64(d, &value)
 		v = reflect.ValueOf(value)
+	case reflect.Uintptr:
+		var value uint64
+		deserializeUint64(d, &value)
+		v = reflect.ValueOf(uintptr(value))
 	case reflect.Float32:
 		var value float32
 		deserializeFloat32(d, &value)
