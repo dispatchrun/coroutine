@@ -472,4 +472,5 @@ var (
 	unsafePointerT = reflect.TypeFor[unsafe.Pointer]()
 
 	reflectValueT = reflect.TypeFor[reflect.Value]()
+	reflectTypeT  = reflect.TypeFor[reflect.Type]()
 )

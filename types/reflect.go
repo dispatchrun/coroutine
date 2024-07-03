@@ -40,15 +40,16 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	switch t {
+	case reflectTypeT:
+		serializeType(s, *(*reflect.Type)(p))
 	case reflectValueT:
 		v := *(*reflect.Value)(p)
 		serializeType(s, v.Type())
 		serializeReflectValue(s, v.Type(), v)
-		return
+	default:
+		v := reflect.NewAt(t, p).Elem()
+		serializeReflectValue(s, t, v)
 	}
-
-	v := reflect.NewAt(t, p).Elem()
-	serializeReflectValue(s, t, v)
 }
 
 func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
@@ -61,6 +62,11 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	vp := reflect.NewAt(t, p)
 
 	switch t {
+	case reflectTypeT:
+		rt, _ := deserializeType(d)
+		vp.Elem().Set(reflect.ValueOf(rt))
+		return
+
 	case reflectValueT:
 		rt, length := deserializeType(d)
 		if length >= 0 {
