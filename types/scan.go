@@ -320,13 +320,12 @@ func (s *Serializer) scan1(t reflect.Type, p unsafe.Pointer, seen map[reflect.Va
 		ep := r.Elem().UnsafePointer()
 		s.scan1(t.Elem(), ep, seen)
 	case reflect.String:
-		str := *(*string)(p)
-		sp := unsafe.StringData(str)
-		if sp == nil {
-			// empty strings are represented as nil pointers.
+		str := r.Elem()
+		if str.Len() == 0 {
 			return
 		}
-		s.containers.add(byteT, len(str), unsafe.Pointer(sp))
+		sp := unsafe.StringData(str.String())
+		s.containers.add(byteT, str.Len(), unsafe.Pointer(sp))
 	case reflect.Map:
 		m := r.Elem()
 		if m.IsNil() || m.Len() == 0 {
