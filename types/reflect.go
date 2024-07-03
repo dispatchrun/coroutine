@@ -156,7 +156,7 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 	case reflect.Interface:
 		serializeInterface(s, v)
 	case reflect.UnsafePointer:
-		serializeUnsafePointer(s, v.UnsafePointer())
+		serializePointedAt(s, nil, -1, v.UnsafePointer())
 	default:
 		// TODO: reflect.Chan
 		panic(fmt.Sprintf("not implemented: serializing reflect.Value with type %s (%s)", t, t.Kind()))
@@ -530,14 +530,6 @@ func deserializeArray(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	for i := 0; i < t.Len(); i++ {
 		pe := unsafe.Add(p, size*i)
 		deserializeAny(d, te, pe)
-	}
-}
-
-func serializeUnsafePointer(s *Serializer, p unsafe.Pointer) {
-	if p == nil {
-		serializePointedAt(s, nil, -1, nil)
-	} else {
-		serializePointedAt(s, nil, -1, *(*unsafe.Pointer)(p))
 	}
 }
 
