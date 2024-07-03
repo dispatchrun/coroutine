@@ -50,6 +50,8 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		return
 	}
 
+	v := reflect.NewAt(t, p).Elem()
+
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic(fmt.Errorf("can't serialize reflect.Invalid"))
@@ -90,7 +92,7 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	case reflect.Array:
 		serializeArray(s, t, p)
 	case reflect.Interface:
-		serializeInterface(s, t, p)
+		serializeInterface(s, v)
 	case reflect.Map:
 		serializeMap(s, t, p)
 	case reflect.Pointer:
@@ -103,8 +105,8 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		serializeStruct(s, t, p)
 	case reflect.Func:
 		serializeFunc(s, t, p)
-	// Chan
 	default:
+		// TODO: reflect.Chan
 		panic(fmt.Errorf("reflection cannot serialize type %s", t))
 	}
 }
@@ -116,10 +118,12 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		return
 	}
 
+	v := reflect.NewAt(t, p).Elem()
+
 	switch t {
 	case reflectTypeT:
 		rt, _ := deserializeType(d)
-		reflect.NewAt(reflectTypeT, p).Elem().Set(reflect.ValueOf(rt))
+		v.Set(reflect.ValueOf(rt))
 		return
 
 	case reflectValueT:
@@ -132,8 +136,8 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 			// to a reflect.Value.
 			rt = reflect.ArrayOf(length, rt)
 		}
-		v := deserializeReflectValue(d, rt)
-		reflect.NewAt(reflectValueT, p).Elem().Set(reflect.ValueOf(v))
+		rv := deserializeReflectValue(d, rt)
+		v.Set(reflect.ValueOf(rv))
 		return
 	}
 
@@ -241,7 +245,7 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 		sl := slice{data: v.UnsafePointer(), len: v.Len(), cap: v.Cap()}
 		serializeSlice(s, t, unsafe.Pointer(&sl))
 	case reflect.Map:
-		serializeMapReflect(s, t, v)
+		serializeMapReflect(s, v)
 	case reflect.Struct:
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
@@ -262,7 +266,12 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 		}
 	case reflect.Pointer:
 		serializePointedAt(s, t.Elem(), -1, v.UnsafePointer())
+	case reflect.Interface:
+		serializeInterface(s, v)
+	case reflect.UnsafePointer:
+		serializeUnsafePointer(s, v.UnsafePointer())
 	default:
+		// TODO: reflect.Chan
 		panic(fmt.Sprintf("not implemented: serializing reflect.Value with type %s (%s)", t, t.Kind()))
 	}
 }
@@ -517,17 +526,17 @@ func deserializePointedAt(d *Deserializer, t reflect.Type, length int) unsafe.Po
 }
 
 func serializeMap(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	r := reflect.NewAt(t, p).Elem()
-	serializeMapReflect(s, t, r)
+	v := reflect.NewAt(t, p).Elem()
+	serializeMapReflect(s, v)
 }
 
-func serializeMapReflect(s *Serializer, t reflect.Type, r reflect.Value) {
-	if r.IsNil() {
+func serializeMapReflect(s *Serializer, v reflect.Value) {
+	if v.IsNil() {
 		serializeVarint(s, 0)
 		return
 	}
 
-	mapptr := r.UnsafePointer()
+	mapptr := v.UnsafePointer()
 
 	id, new := s.assignPointerID(mapptr)
 	serializeVarint(s, int(id))
@@ -537,8 +546,9 @@ func serializeMapReflect(s *Serializer, t reflect.Type, r reflect.Value) {
 		return
 	}
 
-	size := r.Len()
+	size := v.Len()
 
+	t := v.Type()
 	region := &coroutinev1.Region{
 		Type: s.types.ToType(t) << 1,
 	}
@@ -548,14 +558,14 @@ func serializeMapReflect(s *Serializer, t reflect.Type, r reflect.Value) {
 	serializeVarint(regionSer, size)
 
 	// TODO: allocs
-	iter := r.MapRange()
-	k := reflect.New(t.Key()).Elem()
-	v := reflect.New(t.Elem()).Elem()
+	iter := v.MapRange()
+	mk := reflect.New(t.Key()).Elem()
+	mv := reflect.New(t.Elem()).Elem()
 	for iter.Next() {
-		k.Set(iter.Key())
-		v.Set(iter.Value())
-		serializeAny(regionSer, t.Key(), k.Addr().UnsafePointer())
-		serializeAny(regionSer, t.Elem(), v.Addr().UnsafePointer())
+		mk.Set(iter.Key())
+		mv.Set(iter.Value())
+		serializeAny(regionSer, t.Key(), mk.Addr().UnsafePointer())
+		serializeAny(regionSer, t.Elem(), mv.Addr().UnsafePointer())
 	}
 
 	region.Data = regionSer.b
@@ -758,19 +768,19 @@ func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	}
 }
 
-func serializeInterface(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	i := (*iface)(p)
-
-	if i.typ == nil {
+func serializeInterface(s *Serializer, v reflect.Value) {
+	if v.IsNil() {
 		serializeBool(s, false)
 		return
 	}
 	serializeBool(s, true)
 
-	et := reflect.TypeOf(reflect.NewAt(t, p).Elem().Interface())
+	et := reflect.TypeOf(v.Interface())
 	serializeType(s, et)
 
-	eptr := ifacePtr(p, et)
+	vi := v.Interface()
+
+	eptr := ifacePtr(unsafe.Pointer(&vi), et)
 
 	if et.Kind() == reflect.Array {
 		serializePointedAt(s, et.Elem(), et.Len(), eptr)
