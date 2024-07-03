@@ -239,12 +239,16 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 	case reflect.Map:
 		serializeMapReflect(s, v)
 	case reflect.Struct:
+		vi := v.Interface()
+		p := ifacePtr(unsafe.Pointer(&vi), t)
+
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
-			if !f.IsExported() {
-				panic("not implemented: serializing reflect.Value(struct) with unexported fields")
-			}
-			serializeReflectValue(s, f.Type, v.Field(i))
+
+			// This is necessary to avoid the RO flag that's added when
+			// accessing unexported fields via (*reflect.Value).Field.
+			fp := unsafe.Add(p, f.Offset)
+			serializeAny(s, f.Type, fp)
 		}
 	case reflect.Func:
 		if addr := v.Pointer(); addr != 0 {
