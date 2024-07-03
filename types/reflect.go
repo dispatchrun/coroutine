@@ -40,10 +40,10 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	switch t {
-	case reflectTypeType:
+	case reflectTypeT:
 		serializeType(s, *(*reflect.Type)(p))
 		return
-	case reflectValueType:
+	case reflectValueT:
 		v := *(*reflect.Value)(p)
 		serializeType(s, v.Type())
 		serializeReflectValue(s, v.Type(), v)
@@ -117,12 +117,12 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	switch t {
-	case reflectTypeType:
+	case reflectTypeT:
 		rt, _ := deserializeType(d)
-		reflect.NewAt(reflectTypeType, p).Elem().Set(reflect.ValueOf(rt))
+		reflect.NewAt(reflectTypeT, p).Elem().Set(reflect.ValueOf(rt))
 		return
 
-	case reflectValueType:
+	case reflectValueT:
 		rt, length := deserializeType(d)
 		if length >= 0 {
 			// We can't avoid the ArrayOf call here. We need to build a
@@ -133,7 +133,7 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 			rt = reflect.ArrayOf(length, rt)
 		}
 		v := deserializeReflectValue(d, rt)
-		reflect.NewAt(reflectValueType, p).Elem().Set(reflect.ValueOf(v))
+		reflect.NewAt(reflectValueT, p).Elem().Set(reflect.ValueOf(v))
 		return
 	}
 
@@ -194,9 +194,6 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		panic(fmt.Errorf("reflection cannot deserialize type %s", t))
 	}
 }
-
-var reflectValueType = reflect.TypeFor[reflect.Value]()
-var reflectTypeType = reflect.TypeFor[reflect.Type]()
 
 func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 	switch t.Kind() {
