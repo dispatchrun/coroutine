@@ -980,13 +980,11 @@ func serializeComplex64(s *Serializer, x complex64) {
 }
 
 func deserializeComplex64(d *Deserializer, x *complex64) {
-	type complex64 struct {
-		real float32
-		img  float32
-	}
-	p := (*complex64)(unsafe.Pointer(x))
-	deserializeFloat32(d, &p.real)
-	deserializeFloat32(d, &p.img)
+	var real float32
+	var imag float32
+	deserializeFloat32(d, &real)
+	deserializeFloat32(d, &imag)
+	*x = complex(real, imag)
 }
 
 func serializeComplex128(s *Serializer, x complex128) {
@@ -995,13 +993,11 @@ func serializeComplex128(s *Serializer, x complex128) {
 }
 
 func deserializeComplex128(d *Deserializer, x *complex128) {
-	type complex128 struct {
-		real float64
-		img  float64
-	}
-	p := (*complex128)(unsafe.Pointer(x))
-	deserializeFloat64(d, &p.real)
-	deserializeFloat64(d, &p.img)
+	var real float64
+	var imag float64
+	deserializeFloat64(d, &real)
+	deserializeFloat64(d, &imag)
+	*x = complex(real, imag)
 }
 
 func typeof[X any]() reflect.Type {
