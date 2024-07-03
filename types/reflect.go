@@ -58,7 +58,7 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		return
 	}
 
-	v := reflect.NewAt(t, p).Elem()
+	vp := reflect.NewAt(t, p)
 
 	switch t {
 	case reflectValueT:
@@ -71,16 +71,16 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 			// to a reflect.Value.
 			rt = reflect.ArrayOf(length, rt)
 		}
-		rv := deserializeReflectValue(d, rt)
-		v.Set(reflect.ValueOf(rv))
+		rp := reflect.New(rt)
+		deserializeReflectValue(d, rt, rp.Elem(), rp.UnsafePointer())
+		vp.Elem().Set(reflect.ValueOf(rp.Elem()))
 		return
 	}
 
 	switch t.Kind() {
 	case reflect.Interface, reflect.Struct, reflect.Func:
 	default:
-		rv := deserializeReflectValue(d, t)
-		v.Set(rv)
+		deserializeReflectValue(d, t, vp.Elem(), vp.UnsafePointer())
 		return
 	}
 
@@ -155,15 +155,7 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 	case reflect.Struct:
 		vi := v.Interface()
 		p := ifacePtr(unsafe.Pointer(&vi), t)
-
-		for i := 0; i < t.NumField(); i++ {
-			f := t.Field(i)
-
-			// This is necessary to avoid the RO flag that's added when
-			// accessing unexported fields via (*reflect.Value).Field.
-			fp := unsafe.Add(p, f.Offset)
-			serializeAny(s, f.Type, fp)
-		}
+		serializeStructFields(s, p, t.NumField(), t.Field)
 	case reflect.Func:
 		if addr := v.Pointer(); addr != 0 {
 			vi := v.Interface()
@@ -184,115 +176,107 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 	}
 }
 
-func deserializeReflectValue(d *Deserializer, t reflect.Type) (v reflect.Value) {
+func deserializeReflectValue(d *Deserializer, t reflect.Type, v reflect.Value, vp unsafe.Pointer) {
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic(fmt.Errorf("can't deserialize reflect.Invalid"))
 	case reflect.Bool:
 		var value bool
 		deserializeBool(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetBool(value)
 	case reflect.Int:
 		var value int
 		deserializeInt(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetInt(int64(value))
 	case reflect.Int8:
 		var value int8
 		deserializeInt8(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetInt(int64(value))
 	case reflect.Int16:
 		var value int16
 		deserializeInt16(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetInt(int64(value))
 	case reflect.Int32:
 		var value int32
 		deserializeInt32(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetInt(int64(value))
 	case reflect.Int64:
 		var value int64
 		deserializeInt64(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetInt(value)
 	case reflect.Uint:
 		var value uint
 		deserializeUint(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetUint(uint64(value))
 	case reflect.Uint8:
 		var value uint8
 		deserializeUint8(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetUint(uint64(value))
 	case reflect.Uint16:
 		var value uint16
 		deserializeUint16(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetUint(uint64(value))
 	case reflect.Uint32:
 		var value uint32
 		deserializeUint32(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetUint(uint64(value))
 	case reflect.Uint64:
 		var value uint64
 		deserializeUint64(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetUint(value)
 	case reflect.Uintptr:
 		var value uint64
 		deserializeUint64(d, &value)
-		v = reflect.ValueOf(uintptr(value))
+		v.SetUint(value)
 	case reflect.Float32:
 		var value float32
 		deserializeFloat32(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetFloat(float64(value))
 	case reflect.Float64:
 		var value float64
 		deserializeFloat64(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetFloat(value)
 	case reflect.Complex64:
 		var value complex64
 		deserializeComplex64(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetComplex(complex128(value))
 	case reflect.Complex128:
 		var value complex128
 		deserializeComplex128(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetComplex(value)
 	case reflect.String:
 		var value string
 		deserializeString(d, &value)
-		v = reflect.ValueOf(value)
+		v.SetString(value)
 	case reflect.Array:
-		v = reflect.New(t).Elem()
 		deserializeArray(d, t, v.Addr().UnsafePointer())
 	case reflect.Slice:
 		var value slice
 		deserializeSlice(d, t, unsafe.Pointer(&value))
-		v = reflect.New(t).Elem()
 		*(*slice)(unsafe.Pointer(v.UnsafeAddr())) = value
 	case reflect.Map:
-		vp := reflect.New(t)
-		deserializeMapReflect(d, t, vp.Elem(), vp.UnsafePointer())
-		v = vp.Elem()
+		deserializeMapReflect(d, t, v, vp)
 	case reflect.Struct:
-		v = reflect.New(t).Elem()
 		for i := 0; i < t.NumField(); i++ {
-			fv := deserializeReflectValue(d, t.Field(i).Type)
-			v.Field(i).Set(fv)
+			var p unsafe.Pointer // TODO
+			deserializeReflectValue(d, t.Field(i).Type, v.Field(i), p)
 		}
 	case reflect.Func:
 		var fn *Func
 		deserializeFunc(d, t, unsafe.Pointer(&fn))
-		v = reflect.New(t).Elem()
 		if fn != nil {
 			p := unsafe.Pointer(v.UnsafeAddr())
 			*(*unsafe.Pointer)(p) = unsafe.Pointer(&fn.Addr)
 		}
 	case reflect.Pointer:
 		ep := deserializePointedAt(d, t.Elem(), -1)
-		v = reflect.New(t).Elem()
 		v.Set(reflect.NewAt(t.Elem(), ep))
 	case reflect.UnsafePointer:
 		p := deserializePointedAt(d, unsafePointerT, -1)
-		v = reflect.ValueOf(p)
+		v.SetPointer(p)
 	default:
 		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", t))
 	}
-	return
 }
 
 func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Pointer) {
