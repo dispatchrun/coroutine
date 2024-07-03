@@ -290,7 +290,7 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type) (v reflect.Value) 
 		v = reflect.ValueOf(value)
 	case reflect.Array:
 		v = reflect.New(t).Elem()
-		deserializeArray(d, t, unsafe.Pointer(v.UnsafeAddr()))
+		deserializeArray(d, t, v.Addr().UnsafePointer())
 	case reflect.Slice:
 		var value slice
 		deserializeSlice(d, t, unsafe.Pointer(&value))
@@ -318,6 +318,9 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type) (v reflect.Value) 
 		ep := deserializePointedAt(d, t.Elem(), -1)
 		v = reflect.New(t).Elem()
 		v.Set(reflect.NewAt(t.Elem(), ep))
+	case reflect.UnsafePointer:
+		p := deserializePointedAt(d, unsafePointerT, -1)
+		v = reflect.ValueOf(p)
 	default:
 		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", t))
 	}
@@ -622,12 +625,10 @@ func serializeUnsafePointer(s *Serializer, p unsafe.Pointer) {
 	}
 }
 
-var unsafePointerType = reflect.TypeOf(unsafe.Pointer(nil))
-
 func deserializeUnsafePointer(d *Deserializer, p unsafe.Pointer) {
-	r := reflect.NewAt(unsafePointerType, p)
+	r := reflect.NewAt(unsafePointerT, p)
 
-	ep := deserializePointedAt(d, unsafePointerType, -1)
+	ep := deserializePointedAt(d, unsafePointerT, -1)
 	if ep != nil {
 		r.Elem().Set(reflect.ValueOf(ep))
 	}
