@@ -39,17 +39,8 @@ func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
 		return
 	}
 
-	switch t {
-	case reflectTypeT:
-		serializeType(s, *(*reflect.Type)(p))
-	case reflectValueT:
-		v := *(*reflect.Value)(p)
-		serializeType(s, v.Type())
-		serializeReflectValue(s, v.Type(), v)
-	default:
-		v := reflect.NewAt(t, p).Elem()
-		serializeReflectValue(s, t, v)
-	}
+	v := reflect.NewAt(t, p).Elem()
+	serializeReflectValue(s, t, v)
 }
 
 func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
@@ -60,30 +51,22 @@ func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	vp := reflect.NewAt(t, p)
-
-	switch t {
-	case reflectTypeT:
-		rt, _ := deserializeType(d)
-		vp.Elem().Set(reflect.ValueOf(rt))
-	case reflectValueT:
-		rt, length := deserializeType(d)
-		if length >= 0 {
-			// We can't avoid the ArrayOf call here. We need to build a
-			// reflect.Type in order to return a reflect.Value. The only
-			// time this path is taken is if the user has explicitly serialized
-			// a reflect.Value, or some other data type that contains or points
-			// to a reflect.Value.
-			rt = reflect.ArrayOf(length, rt)
-		}
-		rp := reflect.New(rt)
-		deserializeReflectValue(d, rt, rp.Elem(), rp.UnsafePointer())
-		vp.Elem().Set(reflect.ValueOf(rp.Elem()))
-	default:
-		deserializeReflectValue(d, t, vp.Elem(), vp.UnsafePointer())
-	}
+	deserializeReflectValue(d, t, vp.Elem(), vp.UnsafePointer())
 }
 
 func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
+	switch t {
+	case reflectTypeT:
+		rt := v.Interface().(reflect.Type)
+		serializeType(s, rt)
+		return
+	case reflectValueT:
+		rv := v.Interface().(reflect.Value)
+		serializeType(s, rv.Type())
+		serializeReflectValue(s, rv.Type(), rv)
+		return
+	}
+
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic(fmt.Errorf("can't serialize reflect.Invalid"))
@@ -164,6 +147,27 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 }
 
 func deserializeReflectValue(d *Deserializer, t reflect.Type, v reflect.Value, vp unsafe.Pointer) {
+	switch t {
+	case reflectTypeT:
+		rt, _ := deserializeType(d)
+		v.Set(reflect.ValueOf(rt))
+		return
+	case reflectValueT:
+		rt, length := deserializeType(d)
+		if length >= 0 {
+			// We can't avoid the ArrayOf call here. We need to build a
+			// reflect.Type in order to return a reflect.Value. The only
+			// time this path is taken is if the user has explicitly serialized
+			// a reflect.Value, or some other data type that contains or points
+			// to a reflect.Value.
+			rt = reflect.ArrayOf(length, rt)
+		}
+		rp := reflect.New(rt)
+		deserializeReflectValue(d, rt, rp.Elem(), rp.UnsafePointer())
+		v.Set(reflect.ValueOf(rp.Elem()))
+		return
+	}
+
 	switch t.Kind() {
 	case reflect.Invalid:
 		panic(fmt.Errorf("can't deserialize reflect.Invalid"))
