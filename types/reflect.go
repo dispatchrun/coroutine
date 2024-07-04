@@ -119,7 +119,7 @@ func (s *Serializer) VisitInterface(v reflect.Value) bool {
 	et := v.Elem().Type()
 	serializeType(s, et)
 
-	p := reflectext.InterfacePointer(v)
+	p := reflectext.InterfaceValueOf(v).DataPointer()
 	if et.Kind() == reflect.Array {
 		serializeRegion(s, et.Elem(), et.Len(), p)
 	} else {
@@ -286,7 +286,7 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 		if data == nil {
 			return
 		}
-		reflectext.SliceValue{Value: v}.SetSlice(data, len, cap)
+		reflectext.SliceValueOf(v).SetSlice(data, len, cap)
 	case reflect.Map:
 		deserializeMap(d, t, v, vp.UnsafePointer())
 	case reflect.Struct:
@@ -581,7 +581,7 @@ func deserializeFunc(d *Deserializer, v reflect.Value) {
 		panic(fn.Name + ": function type mismatch: " + fn.Type.String() + " != " + t.String())
 	}
 
-	fv := reflectext.FunctionValue{Value: v}
+	fv := reflectext.FuncValueOf(v)
 	if fn.Closure != nil {
 		t := fn.Closure
 		closure := reflect.New(t)

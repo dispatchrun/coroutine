@@ -11,11 +11,17 @@ import (
 // the type.
 type SliceValue struct{ reflect.Value }
 
-// SetSlice sets the slice data pointer, length and capacity.
-func (v SliceValue) SetSlice(data unsafe.Pointer, len, cap int) {
+// SliceValueOf converts a slice value into a SliceValue.
+func SliceValueOf(v reflect.Value) SliceValue {
 	if v.Kind() != reflect.Slice {
 		panic("not a slice")
-	} else if !v.CanAddr() {
+	}
+	return SliceValue{v}
+}
+
+// SetSlice sets the slice data pointer, length and capacity.
+func (v SliceValue) SetSlice(data unsafe.Pointer, len, cap int) {
+	if !v.CanAddr() {
 		panic("slice is not addressable")
 	}
 	*(*sliceHeader)(v.Addr().UnsafePointer()) = sliceHeader{data: data, len: len, cap: cap}
@@ -29,27 +35,36 @@ type StructValue struct {
 	base unsafe.Pointer
 }
 
+// StructValueOf converts a struct value into a StructValue.
+func StructValueOf(v reflect.Value) StructValue {
+	if v.Kind() != reflect.Struct {
+		panic("not a struct")
+	}
+	base := unsafeInterfacePointer(v)
+	return StructValue{v, base}
+}
+
 // Field returns the i'th field of the struct v.
 // It panics if v's Kind is not Struct or i is out of range.
 func (v *StructValue) Field(i int) reflect.Value {
-	if v.Kind() != reflect.Struct {
-		panic("not a struct")
-	} else if i > v.NumField() {
+	if i > v.NumField() {
 		panic("field out of range")
-	}
-	if v.base == nil {
-		// This requires at least one allocation. Cache the base
-		// pointer so that we only pay the cost once per struct
-		// during iteration rather than once per field.
-		v.base = unsafeInterfacePointer(v.Value)
 	}
 	f := v.Type().Field(i)
 	return reflect.NewAt(f.Type, unsafe.Add(v.base, f.Offset)).Elem()
 }
 
-// FunctionValue is a wrapper for a function value that
-// provides access to closure vars.
-type FunctionValue struct{ reflect.Value }
+// FuncValue is a wrapper for a func value that provides access
+// to closure vars.
+type FuncValue struct{ reflect.Value }
+
+// FuncValueOf converts a func value into a FuncValue.
+func FuncValueOf(v reflect.Value) FuncValue {
+	if v.Kind() != reflect.Func {
+		panic("not a func")
+	}
+	return FuncValue{v}
+}
 
 // Closure retrieves the function's closure variables as a struct value.
 //
@@ -58,10 +73,7 @@ type FunctionValue struct{ reflect.Value }
 //
 // Closure vars are only available for functions that have type information
 // registered at runtime. See RegisterClosure for more information.
-func (v FunctionValue) Closure() (reflect.Value, bool) {
-	if v.Kind() != reflect.Func {
-		panic("not a func")
-	}
+func (v FuncValue) Closure() (reflect.Value, bool) {
 	addr := uintptr(v.UnsafePointer())
 	if f := FuncByAddr(addr); f == nil {
 		// function not found at addr
@@ -79,10 +91,8 @@ func (v FunctionValue) Closure() (reflect.Value, bool) {
 }
 
 // SetClosure sets the function address and closure vars.
-func (v FunctionValue) SetClosure(addr uintptr, c reflect.Value) {
-	if v.Kind() != reflect.Func {
-		panic("not a func")
-	} else if c.Kind() != reflect.Pointer ||
+func (v FuncValue) SetClosure(addr uintptr, c reflect.Value) {
+	if c.Kind() != reflect.Pointer ||
 		c.IsNil() ||
 		c.Elem().Kind() != reflect.Struct ||
 		c.Type().Elem().Field(0).Type.Kind() != reflect.Uintptr {
@@ -95,18 +105,27 @@ func (v FunctionValue) SetClosure(addr uintptr, c reflect.Value) {
 }
 
 // SetAddr sets the function address, and clears any closure vars.
-func (v FunctionValue) SetAddr(addr uintptr) {
+func (v FuncValue) SetAddr(addr uintptr) {
 	h := &functionHeader{addr: addr}
 	p := v.Addr().UnsafePointer()
 	*(*unsafe.Pointer)(p) = unsafe.Pointer(h)
 }
 
-// InterfacePointer extracts the data pointer from an interface.
-func InterfacePointer(v reflect.Value) unsafe.Pointer {
+// InterfaceValue is a wrapper for an interface value that provides
+// access to a pointer to the interface data.
+type InterfaceValue struct{ reflect.Value }
+
+// InterfaceValueOf converts an interface value into a InterfaceValue.
+func InterfaceValueOf(v reflect.Value) InterfaceValue {
 	if v.Kind() != reflect.Interface {
 		panic("not an interface")
 	}
-	return unsafeInterfacePointer(v)
+	return InterfaceValue{v}
+}
+
+// DataPointer is a pointer to the interface data.
+func (v InterfaceValue) DataPointer() unsafe.Pointer {
+	return unsafeInterfacePointer(v.Value)
 }
 
 func unsafeInterfacePointer(v reflect.Value) unsafe.Pointer {

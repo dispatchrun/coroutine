@@ -188,9 +188,9 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 		if visitor.VisitStruct(v) {
 			if (flags & VisitUnexportedFields) != 0 {
 				// The wrapper makes unexported fields available.
-				v := StructValue{Value: v}
-				for i := 0; i < v.NumField(); i++ {
-					Visit(visitor, v.Field(i), flags)
+				unrestricted := StructValueOf(v)
+				for i := 0; i < unrestricted.NumField(); i++ {
+					Visit(visitor, unrestricted.Field(i), flags)
 				}
 			} else {
 				t := v.Type()
@@ -204,8 +204,9 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 
 	case reflect.Func:
 		if visitor.VisitFunc(v) && !v.IsNil() && (flags&VisitClosures) != 0 {
-			v := FunctionValue{v}
-			if closure, ok := v.Closure(); ok {
+			// The wrapper makes closure vars available.
+			fv := FuncValueOf(v)
+			if closure, ok := fv.Closure(); ok {
 				Visit(visitor, closure, flags)
 			}
 		}
