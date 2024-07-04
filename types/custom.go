@@ -39,10 +39,7 @@ type DeserializerFunc[T any] func(*Deserializer, *T) error
 // result, slices sharing the same backing array are deserialized into one array
 // with two shared slices, just like the original state was. Elements between
 // length and capacity are also preserved.
-func Register[T any](
-	serializer SerializerFunc[T],
-	deserializer DeserializerFunc[T]) {
-
+func Register[T any](serializer SerializerFunc[T], deserializer DeserializerFunc[T]) {
 	registerSerde(serdes, serializer, deserializer)
 }
 
