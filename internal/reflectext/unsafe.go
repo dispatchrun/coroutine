@@ -62,20 +62,43 @@ func (v FunctionValue) Closure() (reflect.Value, bool) {
 	if v.Kind() != reflect.Func {
 		panic("not a func")
 	}
-	addr := v.UnsafePointer()
-	if f := FuncByAddr(uintptr(addr)); f == nil {
+	addr := uintptr(v.UnsafePointer())
+	if f := FuncByAddr(addr); f == nil {
 		// function not found at addr
 	} else if f.Type == nil {
 		// function type info not registered
 	} else if f.Closure != nil {
-		fh := *(**FunctionHeader)(unsafeInterfacePointer(v.Value))
-		if fh.Addr != addr {
+		h := *(**functionHeader)(unsafeInterfacePointer(v.Value))
+		if h.addr != addr {
 			panic("invalid closure")
 		}
-		closure := reflect.NewAt(f.Closure, unsafe.Pointer(fh)).Elem()
+		closure := reflect.NewAt(f.Closure, unsafe.Pointer(h)).Elem()
 		return closure, true
 	}
 	return reflect.Value{}, false
+}
+
+// SetClosure sets the function address and closure vars.
+func (v FunctionValue) SetClosure(addr uintptr, c reflect.Value) {
+	if v.Kind() != reflect.Func {
+		panic("not a func")
+	} else if c.Kind() != reflect.Pointer ||
+		c.IsNil() ||
+		c.Elem().Kind() != reflect.Struct ||
+		c.Type().Elem().Field(0).Type.Kind() != reflect.Uintptr {
+		panic("invalid closure vars")
+	}
+	h := (*functionHeader)(c.UnsafePointer())
+	h.addr = addr
+	p := v.Addr().UnsafePointer()
+	*(*unsafe.Pointer)(p) = unsafe.Pointer(h)
+}
+
+// SetAddr sets the function address, and clears any closure vars.
+func (v FunctionValue) SetAddr(addr uintptr) {
+	h := &functionHeader{addr: addr}
+	p := v.Addr().UnsafePointer()
+	*(*unsafe.Pointer)(p) = unsafe.Pointer(h)
 }
 
 // InterfacePointer extracts the data pointer from an interface.
@@ -170,17 +193,15 @@ func InternedIntPointer(offset int) unsafe.Pointer {
 	return unsafe.Add(internedBase, offset)
 }
 
-// FunctionHeader is the container for function pointers
-// and closure vars.
-type FunctionHeader struct {
-	Addr unsafe.Pointer
-	// closure vars follow...
-}
-
 type sliceHeader struct {
 	data unsafe.Pointer
 	len  int
 	cap  int
+}
+
+type functionHeader struct {
+	addr uintptr
+	// closure vars follow...
 }
 
 type interfaceHeader struct {

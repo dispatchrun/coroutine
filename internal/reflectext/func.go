@@ -79,11 +79,11 @@ func FuncAddr(fn any) uintptr {
 	if reflect.TypeOf(fn).Kind() != reflect.Func {
 		panic("value must be a function")
 	}
-	header := (*FunctionHeader)((*interfaceHeader)(unsafe.Pointer(&fn)).ptr)
+	header := (*functionHeader)((*interfaceHeader)(unsafe.Pointer(&fn)).ptr)
 	if header == nil {
 		return 0
 	}
-	return uintptr(header.Addr)
+	return uintptr(header.addr)
 }
 
 // FuncByName returns the function associated with the given name.

@@ -581,25 +581,16 @@ func deserializeFunc(d *Deserializer, v reflect.Value) {
 		panic(fn.Name + ": function type mismatch: " + fn.Type.String() + " != " + t.String())
 	}
 
-	var header *reflectext.FunctionHeader
+	fv := reflectext.FunctionValue{Value: v}
 	if fn.Closure != nil {
 		t := fn.Closure
-		cv := reflect.New(t)
-
-		closure := (*reflectext.FunctionHeader)(cv.UnsafePointer())
-
-		deserializeStructFields(d, unsafe.Pointer(closure), t.NumField(), func(i int) reflect.StructField {
-			return t.Field(i)
-		})
-
-		closure.Addr = unsafe.Pointer(fn.Addr)
-		header = closure
+		closure := reflect.New(t)
+		p := closure.UnsafePointer()
+		deserializeStructFields(d, p, t.NumField(), t.Field)
+		fv.SetClosure(fn.Addr, closure)
 	} else {
-		header = &reflectext.FunctionHeader{Addr: unsafe.Pointer(fn.Addr)}
+		fv.SetAddr(fn.Addr)
 	}
-
-	p := v.Addr().UnsafePointer()
-	*(*unsafe.Pointer)(p) = unsafe.Pointer(header)
 }
 
 func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
