@@ -1,25 +1,10 @@
 package types
 
 import (
-	"reflect"
 	"unsafe"
 
 	"github.com/dispatchrun/coroutine/internal/reflectext"
 )
-
-// Used for unsafe access to internals of interface{} and reflect.Value.
-type iface struct {
-	typ unsafe.Pointer
-	ptr unsafe.Pointer
-}
-
-func ifacePtr(p unsafe.Pointer, t reflect.Type) unsafe.Pointer {
-	i := (*iface)(p)
-	if inlined(t) {
-		return unsafe.Pointer(&i.ptr)
-	}
-	return i.ptr
-}
 
 // Used instead of reflect.SliceHeader to use an unsafe.Pointer instead of
 // uintptr.
@@ -35,33 +20,12 @@ type function struct {
 	// closure vars follow...
 }
 
-// returns true iff type t would be inlined in an interface.
-func inlined(t reflect.Type) bool {
-	if t == nil {
-		return false
-	}
-	switch t.Kind() {
-	case reflect.Func:
-		return true
-	case reflect.Ptr:
-		return true
-	case reflect.Map:
-		return true
-	case reflect.Struct:
-		return t.NumField() == 1 && inlined(t.Field(0).Type)
-	case reflect.Array:
-		return t.Len() == 1 && inlined(t.Elem())
-	default:
-		return false
-	}
-}
-
 var staticuint64s unsafe.Pointer
 
 func init() {
 	zero := 0
 	var x interface{} = zero
-	staticuint64s = ifacePtr(unsafe.Pointer(&x), nil)
+	staticuint64s = reflectext.IfacePtr(unsafe.Pointer(&x), nil)
 }
 
 func static(p unsafe.Pointer) bool {
@@ -74,24 +38,4 @@ func staticOffset(p unsafe.Pointer) int {
 
 func staticPointer(offset int) unsafe.Pointer {
 	return unsafe.Add(staticuint64s, offset)
-}
-
-// namedType offset is the number of bytes from the address of the 'byte' type
-// value to the ptr field of a reflect.Type. It is used to roundtrip named types
-// for a given version of the program.
-type namedTypeOffset uint64
-
-func offsetForType(t reflect.Type) namedTypeOffset {
-	tptr := (*iface)(unsafe.Pointer(&t)).ptr
-	bptr := (*iface)(unsafe.Pointer(&reflectext.ByteType)).ptr
-	return namedTypeOffset(uintptr(tptr) - uintptr(bptr))
-}
-
-func typeForOffset(offset namedTypeOffset) reflect.Type {
-	biface := (*iface)(unsafe.Pointer(&reflectext.ByteType))
-	tiface := &iface{
-		typ: biface.typ,
-		ptr: unsafe.Add(biface.ptr, offset),
-	}
-	return *(*reflect.Type)(unsafe.Pointer(tiface))
 }

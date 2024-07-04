@@ -52,7 +52,7 @@ func (m *typemap) ToReflect(id typeid) reflect.Type {
 
 	if t.CustomSerializer > 0 {
 		if t.MemoryOffset != 0 {
-			et := typeForOffset(namedTypeOffset(t.MemoryOffset))
+			et := reflectext.NamedTypeForOffset(reflectext.NamedTypeOffset(t.MemoryOffset))
 			if t.Kind == coroutinev1.Kind_KIND_POINTER {
 				et = reflect.PointerTo(et)
 			}
@@ -63,7 +63,7 @@ func (m *typemap) ToReflect(id typeid) reflect.Type {
 	}
 
 	if t.MemoryOffset != 0 {
-		return typeForOffset(namedTypeOffset(t.MemoryOffset))
+		return reflectext.NamedTypeForOffset(reflectext.NamedTypeOffset(t.MemoryOffset))
 	}
 
 	var x reflect.Type
@@ -204,7 +204,7 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 	}
 
 	if t.Name() != "" || t.Kind() == reflect.Interface {
-		ti.MemoryOffset = uint64(offsetForType(t))
+		ti.MemoryOffset = uint64(reflectext.OffsetForNamedType(t))
 	}
 
 	// Register the incomplete type now before recursing,
@@ -216,7 +216,7 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 	if s, ok := m.serdes.serdeByType(t); ok {
 		if t.Name() == "" && t.Kind() == reflect.Pointer {
 			if et := t.Elem(); et.Name() != "" {
-				ti.MemoryOffset = uint64(offsetForType(et))
+				ti.MemoryOffset = uint64(reflectext.OffsetForNamedType(et))
 				ti.Name = m.strings.Intern(et.Name())
 				ti.Package = m.strings.Intern(et.PkgPath())
 			}
@@ -245,7 +245,7 @@ func (m *typemap) ToType(t reflect.Type) typeid {
 		for i := range ti.Fields {
 			f := t.Field(i)
 			if !f.IsExported() && ti.MemoryOffset == 0 {
-				ti.MemoryOffset = uint64(offsetForType(t))
+				ti.MemoryOffset = uint64(reflectext.OffsetForNamedType(t))
 			}
 			index := make([]int32, len(f.Index))
 			for j := range index {
