@@ -98,14 +98,14 @@ func (s *Serializer) VisitString(v reflect.Value) {
 	serializeVarint(s, siz)
 	if siz > 0 {
 		p := unsafe.Pointer(unsafe.StringData(str))
-		serializePointedAt(s, reflectext.ByteType, siz, p)
+		serializeRegion(s, reflectext.ByteType, siz, p)
 	}
 }
 
 func (s *Serializer) VisitSlice(v reflect.Value) bool {
 	serializeVarint(s, v.Len())
 	serializeVarint(s, v.Cap())
-	serializePointedAt(s, v.Type().Elem(), v.Cap(), v.UnsafePointer())
+	serializeRegion(s, v.Type().Elem(), v.Cap(), v.UnsafePointer())
 	return false
 }
 
@@ -121,9 +121,9 @@ func (s *Serializer) VisitInterface(v reflect.Value) bool {
 
 	p := reflectext.InterfacePointer(v)
 	if et.Kind() == reflect.Array {
-		serializePointedAt(s, et.Elem(), et.Len(), p)
+		serializeRegion(s, et.Elem(), et.Len(), p)
 	} else {
-		serializePointedAt(s, et, -1, p)
+		serializeRegion(s, et, -1, p)
 	}
 	return false
 }
@@ -145,12 +145,12 @@ func (s *Serializer) VisitFunc(v reflect.Value) bool {
 }
 
 func (s *Serializer) VisitPointer(v reflect.Value) bool {
-	serializePointedAt(s, v.Type().Elem(), -1, v.UnsafePointer())
+	serializeRegion(s, v.Type().Elem(), -1, v.UnsafePointer())
 	return false
 }
 
 func (s *Serializer) VisitUnsafePointer(v reflect.Value) {
-	serializePointedAt(s, nil, -1, v.UnsafePointer())
+	serializeRegion(s, nil, -1, v.UnsafePointer())
 }
 
 func (s *Serializer) VisitChan(v reflect.Value) bool {
@@ -282,7 +282,7 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 	case reflect.Slice:
 		len := deserializeVarint(d)
 		cap := deserializeVarint(d)
-		data := deserializePointedAt(d, t.Elem(), cap)
+		data := deserializeRegion(d, t.Elem(), cap)
 		if data == nil {
 			return
 		}
@@ -299,7 +299,7 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 		if ok {
 			et, length := deserializeType(d)
 			if et != nil {
-				if ep := deserializePointedAt(d, et, length); ep != nil {
+				if ep := deserializeRegion(d, et, length); ep != nil {
 					// FIXME: is there a way to avoid ArrayOf+NewAt here? We can
 					//  access the iface via p. We can set the ptr, but not the typ.
 					if length >= 0 {
@@ -313,17 +313,17 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 			}
 		}
 	case reflect.Pointer:
-		ep := deserializePointedAt(d, t.Elem(), -1)
+		ep := deserializeRegion(d, t.Elem(), -1)
 		v.Set(reflect.NewAt(t.Elem(), ep))
 	case reflect.UnsafePointer:
-		p := deserializePointedAt(d, reflectext.UnsafePointerType, -1)
+		p := deserializeRegion(d, reflectext.UnsafePointerType, -1)
 		v.SetPointer(p)
 	default:
 		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", t))
 	}
 }
 
-func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Pointer) {
+func serializeRegion(s *Serializer, et reflect.Type, length int, p unsafe.Pointer) {
 	// If this is a nil pointer, write it as such.
 	if p == nil {
 		serializeVarint(s, 0)
@@ -336,7 +336,7 @@ func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Poi
 		return
 	}
 
-	// Check the region of this pointer.
+	// Find the region of this pointer.
 	r := s.containers.of(p)
 
 	// If the pointer does not point to a known region encountered via
@@ -403,7 +403,7 @@ func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Poi
 	region.Data = regionSerializer.buffer
 }
 
-func deserializePointedAt(d *Deserializer, t reflect.Type, length int) unsafe.Pointer {
+func deserializeRegion(d *Deserializer, t reflect.Type, length int) unsafe.Pointer {
 	// This function is a bit different than the other deserialize* ones
 	// because it deserializes into an unknown location. As a result,
 	// instead of taking an unsafe.Pointer as an input, it returns an
@@ -616,7 +616,7 @@ func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	}
 
 	// Deserialize the pointer
-	ep := deserializePointedAt(d, et, length)
+	ep := deserializeRegion(d, et, length)
 
 	// Store the result in the interface
 	r := reflect.NewAt(t, p)
@@ -640,7 +640,7 @@ func deserializeString(d *Deserializer, x *string) {
 		return
 	}
 
-	ar := deserializePointedAt(d, reflectext.ByteType, l)
+	ar := deserializeRegion(d, reflectext.ByteType, l)
 
 	*x = unsafe.String((*byte)(ar), l)
 }
