@@ -82,12 +82,48 @@ type Visitor interface {
 	// the pointer points to (if not null).
 	VisitPointer(reflect.Value) bool
 
+	// VisitArray is called when an array value is encountered.
+	//
+	// If the function returns true, the visitor will visit each
+	// item in the array.
 	VisitArray(reflect.Value) bool
+
+	// VisitSlice is called when a slice value is encountered.
+	//
+	// If the function returns true, the visitor will visit each
+	// item in the slice.
 	VisitSlice(reflect.Value) bool
+
+	// VisitMap is called when a map value is encountered.
+	//
+	// If the function returns true, the visitor will visit each
+	// key/value pair in the map.
 	VisitMap(reflect.Value) bool
+
+	// VisitChan is called when a channel value is encountered.
+	//
+	// The visitor does not currently visit items in the channel,
+	// since doing so would be a blocking operation.
+	//
+	// TODO: support visiting buffered channel items
 	VisitChan(reflect.Value) bool
+
+	// VisitStruct is called when a struct value is encountered.
+	//
+	// If the function returns true, the visitor will visit each
+	// field in the struct.
 	VisitStruct(reflect.Value) bool
+
+	// VisitFunc is called when a function value is encountered.
+	//
+	// If the function returns true, and the appropriate flag is set,
+	// the visitor will visit each closure var (if applicable).
 	VisitFunc(reflect.Value) bool
+
+	// VisitInterface is called when an interface value is encountered.
+	//
+	// If the function returns true, the visitor will visit the
+	// interface element.
 	VisitInterface(reflect.Value) bool
 }
 
@@ -185,6 +221,7 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 		if visitor.VisitPointer(v) && !v.IsNil() {
 			Visit(visitor, v.Elem(), flags)
 		}
+
 	case reflect.Array:
 		if visitor.VisitArray(v) {
 			for i := 0; i < v.Len(); i++ {
@@ -194,6 +231,7 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 
 	case reflect.Slice:
 		if visitor.VisitSlice(v) {
+			// TODO: iterate up to v.Cap() if a flag is set
 			for i := 0; i < v.Len(); i++ {
 				Visit(visitor, v.Index(i), flags)
 			}
