@@ -113,8 +113,8 @@ const (
 	// VisitClosures instructs Visit to visit values captured by closures.
 	VisitClosures
 
-	// VisitReflectValues instructs Visit to visit values contained with
-	// reflect.Value.
+	// VisitReflectValues instructs Visit to visit values contained within
+	// nested reflect.Value.
 	VisitReflectValues
 
 	// VisitAll instructs Visit to visit all values in the graph.
