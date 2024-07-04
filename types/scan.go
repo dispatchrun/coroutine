@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"sort"
 	"unsafe"
+
+	"github.com/dispatchrun/coroutine/internal/reflectext"
 )
 
 type container struct {
@@ -280,7 +282,7 @@ func (s *scanner) VisitString(str string) {
 	if len(str) == 0 {
 		return
 	}
-	s.containers.add(byteT, len(str), unsafe.Pointer(unsafe.StringData(str)))
+	s.containers.add(reflectext.ByteType, len(str), unsafe.Pointer(unsafe.StringData(str)))
 }
 
 func (s *scanner) VisitSlice(v reflect.Value) bool {

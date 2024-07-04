@@ -69,64 +69,64 @@ func (m *typemap) ToReflect(id typeid) reflect.Type {
 	var x reflect.Type
 	switch t.Kind {
 	case coroutinev1.Kind_KIND_BOOL:
-		x = boolT
+		x = reflectext.BoolType
 
 	case coroutinev1.Kind_KIND_INT:
-		x = intT
+		x = reflectext.IntType
 
 	case coroutinev1.Kind_KIND_INT8:
-		x = int8T
+		x = reflectext.Int8Type
 
 	case coroutinev1.Kind_KIND_INT16:
-		x = int16T
+		x = reflectext.Int16Type
 
 	case coroutinev1.Kind_KIND_INT32:
-		x = int32T
+		x = reflectext.Int32Type
 
 	case coroutinev1.Kind_KIND_INT64:
-		x = int64T
+		x = reflectext.Int64Type
 
 	case coroutinev1.Kind_KIND_UINT:
-		x = uintT
+		x = reflectext.UintType
 
 	case coroutinev1.Kind_KIND_UINT8:
-		x = uint8T
+		x = reflectext.Uint8Type
 
 	case coroutinev1.Kind_KIND_UINT16:
-		x = uint16T
+		x = reflectext.Uint16Type
 
 	case coroutinev1.Kind_KIND_UINT32:
-		x = uint32T
+		x = reflectext.Uint32Type
 
 	case coroutinev1.Kind_KIND_UINT64:
-		x = uint64T
+		x = reflectext.Uint64Type
 
 	case coroutinev1.Kind_KIND_UINTPTR:
-		x = uintptrT
+		x = reflectext.UintptrType
 
 	case coroutinev1.Kind_KIND_FLOAT32:
-		x = float32T
+		x = reflectext.Float32Type
 
 	case coroutinev1.Kind_KIND_FLOAT64:
-		x = float64T
+		x = reflectext.Float64Type
 
 	case coroutinev1.Kind_KIND_COMPLEX64:
-		x = complex64T
+		x = reflectext.Complex64Type
 
 	case coroutinev1.Kind_KIND_COMPLEX128:
-		x = complex128T
+		x = reflectext.Complex128Type
 
 	case coroutinev1.Kind_KIND_STRING:
-		x = stringT
+		x = reflectext.StringType
 
 	case coroutinev1.Kind_KIND_INTERFACE:
-		x = anyT
+		x = reflectext.AnyType
 
 	case coroutinev1.Kind_KIND_POINTER:
 		x = reflect.PointerTo(m.ToReflect(typeid(t.Elem)))
 
 	case coroutinev1.Kind_KIND_UNSAFE_POINTER:
-		x = unsafePointerT
+		x = reflectext.UnsafePointerType
 
 	case coroutinev1.Kind_KIND_MAP:
 		x = reflect.MapOf(m.ToReflect(typeid(t.Key)), m.ToReflect(typeid(t.Elem)))
@@ -442,36 +442,3 @@ func (m *doublemap[K, V]) add(k K, v V) V {
 	m.fromV[v] = k
 	return v
 }
-
-var (
-	anyT = reflect.TypeFor[any]()
-
-	boolT = reflect.TypeFor[bool]()
-
-	intT   = reflect.TypeFor[int]()
-	int8T  = reflect.TypeFor[int8]()
-	int16T = reflect.TypeFor[int16]()
-	int32T = reflect.TypeFor[int32]()
-	int64T = reflect.TypeFor[int64]()
-
-	uintT   = reflect.TypeFor[uint]()
-	uint8T  = reflect.TypeFor[uint8]()
-	uint16T = reflect.TypeFor[uint16]()
-	uint32T = reflect.TypeFor[uint32]()
-	uint64T = reflect.TypeFor[uint64]()
-
-	float32T = reflect.TypeFor[float32]()
-	float64T = reflect.TypeFor[float64]()
-
-	complex64T  = reflect.TypeFor[complex64]()
-	complex128T = reflect.TypeFor[complex128]()
-
-	byteT   = reflect.TypeFor[byte]()
-	stringT = reflect.TypeFor[string]()
-
-	uintptrT       = reflect.TypeFor[uintptr]()
-	unsafePointerT = reflect.TypeFor[unsafe.Pointer]()
-
-	reflectValueT = reflect.TypeFor[reflect.Value]()
-	reflectTypeT  = reflect.TypeFor[reflect.Type]()
-)

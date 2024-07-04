@@ -25,12 +25,12 @@ func (s *Serializer) Visit(v reflect.Value) bool {
 
 	// Special cases for reflect.Type and reflect.Value.
 	switch t {
-	case reflectTypeT:
+	case reflectext.ReflectTypeType:
 		rt := v.Interface().(reflect.Type)
 		serializeType(s, rt)
 		return false
 
-	case reflectValueT:
+	case reflectext.ReflectValueType:
 		rv := v.Interface().(reflect.Value)
 		serializeType(s, rv.Type())
 		Visit(s, rv, VisitUnexportedFields|VisitClosures) // FIXME: propagate flags
@@ -62,7 +62,7 @@ func (s *Serializer) VisitString(v string) {
 	serializeVarint(s, len(v))
 	if len(v) > 0 {
 		p := unsafe.Pointer(unsafe.StringData(v))
-		serializePointedAt(s, byteT, len(v), p)
+		serializePointedAt(s, reflectext.ByteType, len(v), p)
 	}
 }
 
@@ -151,11 +151,11 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 	}
 
 	switch t {
-	case reflectTypeT:
+	case reflectext.ReflectTypeType:
 		rt, _ := deserializeType(d)
 		v.Set(reflect.ValueOf(rt))
 		return
-	case reflectValueT:
+	case reflectext.ReflectValueType:
 		rt, length := deserializeType(d)
 		if length >= 0 {
 			// We can't avoid the ArrayOf call here. We need to build a
@@ -282,7 +282,7 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 		ep := deserializePointedAt(d, t.Elem(), -1)
 		v.Set(reflect.NewAt(t.Elem(), ep))
 	case reflect.UnsafePointer:
-		p := deserializePointedAt(d, unsafePointerT, -1)
+		p := deserializePointedAt(d, reflectext.UnsafePointerType, -1)
 		v.SetPointer(p)
 	default:
 		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", t))
@@ -621,7 +621,7 @@ func deserializeString(d *Deserializer, x *string) {
 		return
 	}
 
-	ar := deserializePointedAt(d, byteT, l)
+	ar := deserializePointedAt(d, reflectext.ByteType, l)
 
 	*x = unsafe.String((*byte)(ar), l)
 }

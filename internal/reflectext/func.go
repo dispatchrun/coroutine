@@ -53,8 +53,7 @@ type Func struct {
 // identifying the function in the package.
 func RegisterFunc[Type any](name string) {
 	if f := FuncByName(name); f != nil {
-		var signature Type
-		f.Type = reflect.TypeOf(signature)
+		f.Type = reflect.TypeFor[Type]()
 	}
 }
 
@@ -62,9 +61,7 @@ func RegisterFunc[Type any](name string) {
 // type (see types.Func for details).
 func RegisterClosure[Type, Closure any](name string) {
 	if f := FuncByName(name); f != nil {
-		var signature Type
-		var closure Closure
-		f.Type, f.Closure = reflect.TypeOf(signature), reflect.TypeOf(closure)
+		f.Type, f.Closure = reflect.TypeFor[Type](), reflect.TypeFor[Closure]()
 	}
 }
 

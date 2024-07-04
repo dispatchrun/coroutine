@@ -50,7 +50,7 @@ func registerSerde[T any](serdes *serdemap,
 	serializer func(*Serializer, T) error,
 	deserializer func(*Deserializer, *T) error) {
 
-	t := reflect.TypeOf((*T)(nil)).Elem()
+	t := reflect.TypeFor[T]()
 
 	s := func(s *Serializer, v reflect.Value) {
 		if t != v.Type() {

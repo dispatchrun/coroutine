@@ -3,6 +3,8 @@ package types
 import (
 	"reflect"
 	"unsafe"
+
+	"github.com/dispatchrun/coroutine/internal/reflectext"
 )
 
 // Used for unsafe access to internals of interface{} and reflect.Value.
@@ -81,12 +83,12 @@ type namedTypeOffset uint64
 
 func offsetForType(t reflect.Type) namedTypeOffset {
 	tptr := (*iface)(unsafe.Pointer(&t)).ptr
-	bptr := (*iface)(unsafe.Pointer(&byteT)).ptr
+	bptr := (*iface)(unsafe.Pointer(&reflectext.ByteType)).ptr
 	return namedTypeOffset(uintptr(tptr) - uintptr(bptr))
 }
 
 func typeForOffset(offset namedTypeOffset) reflect.Type {
-	biface := (*iface)(unsafe.Pointer(&byteT))
+	biface := (*iface)(unsafe.Pointer(&reflectext.ByteType))
 	tiface := &iface{
 		typ: biface.typ,
 		ptr: unsafe.Add(biface.ptr, offset),

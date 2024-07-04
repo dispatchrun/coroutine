@@ -98,7 +98,7 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 		return
 	}
 
-	if v.Type() == reflectValueT {
+	if v.Type() == reflectext.ReflectValueType {
 		rv := v.Interface().(reflect.Value)
 		Visit(visitor, rv, flags)
 		return
