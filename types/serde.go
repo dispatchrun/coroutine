@@ -50,7 +50,7 @@ func Serialize(x any) ([]byte, error) {
 	// Scan pointers to collect memory regions.
 	s.scan(t, p)
 
-	Visit(s, wr.Elem(), VisitUnexportedFields|VisitClosures)
+	reflectext.Visit(s, wr.Elem(), reflectext.VisitUnexportedFields|reflectext.VisitClosures)
 
 	state := &coroutinev1.State{
 		Build:     buildInfo,
@@ -167,7 +167,7 @@ func (d *Deserializer) store(i sID, p unsafe.Pointer) {
 // shared memory. Only outermost containers are serialized. All pointers either
 // point to a container, or an offset into that container.
 type Serializer struct {
-	DefaultVisitor
+	reflectext.DefaultVisitor
 
 	*serializerContext
 
@@ -233,7 +233,7 @@ func SerializeT[T any](s *Serializer, x T) {
 	v := reflect.ValueOf(x)
 	t := v.Type()
 	serializeType(s, t)
-	Visit(s, v, VisitUnexportedFields|VisitClosures)
+	reflectext.Visit(s, v, reflectext.VisitUnexportedFields|reflectext.VisitClosures)
 }
 
 // Deserialize a value to the provided non-nil pointer. See [RegisterSerde].

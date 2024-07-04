@@ -246,7 +246,7 @@ func (s *Serializer) scan(t reflect.Type, p unsafe.Pointer) {
 }
 
 type scanner struct {
-	DefaultVisitor
+	reflectext.DefaultVisitor
 
 	seen       map[reflect.Value]struct{}
 	containers *containers
@@ -254,7 +254,7 @@ type scanner struct {
 }
 
 func (s *scanner) Scan(v reflect.Value) {
-	Visit(s, v, VisitUnexportedFields|VisitClosures)
+	reflectext.Visit(s, v, reflectext.VisitUnexportedFields|reflectext.VisitClosures)
 }
 
 func (s *scanner) Visit(v reflect.Value) bool {

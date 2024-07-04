@@ -33,7 +33,7 @@ func (s *Serializer) Visit(v reflect.Value) bool {
 	case reflectext.ReflectValueType:
 		rv := v.Interface().(reflect.Value)
 		serializeType(s, rv.Type())
-		Visit(s, rv, VisitUnexportedFields|VisitClosures) // FIXME: propagate flags
+		reflectext.Visit(s, rv, reflectext.VisitUnexportedFields|reflectext.VisitClosures) // FIXME: propagate flags
 		return false
 	}
 
@@ -80,10 +80,13 @@ func (s *Serializer) VisitInterface(v reflect.Value) bool {
 	}
 	serializeBool(s, true)
 
-	et := reflect.TypeOf(v.Interface())
+	i := v.Interface()
+
+	et := reflect.TypeOf(i)
 	serializeType(s, et)
 
-	p := unsafePtr(v)
+	p := reflectext.IfacePtr(unsafe.Pointer(&i), et)
+
 	if et.Kind() == reflect.Array {
 		serializePointedAt(s, et.Elem(), et.Len(), p)
 	} else {
@@ -103,8 +106,7 @@ func (s *Serializer) VisitFunc(v reflect.Value) bool {
 		serializeVarint(s, 0)
 		return false
 	}
-	fn := *(**reflectext.FunctionHeader)(unsafePtr(v))
-	id, _ := s.funcs.RegisterAddr(fn.Addr)
+	id, _ := s.funcs.RegisterAddr(v.UnsafePointer())
 	serializeVarint(s, int(id))
 	return true
 }
@@ -364,11 +366,11 @@ func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Poi
 		es := int(r.typ.Size())
 		for i := 0; i < r.len; i++ {
 			v := reflect.NewAt(r.typ, unsafe.Add(r.addr, i*es)).Elem()
-			Visit(regionSer, v, VisitUnexportedFields|VisitClosures) // FIXME: propagate flags
+			reflectext.Visit(regionSer, v, reflectext.VisitUnexportedFields|reflectext.VisitClosures) // FIXME: propagate flags
 		}
 	} else {
 		v := reflect.NewAt(r.typ, r.addr).Elem()
-		Visit(regionSer, v, VisitUnexportedFields|VisitClosures) // FIXME: propagate flags
+		reflectext.Visit(regionSer, v, reflectext.VisitUnexportedFields|reflectext.VisitClosures) // FIXME: propagate flags
 	}
 	region.Data = regionSer.b
 }
@@ -471,8 +473,8 @@ func serializeMap(s *Serializer, v reflect.Value) {
 
 	iter := v.MapRange()
 	for iter.Next() {
-		Visit(regionSer, iter.Key(), VisitUnexportedFields|VisitClosures)   // FIXME: propagate flags
-		Visit(regionSer, iter.Value(), VisitUnexportedFields|VisitClosures) // FIXME: propagate flags
+		reflectext.Visit(regionSer, iter.Key(), reflectext.VisitUnexportedFields|reflectext.VisitClosures)   // FIXME: propagate flags
+		reflectext.Visit(regionSer, iter.Value(), reflectext.VisitUnexportedFields|reflectext.VisitClosures) // FIXME: propagate flags
 	}
 
 	region.Data = regionSer.b
