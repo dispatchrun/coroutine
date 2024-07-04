@@ -252,32 +252,26 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 
 	case reflect.Struct:
 		if visitor.VisitStruct(v) {
-			p := unsafeInterfacePointer(v)
-			t := v.Type()
-			for i := 0; i < v.NumField(); i++ {
-				ft := t.Field(i)
-				if ft.IsExported() {
+			if (flags & VisitUnexportedFields) != 0 {
+				// The wrapper makes unexported fields available.
+				v := StructValue{Value: v}
+				for i := 0; i < v.NumField(); i++ {
 					Visit(visitor, v.Field(i), flags)
-				} else if (flags & VisitUnexportedFields) != 0 {
-					field := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset)).Elem()
-					Visit(visitor, field, flags)
+				}
+			} else {
+				t := v.Type()
+				for i := 0; i < v.NumField(); i++ {
+					if ft := t.Field(i); ft.IsExported() {
+						Visit(visitor, v.Field(i), flags)
+					}
 				}
 			}
 		}
 
 	case reflect.Func:
-		if visitor.VisitFunc(v) && !v.IsNil() {
-			addr := v.UnsafePointer()
-			if f := FuncByAddr(uintptr(addr)); f == nil {
-				// function not found at addr
-			} else if f.Type == nil {
-				// function type info not registered
-			} else if f.Closure != nil && (flags&VisitClosures) != 0 {
-				fh := FunctionHeaderOf(v)
-				if fh.Addr != addr {
-					panic("invalid closure")
-				}
-				closure := reflect.NewAt(f.Closure, unsafe.Pointer(fh)).Elem()
+		if visitor.VisitFunc(v) && !v.IsNil() && (flags&VisitClosures) != 0 {
+			v := FunctionValue{v}
+			if closure, ok := v.Closure(); ok {
 				Visit(visitor, closure, flags)
 			}
 		}

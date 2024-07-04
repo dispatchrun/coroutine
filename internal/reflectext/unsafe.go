@@ -5,6 +5,66 @@ import (
 	"unsafe"
 )
 
+// StructValue is a wrapper for a struct value that provides
+// access to unexported fields without the read-only flag.
+type StructValue struct {
+	reflect.Value
+
+	base unsafe.Pointer
+}
+
+// Field returns the i'th field of the struct v.
+// It panics if v's Kind is not Struct or i is out of range.
+func (v *StructValue) Field(i int) reflect.Value {
+	if v.Kind() != reflect.Struct {
+		panic("not a struct")
+	} else if i > v.NumField() {
+		panic("field out of range")
+	}
+	if v.base == nil {
+		v.base = unsafeInterfacePointer(v.Value)
+	}
+	f := v.Type().Field(i)
+	return reflect.NewAt(f.Type, unsafe.Add(v.base, f.Offset)).Elem()
+}
+
+// FunctionValue is a wrapper for a function value that
+// provides access to closure vars.
+type FunctionValue struct {
+	reflect.Value
+}
+
+// Closure retrieves the function's closure variables as a struct value.
+//
+// The first field in the struct is the address of the function, and the
+// remaining fields hold closure vars.
+//
+// Closure vars are only available for functions that have type information
+// registered at runtime. See RegisterClosure for more information.
+func (v FunctionValue) Closure() (reflect.Value, bool) {
+	addr := v.UnsafePointer()
+	if f := FuncByAddr(uintptr(addr)); f == nil {
+		// function not found at addr
+	} else if f.Type == nil {
+		// function type info not registered
+	} else if f.Closure != nil {
+		fh := *(**FunctionHeader)(unsafeInterfacePointer(v.Value))
+		if fh.Addr != addr {
+			panic("invalid closure")
+		}
+		closure := reflect.NewAt(f.Closure, unsafe.Pointer(fh)).Elem()
+		return closure, true
+	}
+	return reflect.Value{}, false
+}
+
+// FunctionHeader is the container for function pointers
+// and closure vars.
+type FunctionHeader struct {
+	Addr unsafe.Pointer
+	// closure vars follow...
+}
+
 // SetSlice sets the slice data pointer, length and capacity.
 func SetSlice(v reflect.Value, data unsafe.Pointer, len, cap int) {
 	if v.Kind() != reflect.Slice {
@@ -18,24 +78,6 @@ func SetSlice(v reflect.Value, data unsafe.Pointer, len, cap int) {
 		cap  int
 	}
 	*(*sliceHeader)(v.Addr().UnsafePointer()) = sliceHeader{data: data, len: len, cap: cap}
-}
-
-// FunctionHeader is the container for function pointers
-// and closure vars.
-type FunctionHeader struct {
-	Addr unsafe.Pointer
-	// closure vars follow...
-}
-
-// FunctionHeaderOf gets the header of a function or closure.
-func FunctionHeaderOf(v reflect.Value) *FunctionHeader {
-	if v.Kind() != reflect.Func {
-		panic("not a function")
-	}
-	if v.IsNil() {
-		return nil
-	}
-	return *(**FunctionHeader)(unsafeInterfacePointer(v))
 }
 
 // InterfacePointer extracts the data pointer from an interface.
