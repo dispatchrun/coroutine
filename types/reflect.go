@@ -259,12 +259,7 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 	case reflect.Struct:
 		deserializeStructFields(d, vp.UnsafePointer(), t.NumField(), t.Field)
 	case reflect.Func:
-		var fn *reflectext.Func
-		deserializeFunc(d, t, unsafe.Pointer(&fn))
-		if fn != nil {
-			p := v.Addr().UnsafePointer()
-			*(*unsafe.Pointer)(p) = unsafe.Pointer(&fn.Addr)
-		}
+		deserializeFunc(d, v)
 	case reflect.Interface:
 		var ok bool
 		deserializeBool(d, &ok)
@@ -537,13 +532,14 @@ func deserializeStructFields(d *Deserializer, p unsafe.Pointer, n int, field fun
 	}
 }
 
-func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
+func deserializeFunc(d *Deserializer, v reflect.Value) {
 	id := deserializeVarint(d)
 	if id == 0 {
-		*(**reflectext.FunctionHeader)(p) = nil
+		v.SetZero()
 		return
 	}
 
+	t := v.Type()
 	fn := d.funcs.ToFunc(funcid(id))
 	if fn.Type == nil {
 		panic(fn.Name + ": function type is missing")
@@ -552,25 +548,25 @@ func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		panic(fn.Name + ": function type mismatch: " + fn.Type.String() + " != " + t.String())
 	}
 
+	var header *reflectext.FunctionHeader
 	if fn.Closure != nil {
 		t := fn.Closure
-		v := reflect.New(t)
+		cv := reflect.New(t)
 
-		closure := v.UnsafePointer()
+		closure := (*reflectext.FunctionHeader)(cv.UnsafePointer())
 
-		deserializeStructFields(d, closure, t.NumField(), func(i int) reflect.StructField {
+		deserializeStructFields(d, unsafe.Pointer(closure), t.NumField(), func(i int) reflect.StructField {
 			return t.Field(i)
 		})
 
-		*(*uintptr)(closure) = fn.Addr
-
-		*(*unsafe.Pointer)(p) = closure
+		closure.Addr = unsafe.Pointer(fn.Addr)
+		header = closure
 	} else {
-		// Avoid an allocation by storing a pointer to the immutable Func.
-		// This works because the addr is the first element in both the Func
-		// and function structs.
-		*(**reflectext.FunctionHeader)(p) = (*reflectext.FunctionHeader)(unsafe.Pointer(fn))
+		header = &reflectext.FunctionHeader{Addr: unsafe.Pointer(fn.Addr)}
 	}
+
+	p := v.Addr().UnsafePointer()
+	*(*unsafe.Pointer)(p) = unsafe.Pointer(header)
 }
 
 func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {

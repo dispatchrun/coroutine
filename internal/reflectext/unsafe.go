@@ -27,6 +27,17 @@ type FunctionHeader struct {
 	// closure vars follow...
 }
 
+// FunctionHeaderOf gets the header of a function or closure.
+func FunctionHeaderOf(v reflect.Value) *FunctionHeader {
+	if v.Kind() != reflect.Func {
+		panic("not a function")
+	}
+	if v.IsNil() {
+		return nil
+	}
+	return *(**FunctionHeader)(unsafePtr(v))
+}
+
 // Used for unsafe access to internals of interface{} and reflect.Value.
 type iface struct {
 	typ unsafe.Pointer
