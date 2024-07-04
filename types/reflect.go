@@ -11,15 +11,19 @@ import (
 	"github.com/dispatchrun/coroutine/internal/reflectext"
 )
 
+func (s *Serializer) Serialize(v reflect.Value) {
+	reflectext.Visit(s, v, reflectext.VisitUnexportedFields|reflectext.VisitClosures)
+}
+
 func (s *Serializer) Visit(v reflect.Value) bool {
 	t := v.Type()
 
 	// Special case for values with a custom serializer registered.
 	if serde, ok := s.serdes.serdeByType(t); ok {
-		offset := len(s.b)
-		s.b = append(s.b, 0, 0, 0, 0, 0, 0, 0, 0) // store a 64-bit size placeholder
+		offset := len(s.buffer)
+		s.buffer = append(s.buffer, 0, 0, 0, 0, 0, 0, 0, 0) // store a 64-bit size placeholder
 		serde.ser(s, v)
-		binary.LittleEndian.PutUint64(s.b[offset:], uint64(len(s.b)-offset))
+		binary.LittleEndian.PutUint64(s.buffer[offset:], uint64(len(s.buffer)-offset))
 		return false
 	}
 
@@ -33,7 +37,7 @@ func (s *Serializer) Visit(v reflect.Value) bool {
 	case reflectext.ReflectValueType:
 		rv := v.Interface().(reflect.Value)
 		serializeType(s, rv.Type())
-		reflectext.Visit(s, rv, reflectext.VisitUnexportedFields|reflectext.VisitClosures) // FIXME: propagate flags
+		s.Serialize(rv)
 		return false
 	}
 
@@ -353,18 +357,18 @@ func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Poi
 		return
 	}
 
-	regionSer := s.fork()
+	regionSerializer := s.fork()
 	if r.len >= 0 { // array
 		es := int(r.typ.Size())
 		for i := 0; i < r.len; i++ {
 			v := reflect.NewAt(r.typ, unsafe.Add(r.addr, i*es)).Elem()
-			reflectext.Visit(regionSer, v, reflectext.VisitUnexportedFields|reflectext.VisitClosures) // FIXME: propagate flags
+			regionSerializer.Serialize(v)
 		}
 	} else {
 		v := reflect.NewAt(r.typ, r.addr).Elem()
-		reflectext.Visit(regionSer, v, reflectext.VisitUnexportedFields|reflectext.VisitClosures) // FIXME: propagate flags
+		regionSerializer.Serialize(v)
 	}
-	region.Data = regionSer.b
+	region.Data = regionSerializer.buffer
 }
 
 func deserializePointedAt(d *Deserializer, t reflect.Type, length int) unsafe.Pointer {
@@ -460,16 +464,16 @@ func serializeMap(s *Serializer, v reflect.Value) {
 	}
 	s.regions = append(s.regions, region)
 
-	regionSer := s.fork()
-	serializeVarint(regionSer, size)
+	regionSerializer := s.fork()
+	serializeVarint(regionSerializer, size)
 
 	iter := v.MapRange()
 	for iter.Next() {
-		reflectext.Visit(regionSer, iter.Key(), reflectext.VisitUnexportedFields|reflectext.VisitClosures)   // FIXME: propagate flags
-		reflectext.Visit(regionSer, iter.Value(), reflectext.VisitUnexportedFields|reflectext.VisitClosures) // FIXME: propagate flags
+		regionSerializer.Serialize(iter.Key())
+		regionSerializer.Serialize(iter.Value())
 	}
 
-	region.Data = regionSer.b
+	region.Data = regionSerializer.buffer
 }
 
 func deserializeMap(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.Pointer) {
@@ -614,7 +618,7 @@ func serializeBool(s *Serializer, x bool) {
 	if x {
 		c = 1
 	}
-	s.b = append(s.b, c)
+	s.buffer = append(s.buffer, c)
 }
 
 func deserializeBool(d *Deserializer, x *bool) {
@@ -632,7 +636,7 @@ func deserializeInt(d *Deserializer, x *int) {
 }
 
 func serializeInt64(s *Serializer, x int64) {
-	s.b = binary.LittleEndian.AppendUint64(s.b, uint64(x))
+	s.buffer = binary.LittleEndian.AppendUint64(s.buffer, uint64(x))
 }
 
 func deserializeInt64(d *Deserializer, x *int64) {
@@ -641,7 +645,7 @@ func deserializeInt64(d *Deserializer, x *int64) {
 }
 
 func serializeInt32(s *Serializer, x int32) {
-	s.b = binary.LittleEndian.AppendUint32(s.b, uint32(x))
+	s.buffer = binary.LittleEndian.AppendUint32(s.buffer, uint32(x))
 }
 
 func deserializeInt32(d *Deserializer, x *int32) {
@@ -650,7 +654,7 @@ func deserializeInt32(d *Deserializer, x *int32) {
 }
 
 func serializeInt16(s *Serializer, x int16) {
-	s.b = binary.LittleEndian.AppendUint16(s.b, uint16(x))
+	s.buffer = binary.LittleEndian.AppendUint16(s.buffer, uint16(x))
 }
 
 func deserializeInt16(d *Deserializer, x *int16) {
@@ -659,7 +663,7 @@ func deserializeInt16(d *Deserializer, x *int16) {
 }
 
 func serializeInt8(s *Serializer, x int8) {
-	s.b = append(s.b, byte(x))
+	s.buffer = append(s.buffer, byte(x))
 }
 
 func deserializeInt8(d *Deserializer, x *int8) {
@@ -677,7 +681,7 @@ func deserializeUint(d *Deserializer, x *uint) {
 }
 
 func serializeUint64(s *Serializer, x uint64) {
-	s.b = binary.LittleEndian.AppendUint64(s.b, x)
+	s.buffer = binary.LittleEndian.AppendUint64(s.buffer, x)
 }
 
 func deserializeUint64(d *Deserializer, x *uint64) {
@@ -686,7 +690,7 @@ func deserializeUint64(d *Deserializer, x *uint64) {
 }
 
 func serializeUint32(s *Serializer, x uint32) {
-	s.b = binary.LittleEndian.AppendUint32(s.b, x)
+	s.buffer = binary.LittleEndian.AppendUint32(s.buffer, x)
 }
 
 func deserializeUint32(d *Deserializer, x *uint32) {
@@ -695,7 +699,7 @@ func deserializeUint32(d *Deserializer, x *uint32) {
 }
 
 func serializeUint16(s *Serializer, x uint16) {
-	s.b = binary.LittleEndian.AppendUint16(s.b, x)
+	s.buffer = binary.LittleEndian.AppendUint16(s.buffer, x)
 }
 
 func deserializeUint16(d *Deserializer, x *uint16) {
@@ -704,7 +708,7 @@ func deserializeUint16(d *Deserializer, x *uint16) {
 }
 
 func serializeUint8(s *Serializer, x uint8) {
-	s.b = append(s.b, byte(x))
+	s.buffer = append(s.buffer, byte(x))
 }
 
 func deserializeUint8(d *Deserializer, x *uint8) {

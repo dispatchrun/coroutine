@@ -50,7 +50,7 @@ func Serialize(x any) ([]byte, error) {
 	// Scan pointers to collect memory regions.
 	s.scan(t, p)
 
-	reflectext.Visit(s, wr.Elem(), reflectext.VisitUnexportedFields|reflectext.VisitClosures)
+	s.Serialize(wr.Elem())
 
 	state := &coroutinev1.State{
 		Build:     buildInfo,
@@ -60,7 +60,7 @@ func Serialize(x any) ([]byte, error) {
 		Regions:   s.regions,
 		Root: &coroutinev1.Region{
 			Type: s.types.ToType(t) << 1,
-			Data: s.b,
+			Data: s.buffer,
 		},
 	}
 	return state.MarshalVT()
@@ -172,7 +172,7 @@ type Serializer struct {
 	*serializerContext
 
 	// Output
-	b []byte
+	buffer []byte
 }
 
 type serializerContext struct {
@@ -197,14 +197,14 @@ func newSerializer() *Serializer {
 			funcs:   newFuncMap(types, strings, nil),
 			ptrs:    make(map[unsafe.Pointer]sID),
 		},
-		b: make([]byte, 0, 128),
+		buffer: make([]byte, 0, 128),
 	}
 }
 
 func (s *Serializer) fork() *Serializer {
 	return &Serializer{
 		serializerContext: s.serializerContext,
-		b:                 make([]byte, 0, 128),
+		buffer:            make([]byte, 0, 128),
 	}
 }
 
@@ -219,7 +219,7 @@ func (s *Serializer) assignPointerID(p unsafe.Pointer) (sID, bool) {
 }
 
 func serializeVarint(s *Serializer, size int) {
-	s.b = binary.AppendVarint(s.b, int64(size))
+	s.buffer = binary.AppendVarint(s.buffer, int64(size))
 }
 
 func deserializeVarint(d *Deserializer) int {
@@ -233,7 +233,7 @@ func SerializeT[T any](s *Serializer, x T) {
 	v := reflect.ValueOf(x)
 	t := v.Type()
 	serializeType(s, t)
-	reflectext.Visit(s, v, reflectext.VisitUnexportedFields|reflectext.VisitClosures)
+	s.Serialize(v)
 }
 
 // Deserialize a value to the provided non-nil pointer. See [RegisterSerde].
