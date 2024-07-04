@@ -3,7 +3,6 @@ package types
 import (
 	"encoding/binary"
 	"fmt"
-	"math"
 	"reflect"
 	"unsafe"
 
@@ -52,15 +51,15 @@ func (s *Serializer) VisitInt(ctx reflectext.VisitContext, v reflect.Value) {
 	i := v.Int()
 	switch v.Kind() {
 	case reflect.Int:
-		serializeInt(s, int(i))
+		s.appendInt(int(i))
 	case reflect.Int8:
-		serializeInt8(s, int8(i))
+		s.appendInt8(int8(i))
 	case reflect.Int16:
-		serializeInt16(s, int16(i))
+		s.appendInt16(int16(i))
 	case reflect.Int32:
-		serializeInt32(s, int32(i))
+		s.appendInt32(int32(i))
 	case reflect.Int64:
-		serializeInt64(s, int64(i))
+		s.appendInt64(int64(i))
 	}
 }
 
@@ -68,17 +67,17 @@ func (s *Serializer) VisitUint(ctx reflectext.VisitContext, v reflect.Value) {
 	u := v.Uint()
 	switch v.Kind() {
 	case reflect.Uint:
-		serializeUint(s, uint(u))
+		s.appendUint(uint(u))
 	case reflect.Uint8:
-		serializeUint8(s, uint8(u))
+		s.appendUint8(uint8(u))
 	case reflect.Uint16:
-		serializeUint16(s, uint16(u))
+		s.appendUint16(uint16(u))
 	case reflect.Uint32:
-		serializeUint32(s, uint32(u))
+		s.appendUint32(uint32(u))
 	case reflect.Uint64:
-		serializeUint64(s, uint64(u))
+		s.appendUint64(uint64(u))
 	case reflect.Uintptr:
-		serializeUintptr(s, uintptr(u))
+		s.appendUintptr(uintptr(u))
 	}
 }
 
@@ -86,16 +85,16 @@ func (s *Serializer) VisitFloat(ctx reflectext.VisitContext, v reflect.Value) {
 	f := v.Float()
 	switch v.Kind() {
 	case reflect.Float32:
-		serializeFloat32(s, float32(f))
+		s.appendFloat32(float32(f))
 	case reflect.Float64:
-		serializeFloat64(s, float64(f))
+		s.appendFloat64(float64(f))
 	}
 }
 
 func (s *Serializer) VisitString(ctx reflectext.VisitContext, v reflect.Value) {
 	str := v.String()
 	siz := len(str)
-	serializeVarint(s, siz)
+	s.appendVarint(siz)
 	if siz > 0 {
 		p := unsafe.Pointer(unsafe.StringData(str))
 		serializeRegion(s, reflectext.ByteType, siz, p)
@@ -103,8 +102,8 @@ func (s *Serializer) VisitString(ctx reflectext.VisitContext, v reflect.Value) {
 }
 
 func (s *Serializer) VisitSlice(ctx reflectext.VisitContext, v reflect.Value) bool {
-	serializeVarint(s, v.Len())
-	serializeVarint(s, v.Cap())
+	s.appendVarint(v.Len())
+	s.appendVarint(v.Cap())
 	serializeRegion(s, v.Type().Elem(), v.Cap(), v.UnsafePointer())
 	return false
 }
@@ -136,11 +135,11 @@ func (s *Serializer) VisitMap(ctx reflectext.VisitContext, v reflect.Value) bool
 func (s *Serializer) VisitFunc(ctx reflectext.VisitContext, v reflect.Value) bool {
 	if v.IsNil() {
 		// Function IDs start at 1; use 0 to represent nil ptr.
-		serializeVarint(s, 0)
+		s.appendVarint(0)
 		return false
 	}
 	id, _ := s.funcs.RegisterAddr(v.UnsafePointer())
-	serializeVarint(s, int(id))
+	s.appendVarint(int(id))
 	return true
 }
 
@@ -160,18 +159,18 @@ func (s *Serializer) VisitChan(ctx reflectext.VisitContext, v reflect.Value) boo
 func serializeType(s *Serializer, t reflect.Type) {
 	if t != nil && t.Kind() == reflect.Array {
 		id := s.types.ToType(t.Elem())
-		serializeVarint(s, int(id))
-		serializeVarint(s, t.Len())
+		s.appendVarint(int(id))
+		s.appendVarint(t.Len())
 	} else {
 		id := s.types.ToType(t)
-		serializeVarint(s, int(id))
-		serializeVarint(s, -1)
+		s.appendVarint(int(id))
+		s.appendVarint(-1)
 	}
 }
 
 func deserializeType(d *Deserializer) (reflect.Type, int) {
-	id := deserializeVarint(d)
-	length := deserializeVarint(d)
+	id := d.varint()
+	length := d.varint()
 	t := d.types.ToReflect(typeid(id))
 	return t, length
 }
@@ -180,7 +179,7 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 	v := vp.Elem()
 
 	if serde, ok := d.serdes.serdeByType(t); ok {
-		d.b = d.b[8:] // skip size prefix
+		d.buffer = d.buffer[8:] // skip size prefix
 		serde.des(d, vp)
 		return
 	}
@@ -212,65 +211,39 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 	case reflect.Bool:
 		v.SetBool(d.bool())
 	case reflect.Int:
-		var value int
-		deserializeInt(d, &value)
-		v.SetInt(int64(value))
+		v.SetInt(int64(d.int()))
 	case reflect.Int8:
-		var value int8
-		deserializeInt8(d, &value)
-		v.SetInt(int64(value))
+		v.SetInt(int64(d.int8()))
 	case reflect.Int16:
-		var value int16
-		deserializeInt16(d, &value)
-		v.SetInt(int64(value))
+		v.SetInt(int64(d.int16()))
 	case reflect.Int32:
-		var value int32
-		deserializeInt32(d, &value)
-		v.SetInt(int64(value))
+		v.SetInt(int64(d.int32()))
 	case reflect.Int64:
-		var value int64
-		deserializeInt64(d, &value)
-		v.SetInt(value)
+		v.SetInt(d.int64())
 	case reflect.Uint:
-		var value uint
-		deserializeUint(d, &value)
-		v.SetUint(uint64(value))
+		v.SetUint(uint64(d.uint()))
 	case reflect.Uint8:
-		var value uint8
-		deserializeUint8(d, &value)
-		v.SetUint(uint64(value))
+		v.SetUint(uint64(d.uint8()))
 	case reflect.Uint16:
-		var value uint16
-		deserializeUint16(d, &value)
-		v.SetUint(uint64(value))
+		v.SetUint(uint64(d.uint16()))
 	case reflect.Uint32:
-		var value uint32
-		deserializeUint32(d, &value)
-		v.SetUint(uint64(value))
+		v.SetUint(uint64(d.uint32()))
 	case reflect.Uint64:
-		var value uint64
-		deserializeUint64(d, &value)
-		v.SetUint(value)
+		v.SetUint(d.uint64())
 	case reflect.Uintptr:
-		var value uint64
-		deserializeUint64(d, &value)
-		v.SetUint(value)
+		v.SetUint(uint64(d.uintptr()))
 	case reflect.Float32:
-		var value float32
-		deserializeFloat32(d, &value)
-		v.SetFloat(float64(value))
+		v.SetFloat(float64(d.float32()))
 	case reflect.Float64:
-		var value float64
-		deserializeFloat64(d, &value)
-		v.SetFloat(value)
+		v.SetFloat(d.float64())
 	case reflect.Complex64:
-		var value complex64
-		deserializeComplex64(d, &value)
-		v.SetComplex(complex128(value))
+		real := d.float32()
+		imag := d.float32()
+		v.SetComplex(complex128(complex(real, imag)))
 	case reflect.Complex128:
-		var value complex128
-		deserializeComplex128(d, &value)
-		v.SetComplex(value)
+		real := d.float64()
+		imag := d.float64()
+		v.SetComplex(complex(real, imag))
 	case reflect.String:
 		var value string
 		deserializeString(d, &value)
@@ -278,8 +251,8 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 	case reflect.Array:
 		deserializeArray(d, t, v.Addr().UnsafePointer())
 	case reflect.Slice:
-		len := deserializeVarint(d)
-		cap := deserializeVarint(d)
+		len := d.varint()
+		cap := d.varint()
 		data := deserializeRegion(d, t.Elem(), cap)
 		if data == nil {
 			return
@@ -322,13 +295,13 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 func serializeRegion(s *Serializer, et reflect.Type, length int, p unsafe.Pointer) {
 	// If this is a nil pointer, write it as such.
 	if p == nil {
-		serializeVarint(s, 0)
+		s.appendVarint(0)
 		return
 	}
 
 	if offset, ok := reflectext.InternedInt(p); ok {
-		serializeVarint(s, -1)
-		serializeVarint(s, offset)
+		s.appendVarint(-1)
+		s.appendVarint(offset)
 		return
 	}
 
@@ -359,10 +332,10 @@ func serializeRegion(s *Serializer, et reflect.Type, length int, p unsafe.Pointe
 	}
 
 	id, new := s.assignPointerID(r.addr)
-	serializeVarint(s, int(id))
+	s.appendVarint(int(id))
 
 	offset := int(r.offset(p))
-	serializeVarint(s, offset)
+	s.appendVarint(offset)
 
 	if !new {
 		return
@@ -412,13 +385,13 @@ func deserializeRegion(d *Deserializer, t reflect.Type, length int) unsafe.Point
 		return p
 	}
 
-	id := deserializeVarint(d)
+	id := d.varint()
 	if id == 0 {
 		// Nil pointer.
 		return unsafe.Pointer(nil)
 	}
 
-	offset := deserializeVarint(d)
+	offset := d.varint()
 	if id == -1 {
 		// Pointer into static uint64 table.
 		return reflectext.InternedIntPointer(offset)
@@ -470,15 +443,15 @@ func deserializeRegion(d *Deserializer, t reflect.Type, length int) unsafe.Point
 
 func serializeMap(s *Serializer, v reflect.Value) {
 	if v.IsNil() {
-		serializeVarint(s, 0)
+		s.appendVarint(0)
 		return
 	}
 
 	mapptr := v.UnsafePointer()
 
 	id, new := s.assignPointerID(mapptr)
-	serializeVarint(s, int(id))
-	serializeVarint(s, 0) // offset, for compat with other region references
+	s.appendVarint(int(id))
+	s.appendVarint(0) // offset, for compat with other region references
 
 	if !new {
 		return
@@ -493,7 +466,7 @@ func serializeMap(s *Serializer, v reflect.Value) {
 	s.regions = append(s.regions, region)
 
 	regionSerializer := s.fork()
-	serializeVarint(regionSerializer, size)
+	regionSerializer.appendVarint(size)
 
 	iter := v.MapRange()
 	for iter.Next() {
@@ -505,13 +478,13 @@ func serializeMap(s *Serializer, v reflect.Value) {
 }
 
 func deserializeMap(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.Pointer) {
-	id := deserializeVarint(d)
+	id := d.varint()
 	if id == 0 {
 		r.SetZero()
 		return
 	}
 
-	_ = deserializeVarint(d) // offset
+	_ = d.varint() // offset
 
 	ptr := d.ptrs[sID(id)]
 	if ptr != nil {
@@ -527,7 +500,7 @@ func deserializeMap(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.P
 
 	regionDeser := d.fork(region.Data)
 
-	n := deserializeVarint(regionDeser)
+	n := regionDeser.varint()
 	if n < 0 { // nil map
 		panic("invalid map size")
 	}
@@ -562,7 +535,7 @@ func deserializeStructFields(d *Deserializer, p unsafe.Pointer, n int, field fun
 }
 
 func deserializeFunc(d *Deserializer, v reflect.Value) {
-	id := deserializeVarint(d)
+	id := d.varint()
 	if id == 0 {
 		v.SetZero()
 		return
@@ -619,139 +592,10 @@ func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func deserializeString(d *Deserializer, x *string) {
-	l := deserializeVarint(d)
-
+	l := d.varint()
 	if l == 0 {
 		return
 	}
-
 	ar := deserializeRegion(d, reflectext.ByteType, l)
-
 	*x = unsafe.String((*byte)(ar), l)
-}
-
-func serializeInt(s *Serializer, x int) {
-	serializeInt64(s, int64(x))
-}
-
-func deserializeInt(d *Deserializer, x *int) {
-	*x = int(binary.LittleEndian.Uint64(d.b[:8]))
-	d.b = d.b[8:]
-}
-
-func serializeInt64(s *Serializer, x int64) {
-	s.buffer = binary.LittleEndian.AppendUint64(s.buffer, uint64(x))
-}
-
-func deserializeInt64(d *Deserializer, x *int64) {
-	*x = int64(binary.LittleEndian.Uint64(d.b[:8]))
-	d.b = d.b[8:]
-}
-
-func serializeInt32(s *Serializer, x int32) {
-	s.buffer = binary.LittleEndian.AppendUint32(s.buffer, uint32(x))
-}
-
-func deserializeInt32(d *Deserializer, x *int32) {
-	*x = int32(binary.LittleEndian.Uint32(d.b[:4]))
-	d.b = d.b[4:]
-}
-
-func serializeInt16(s *Serializer, x int16) {
-	s.buffer = binary.LittleEndian.AppendUint16(s.buffer, uint16(x))
-}
-
-func deserializeInt16(d *Deserializer, x *int16) {
-	*x = int16(binary.LittleEndian.Uint16(d.b[:2]))
-	d.b = d.b[2:]
-}
-
-func serializeInt8(s *Serializer, x int8) {
-	s.buffer = append(s.buffer, byte(x))
-}
-
-func deserializeInt8(d *Deserializer, x *int8) {
-	*x = int8(d.b[0])
-	d.b = d.b[1:]
-}
-
-func serializeUint(s *Serializer, x uint) {
-	serializeUint64(s, uint64(x))
-}
-
-func deserializeUint(d *Deserializer, x *uint) {
-	*x = uint(binary.LittleEndian.Uint64(d.b[:8]))
-	d.b = d.b[8:]
-}
-
-func serializeUint64(s *Serializer, x uint64) {
-	s.buffer = binary.LittleEndian.AppendUint64(s.buffer, x)
-}
-
-func serializeUintptr(s *Serializer, x uintptr) {
-	serializeUint64(s, uint64(x))
-}
-
-func deserializeUint64(d *Deserializer, x *uint64) {
-	*x = uint64(binary.LittleEndian.Uint64(d.b[:8]))
-	d.b = d.b[8:]
-}
-
-func serializeUint32(s *Serializer, x uint32) {
-	s.buffer = binary.LittleEndian.AppendUint32(s.buffer, x)
-}
-
-func deserializeUint32(d *Deserializer, x *uint32) {
-	*x = uint32(binary.LittleEndian.Uint32(d.b[:4]))
-	d.b = d.b[4:]
-}
-
-func serializeUint16(s *Serializer, x uint16) {
-	s.buffer = binary.LittleEndian.AppendUint16(s.buffer, x)
-}
-
-func deserializeUint16(d *Deserializer, x *uint16) {
-	*x = uint16(binary.LittleEndian.Uint16(d.b[:2]))
-	d.b = d.b[2:]
-}
-
-func serializeUint8(s *Serializer, x uint8) {
-	s.buffer = append(s.buffer, byte(x))
-}
-
-func deserializeUint8(d *Deserializer, x *uint8) {
-	*x = uint8(d.b[0])
-	d.b = d.b[1:]
-}
-
-func serializeFloat32(s *Serializer, x float32) {
-	serializeUint32(s, math.Float32bits(x))
-}
-
-func deserializeFloat32(d *Deserializer, x *float32) {
-	deserializeUint32(d, (*uint32)(unsafe.Pointer(x)))
-}
-
-func serializeFloat64(s *Serializer, x float64) {
-	serializeUint64(s, math.Float64bits(x))
-}
-
-func deserializeFloat64(d *Deserializer, x *float64) {
-	deserializeUint64(d, (*uint64)(unsafe.Pointer(x)))
-}
-
-func deserializeComplex64(d *Deserializer, x *complex64) {
-	var real float32
-	var imag float32
-	deserializeFloat32(d, &real)
-	deserializeFloat32(d, &imag)
-	*x = complex(real, imag)
-}
-
-func deserializeComplex128(d *Deserializer, x *complex128) {
-	var real float64
-	var imag float64
-	deserializeFloat64(d, &real)
-	deserializeFloat64(d, &imag)
-	*x = complex(real, imag)
 }

@@ -6,7 +6,6 @@ package types
 // iterating on how it works to get it right first.
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"reflect"
@@ -90,7 +89,7 @@ func Deserialize(b []byte) (x interface{}, err error) {
 	p := unsafe.Pointer(px)
 	deserializeInterface(d, t, p)
 
-	if len(d.b) != 0 {
+	if len(d.buffer) != 0 {
 		err = errors.New("trailing bytes")
 	}
 	return
@@ -100,7 +99,7 @@ type Deserializer struct {
 	*deserializerContext
 
 	// input
-	b []byte
+	buffer []byte
 }
 
 type deserializerContext struct {
@@ -216,16 +215,6 @@ func (s *Serializer) assignPointerID(p unsafe.Pointer) (sID, bool) {
 		s.ptrs[p] = id
 	}
 	return id, !ok
-}
-
-func serializeVarint(s *Serializer, size int) {
-	s.buffer = binary.AppendVarint(s.buffer, int64(size))
-}
-
-func deserializeVarint(d *Deserializer) int {
-	l, n := binary.Varint(d.b)
-	d.b = d.b[n:]
-	return int(l)
 }
 
 // Serialize a value. See [RegisterSerde].
