@@ -228,5 +228,5 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 
 func unsafePtr(v reflect.Value) unsafe.Pointer {
 	i := v.Interface()
-	return ifacePtr(unsafe.Pointer(&i), v.Type())
+	return ifacePtr(unsafe.Pointer(&i), reflect.TypeOf(i))
 }

@@ -82,13 +82,11 @@ func (s *Serializer) VisitInterface(v reflect.Value) bool {
 	et := reflect.TypeOf(v.Interface())
 	serializeType(s, et)
 
-	vi := v.Interface()
-	eptr := ifacePtr(unsafe.Pointer(&vi), et)
-
+	p := unsafePtr(v)
 	if et.Kind() == reflect.Array {
-		serializePointedAt(s, et.Elem(), et.Len(), eptr)
+		serializePointedAt(s, et.Elem(), et.Len(), p)
 	} else {
-		serializePointedAt(s, et, -1, eptr)
+		serializePointedAt(s, et, -1, p)
 	}
 	return false
 }
