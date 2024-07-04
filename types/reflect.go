@@ -97,11 +97,23 @@ func (s *Serializer) VisitMap(v reflect.Value) bool {
 }
 
 func (s *Serializer) VisitFunc(v reflect.Value) bool {
-	if addr := v.Pointer(); addr != 0 {
-		serializeFunc(s, unsafePtr(v))
-	} else {
-		serializeFunc(s, unsafe.Pointer(&addr))
+	if v.IsNil() {
+		// Function IDs start at 1; use 0 to represent nil ptr.
+		serializeVarint(s, 0)
+		return false
 	}
+
+	fn := *(**function)(unsafePtr(v))
+	id, closure := s.funcs.RegisterAddr(fn.addr)
+	serializeVarint(s, int(id))
+
+	if closure != nil {
+		// Skip the first field, which is the function ptr.
+		serializeStructFields(s, unsafe.Pointer(fn), closure.NumField()-1, func(i int) reflect.StructField {
+			return closure.Field(i + 1)
+		})
+	}
+
 	return false
 }
 
@@ -548,26 +560,6 @@ func deserializeStructFields(d *Deserializer, p unsafe.Pointer, n int, field fun
 		ft := field(i)
 		vp := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset))
 		deserializeValue(d, ft.Type, vp)
-	}
-}
-
-func serializeFunc(s *Serializer, p unsafe.Pointer) {
-	fn := *(**function)(p)
-	if fn == nil {
-		// Function IDs start at 1; use 0 to represent nil ptr.
-		serializeVarint(s, 0)
-		return
-	}
-
-	id, closure := s.funcs.RegisterAddr(fn.addr)
-	serializeVarint(s, int(id))
-
-	if closure != nil {
-		p = unsafe.Pointer(fn)
-		// Skip the first field, which is the function ptr.
-		serializeStructFields(s, p, closure.NumField()-1, func(i int) reflect.StructField {
-			return closure.Field(i + 1)
-		})
 	}
 }
 
