@@ -102,16 +102,10 @@ func (s *Serializer) VisitFunc(v reflect.Value) bool {
 		serializeVarint(s, 0)
 		return false
 	}
-
 	fn := *(**function)(unsafePtr(v))
-	id, closure := s.funcs.RegisterAddr(fn.addr)
+	id, _ := s.funcs.RegisterAddr(fn.addr)
 	serializeVarint(s, int(id))
-
-	if closure != nil {
-		serializeStructFields(s, unsafe.Pointer(fn), closure.NumField(), closure.Field)
-	}
-
-	return false
+	return true
 }
 
 func (s *Serializer) VisitPointer(v reflect.Value) bool {
@@ -541,14 +535,6 @@ func deserializeArray(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	for i := 0; i < t.Len(); i++ {
 		vp := reflect.NewAt(et, unsafe.Add(p, size*i))
 		deserializeValue(d, et, vp)
-	}
-}
-
-func serializeStructFields(s *Serializer, p unsafe.Pointer, n int, field func(int) reflect.StructField) {
-	for i := 0; i < n; i++ {
-		ft := field(i)
-		v := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset)).Elem()
-		Visit(s, v, VisitUnexportedFields|VisitClosures) // FIXME: propagate flags
 	}
 }
 

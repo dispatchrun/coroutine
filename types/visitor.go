@@ -211,7 +211,7 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 				if fp.addr != addr {
 					panic("invalid closure")
 				}
-				closure := reflect.NewAt(f.Closure, unsafe.Pointer(fp))
+				closure := reflect.NewAt(f.Closure, unsafe.Pointer(fp)).Elem()
 				Visit(visitor, closure, flags)
 			}
 		}
