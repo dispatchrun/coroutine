@@ -245,11 +245,20 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 		imag := d.float64()
 		v.SetComplex(complex(real, imag))
 	case reflect.String:
-		var value string
-		deserializeString(d, &value)
-		v.SetString(value)
+		len := d.varint()
+		if len > 0 {
+			p := deserializeRegion(d, reflectext.ByteType, len)
+			s := unsafe.String((*byte)(p), len)
+			v.SetString(s)
+		}
 	case reflect.Array:
-		deserializeArray(d, t, v.Addr().UnsafePointer())
+		p := v.Addr().UnsafePointer()
+		et := t.Elem()
+		size := int(et.Size())
+		for i := 0; i < t.Len(); i++ {
+			ep := reflect.NewAt(et, unsafe.Add(p, size*i))
+			deserializeValue(d, et, ep)
+		}
 	case reflect.Slice:
 		len := d.varint()
 		cap := d.varint()
@@ -261,7 +270,12 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 	case reflect.Map:
 		deserializeMap(d, t, v, vp.UnsafePointer())
 	case reflect.Struct:
-		deserializeStructFields(d, vp.UnsafePointer(), t.NumField(), t.Field)
+		p := vp.UnsafePointer()
+		for i := 0; i < t.NumField(); i++ {
+			ft := t.Field(i)
+			vp := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset))
+			deserializeValue(d, ft.Type, vp)
+		}
 	case reflect.Func:
 		deserializeFunc(d, v)
 	case reflect.Interface:
@@ -278,7 +292,6 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 				} else {
 					v.Set(reflect.Zero(et))
 				}
-
 			}
 		}
 	case reflect.Pointer:
@@ -517,23 +530,6 @@ func deserializeMap(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.P
 	}
 }
 
-func deserializeArray(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	et := t.Elem()
-	size := int(et.Size())
-	for i := 0; i < t.Len(); i++ {
-		vp := reflect.NewAt(et, unsafe.Add(p, size*i))
-		deserializeValue(d, et, vp)
-	}
-}
-
-func deserializeStructFields(d *Deserializer, p unsafe.Pointer, n int, field func(int) reflect.StructField) {
-	for i := 0; i < n; i++ {
-		ft := field(i)
-		vp := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset))
-		deserializeValue(d, ft.Type, vp)
-	}
-}
-
 func deserializeFunc(d *Deserializer, v reflect.Value) {
 	id := d.varint()
 	if id == 0 {
@@ -554,48 +550,9 @@ func deserializeFunc(d *Deserializer, v reflect.Value) {
 	if fn.Closure != nil {
 		t := fn.Closure
 		closure := reflect.New(t)
-		p := closure.UnsafePointer()
-		deserializeStructFields(d, p, t.NumField(), t.Field)
+		deserializeValue(d, t, closure)
 		fv.SetClosure(fn.Addr, closure)
 	} else {
 		fv.SetAddr(fn.Addr)
 	}
-}
-
-func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	if notNil := d.bool(); !notNil /* i.e. nil */ {
-		return
-	}
-
-	// Deserialize the type
-	et, length := deserializeType(d)
-	if et == nil {
-		return
-	}
-
-	// Deserialize the pointer
-	ep := deserializeRegion(d, et, length)
-
-	// Store the result in the interface
-	r := reflect.NewAt(t, p)
-	if ep != nil {
-		// FIXME: is there a way to avoid ArrayOf+NewAt here? We can
-		//  access the iface via p. We can set the ptr, but not the typ.
-		if length >= 0 {
-			et = reflect.ArrayOf(length, et)
-		}
-		x := reflect.NewAt(et, ep)
-		r.Elem().Set(x.Elem())
-	} else {
-		r.Elem().Set(reflect.Zero(et))
-	}
-}
-
-func deserializeString(d *Deserializer, x *string) {
-	l := d.varint()
-	if l == 0 {
-		return
-	}
-	ar := deserializeRegion(d, reflectext.ByteType, l)
-	*x = unsafe.String((*byte)(ar), l)
 }

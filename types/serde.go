@@ -41,15 +41,15 @@ func init() {
 // [Deserialize].
 func Serialize(x any) ([]byte, error) {
 	s := newSerializer()
-	w := &x // w is *interface{}
-	wr := reflect.ValueOf(w)
-	p := wr.UnsafePointer() // *interface{}
-	t := wr.Elem().Type()   // what x contains
+
+	i := &x // w is *interface{}
+	vp := reflect.ValueOf(i)
+	t := vp.Elem().Type() // what x contains
 
 	// Scan pointers to collect memory regions.
-	s.scan(t, p)
+	s.scan(t, vp.UnsafePointer())
 
-	s.Serialize(wr.Elem())
+	s.Serialize(vp.Elem())
 
 	state := &coroutinev1.State{
 		Build:     buildInfo,
@@ -84,10 +84,11 @@ func Deserialize(b []byte) (x interface{}, err error) {
 
 	d := newDeserializer(state.Root.Data, state.Types, state.Functions, state.Regions, state.Strings)
 
-	px := &x
-	t := reflect.TypeOf(px).Elem()
-	p := unsafe.Pointer(px)
-	deserializeInterface(d, t, p)
+	ip := &x // w is *interface{}
+	vp := reflect.ValueOf(ip)
+	t := vp.Elem().Type() // what x contains
+
+	deserializeValue(d, t, vp)
 
 	if len(d.buffer) != 0 {
 		err = errors.New("trailing bytes")
