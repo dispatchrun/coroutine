@@ -49,7 +49,7 @@ func Serialize(x any) ([]byte, error) {
 	// Scan pointers to collect memory regions.
 	s.scan(t, p)
 
-	serializeAny(s, t, p)
+	serializeValue(s, t, wr.Elem())
 
 	state := &coroutinev1.State{
 		Build:     buildInfo,
@@ -230,7 +230,7 @@ func SerializeT[T any](s *Serializer, x T) {
 	v := reflect.ValueOf(x)
 	t := v.Type()
 	serializeType(s, t)
-	serializeReflectValue(s, t, v)
+	serializeValue(s, t, v)
 }
 
 // Deserialize a value to the provided non-nil pointer. See [RegisterSerde].
@@ -245,5 +245,5 @@ func DeserializeTo[T any](d *Deserializer, x *T) {
 	} else if t.Kind() != reflect.Array || t.Len() != length || t != actualType.Elem() {
 		panic(fmt.Sprintf("cannot deserialize [%d]%s as %s", length, actualType, t))
 	}
-	deserializeReflectValue(d, t, v)
+	deserializeValue(d, t, v)
 }

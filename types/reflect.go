@@ -30,17 +30,7 @@ func deserializeType(d *Deserializer) (reflect.Type, int) {
 	return t, length
 }
 
-func serializeAny(s *Serializer, t reflect.Type, p unsafe.Pointer) {
-	v := reflect.NewAt(t, p).Elem()
-	serializeReflectValue(s, t, v)
-}
-
-func deserializeAny(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	vp := reflect.NewAt(t, p)
-	deserializeReflectValue(d, t, vp)
-}
-
-func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
+func serializeValue(s *Serializer, t reflect.Type, v reflect.Value) {
 	if serde, ok := s.serdes.serdeByType(t); ok {
 		offset := len(s.b)
 		s.b = append(s.b, 0, 0, 0, 0, 0, 0, 0, 0) // store a 64-bit size placeholder
@@ -57,7 +47,7 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 	case reflectValueT:
 		rv := v.Interface().(reflect.Value)
 		serializeType(s, rv.Type())
-		serializeReflectValue(s, rv.Type(), rv)
+		serializeValue(s, rv.Type(), rv)
 		return
 	}
 
@@ -101,7 +91,7 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 	case reflect.Array:
 		et := t.Elem()
 		for i := 0; i < t.Len(); i++ {
-			serializeReflectValue(s, et, v.Index(i))
+			serializeValue(s, et, v.Index(i))
 		}
 	case reflect.Slice:
 		serializeVarint(s, v.Len())
@@ -133,7 +123,7 @@ func serializeReflectValue(s *Serializer, t reflect.Type, v reflect.Value) {
 	}
 }
 
-func deserializeReflectValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
+func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 	v := vp.Elem()
 
 	if serde, ok := d.serdes.serdeByType(t); ok {
@@ -158,7 +148,7 @@ func deserializeReflectValue(d *Deserializer, t reflect.Type, vp reflect.Value) 
 			rt = reflect.ArrayOf(length, rt)
 		}
 		rp := reflect.New(rt)
-		deserializeReflectValue(d, rt, rp)
+		deserializeValue(d, rt, rp)
 		v.Set(reflect.ValueOf(rp.Elem()))
 		return
 	}
@@ -352,10 +342,12 @@ func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Poi
 	if r.len >= 0 { // array
 		es := int(r.typ.Size())
 		for i := 0; i < r.len; i++ {
-			serializeAny(regionSer, r.typ, unsafe.Add(r.addr, i*es))
+			v := reflect.NewAt(r.typ, unsafe.Add(r.addr, i*es)).Elem()
+			serializeValue(regionSer, r.typ, v)
 		}
 	} else {
-		serializeAny(regionSer, r.typ, r.addr)
+		v := reflect.NewAt(r.typ, r.addr).Elem()
+		serializeValue(regionSer, r.typ, v)
 	}
 	region.Data = regionSer.b
 }
@@ -410,7 +402,8 @@ func deserializePointedAt(d *Deserializer, t reflect.Type, length int) unsafe.Po
 			} else {
 				regionDeser := d.fork(region.Data)
 				for i := 0; i < length; i++ {
-					deserializeAny(regionDeser, regionType, unsafe.Add(p, elemSize*i))
+					vp := reflect.NewAt(regionType, unsafe.Add(p, elemSize*i))
+					deserializeValue(regionDeser, regionType, vp)
 				}
 			}
 		} else {
@@ -418,7 +411,8 @@ func deserializePointedAt(d *Deserializer, t reflect.Type, length int) unsafe.Po
 			p = container.UnsafePointer()
 			d.store(sID(id), p)
 			regionDeser := d.fork(region.Data)
-			deserializeAny(regionDeser, regionType, p)
+			vp := reflect.NewAt(regionType, p)
+			deserializeValue(regionDeser, regionType, vp)
 		}
 
 	}
@@ -459,8 +453,8 @@ func serializeMapReflect(s *Serializer, v reflect.Value) {
 
 	iter := v.MapRange()
 	for iter.Next() {
-		serializeReflectValue(regionSer, keyT, iter.Key())
-		serializeReflectValue(regionSer, valT, iter.Value())
+		serializeValue(regionSer, keyT, iter.Key())
+		serializeValue(regionSer, valT, iter.Value())
 	}
 
 	region.Data = regionSer.b
@@ -498,11 +492,11 @@ func deserializeMapReflect(d *Deserializer, t reflect.Type, r reflect.Value, p u
 	r.Set(nv)
 	d.store(sID(id), p)
 	for i := 0; i < n; i++ {
-		k := reflect.New(t.Key())
-		deserializeReflectValue(regionDeser, t.Key(), k)
-		v := reflect.New(t.Elem())
-		deserializeReflectValue(regionDeser, t.Elem(), v)
-		r.SetMapIndex(k.Elem(), v.Elem())
+		kp := reflect.New(t.Key())
+		deserializeValue(regionDeser, t.Key(), kp)
+		vp := reflect.New(t.Elem())
+		deserializeValue(regionDeser, t.Elem(), vp)
+		r.SetMapIndex(kp.Elem(), vp.Elem())
 	}
 }
 
@@ -522,27 +516,27 @@ func deserializeSlice(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 }
 
 func deserializeArray(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	size := int(t.Elem().Size())
-	te := t.Elem()
+	et := t.Elem()
+	size := int(et.Size())
 	for i := 0; i < t.Len(); i++ {
-		pe := unsafe.Add(p, size*i)
-		deserializeAny(d, te, pe)
+		vp := reflect.NewAt(et, unsafe.Add(p, size*i))
+		deserializeValue(d, et, vp)
 	}
 }
 
 func serializeStructFields(s *Serializer, p unsafe.Pointer, n int, field func(int) reflect.StructField) {
 	for i := 0; i < n; i++ {
 		ft := field(i)
-		fp := unsafe.Add(p, ft.Offset)
-		serializeAny(s, ft.Type, fp)
+		v := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset)).Elem()
+		serializeValue(s, ft.Type, v)
 	}
 }
 
 func deserializeStructFields(d *Deserializer, p unsafe.Pointer, n int, field func(int) reflect.StructField) {
 	for i := 0; i < n; i++ {
 		ft := field(i)
-		fp := unsafe.Add(p, ft.Offset)
-		deserializeAny(d, ft.Type, fp)
+		vp := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset))
+		deserializeValue(d, ft.Type, vp)
 	}
 }
 
