@@ -45,7 +45,7 @@ func (s *Serializer) Visit(ctx reflectext.VisitContext, v reflect.Value) bool {
 }
 
 func (s *Serializer) VisitBool(ctx reflectext.VisitContext, v reflect.Value) {
-	serializeBool(s, v.Bool())
+	s.appendBool(v.Bool())
 }
 
 func (s *Serializer) VisitInt(ctx reflectext.VisitContext, v reflect.Value) {
@@ -78,7 +78,7 @@ func (s *Serializer) VisitUint(ctx reflectext.VisitContext, v reflect.Value) {
 	case reflect.Uint64:
 		serializeUint64(s, uint64(u))
 	case reflect.Uintptr:
-		serializeUint64(s, uint64(u))
+		serializeUintptr(s, uintptr(u))
 	}
 }
 
@@ -111,10 +111,10 @@ func (s *Serializer) VisitSlice(ctx reflectext.VisitContext, v reflect.Value) bo
 
 func (s *Serializer) VisitInterface(ctx reflectext.VisitContext, v reflect.Value) bool {
 	if v.IsNil() {
-		serializeBool(s, false)
+		s.appendBool(false)
 		return false
 	}
-	serializeBool(s, true)
+	s.appendBool(true)
 
 	et := v.Elem().Type()
 	serializeType(s, et)
@@ -210,9 +210,7 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 	case reflect.Invalid:
 		panic(fmt.Errorf("can't deserialize reflect.Invalid"))
 	case reflect.Bool:
-		var value bool
-		deserializeBool(d, &value)
-		v.SetBool(value)
+		v.SetBool(d.bool())
 	case reflect.Int:
 		var value int
 		deserializeInt(d, &value)
@@ -294,9 +292,7 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 	case reflect.Func:
 		deserializeFunc(d, v)
 	case reflect.Interface:
-		var ok bool
-		deserializeBool(d, &ok)
-		if ok {
+		if notNil := d.bool(); notNil {
 			et, length := deserializeType(d)
 			if et != nil {
 				if ep := deserializeRegion(d, et, length); ep != nil {
@@ -594,9 +590,7 @@ func deserializeFunc(d *Deserializer, v reflect.Value) {
 }
 
 func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	var ok bool
-	deserializeBool(d, &ok)
-	if !ok {
+	if notNil := d.bool(); !notNil /* i.e. nil */ {
 		return
 	}
 
@@ -634,19 +628,6 @@ func deserializeString(d *Deserializer, x *string) {
 	ar := deserializeRegion(d, reflectext.ByteType, l)
 
 	*x = unsafe.String((*byte)(ar), l)
-}
-
-func serializeBool(s *Serializer, x bool) {
-	c := byte(0)
-	if x {
-		c = 1
-	}
-	s.buffer = append(s.buffer, c)
-}
-
-func deserializeBool(d *Deserializer, x *bool) {
-	*x = d.b[0] == 1
-	d.b = d.b[1:]
 }
 
 func serializeInt(s *Serializer, x int) {
@@ -705,6 +686,10 @@ func deserializeUint(d *Deserializer, x *uint) {
 
 func serializeUint64(s *Serializer, x uint64) {
 	s.buffer = binary.LittleEndian.AppendUint64(s.buffer, x)
+}
+
+func serializeUintptr(s *Serializer, x uintptr) {
+	serializeUint64(s, uint64(x))
 }
 
 func deserializeUint64(d *Deserializer, x *uint64) {
