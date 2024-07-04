@@ -65,13 +65,6 @@ func RegisterClosure[Type, Closure any](name string) {
 	}
 }
 
-// Go function values are pointers to an object starting with the function
-// address, whether they are referencing top-level functions or closures.
-//
-// The Address function uses this type to dereference the function value and
-// access the address of the function in memory.
-type closure struct{ addr uintptr }
-
 // FuncAddr returns the address in memory of the closure passed as argument.
 //
 // This function can only resolve addresses of closures in the compilation unit
@@ -86,12 +79,11 @@ func FuncAddr(fn any) uintptr {
 	if reflect.TypeOf(fn).Kind() != reflect.Func {
 		panic("value must be a function")
 	}
-	v := (*[2]unsafe.Pointer)(unsafe.Pointer(&fn))
-	c := (*closure)(v[1])
-	if c == nil {
+	header := (*FunctionHeader)((*interfaceHeader)(unsafe.Pointer(&fn)).ptr)
+	if header == nil {
 		return 0
 	}
-	return c.addr
+	return uintptr(header.Addr)
 }
 
 // FuncByName returns the function associated with the given name.

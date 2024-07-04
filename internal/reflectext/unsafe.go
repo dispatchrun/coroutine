@@ -58,24 +58,12 @@ func (v FunctionValue) Closure() (reflect.Value, bool) {
 	return reflect.Value{}, false
 }
 
-// FunctionHeader is the container for function pointers
-// and closure vars.
-type FunctionHeader struct {
-	Addr unsafe.Pointer
-	// closure vars follow...
-}
-
 // SetSlice sets the slice data pointer, length and capacity.
 func SetSlice(v reflect.Value, data unsafe.Pointer, len, cap int) {
 	if v.Kind() != reflect.Slice {
 		panic("not a slice")
 	} else if !v.CanAddr() {
 		panic("slice is not addressable")
-	}
-	type sliceHeader struct { // see reflect.SliceHeader
-		data unsafe.Pointer
-		len  int
-		cap  int
 	}
 	*(*sliceHeader)(v.Addr().UnsafePointer()) = sliceHeader{data: data, len: len, cap: cap}
 }
@@ -90,16 +78,11 @@ func InterfacePointer(v reflect.Value) unsafe.Pointer {
 
 func unsafeInterfacePointer(v reflect.Value) unsafe.Pointer {
 	vi := v.Interface()
-	i := (*iface)(unsafe.Pointer(&vi))
+	i := (*interfaceHeader)(unsafe.Pointer(&vi))
 	if ifaceInline(reflect.TypeOf(vi)) {
 		return unsafe.Pointer(&i.ptr)
 	}
 	return i.ptr
-}
-
-type iface struct {
-	typ unsafe.Pointer
-	ptr unsafe.Pointer
 }
 
 func ifaceInline(t reflect.Type) bool {
@@ -133,15 +116,15 @@ func OffsetForNamedType(t reflect.Type) NamedTypeOffset {
 	// if t.Name() == "" {
 	//   panic("not a named type")
 	// }
-	tptr := (*iface)(unsafe.Pointer(&t)).ptr
-	bptr := (*iface)(unsafe.Pointer(&ByteType)).ptr
+	tptr := (*interfaceHeader)(unsafe.Pointer(&t)).ptr
+	bptr := (*interfaceHeader)(unsafe.Pointer(&ByteType)).ptr
 	return NamedTypeOffset(uintptr(tptr) - uintptr(bptr))
 }
 
 // NamedTypeForOffset gets the named type for an offset.
 func NamedTypeForOffset(offset NamedTypeOffset) reflect.Type {
-	biface := (*iface)(unsafe.Pointer(&ByteType))
-	tiface := &iface{
+	biface := (*interfaceHeader)(unsafe.Pointer(&ByteType))
+	tiface := &interfaceHeader{
 		typ: biface.typ,
 		ptr: unsafe.Add(biface.ptr, offset),
 	}
@@ -155,7 +138,7 @@ var internedBase unsafe.Pointer
 func init() {
 	zero := 0
 	var x interface{} = zero
-	internedBase = (*iface)(unsafe.Pointer(&x)).ptr
+	internedBase = (*interfaceHeader)(unsafe.Pointer(&x)).ptr
 }
 
 func InternedInt(p unsafe.Pointer) (int, bool) {
@@ -175,4 +158,22 @@ func internedOffset(p unsafe.Pointer) int {
 
 func InternedIntPointer(offset int) unsafe.Pointer {
 	return unsafe.Add(internedBase, offset)
+}
+
+// FunctionHeader is the container for function pointers
+// and closure vars.
+type FunctionHeader struct {
+	Addr unsafe.Pointer
+	// closure vars follow...
+}
+
+type sliceHeader struct {
+	data unsafe.Pointer
+	len  int
+	cap  int
+}
+
+type interfaceHeader struct {
+	typ unsafe.Pointer
+	ptr unsafe.Pointer
 }

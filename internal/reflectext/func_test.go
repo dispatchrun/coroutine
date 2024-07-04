@@ -42,11 +42,10 @@ func TestFunctionLookup(t *testing.T) {
 
 func TestClosureAddress(t *testing.T) {
 	f := op(42, 1)
-	p := *(*unsafe.Pointer)(unsafe.Pointer(&f))
-	c := (*closure)(p)
+	header := *(**FunctionHeader)(unsafe.Pointer(&f))
 
 	name := "github.com/dispatchrun/coroutine/internal/reflectext.op.func1"
-	addr1 := c.addr
+	addr1 := uintptr(header.Addr)
 	addr2 := FuncAddr(f)
 
 	if addr1 != addr2 {
