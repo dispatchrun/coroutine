@@ -286,7 +286,7 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 		if data == nil {
 			return
 		}
-		reflectext.SetSlice(v, data, len, cap)
+		reflectext.SliceValue{Value: v}.SetSlice(data, len, cap)
 	case reflect.Map:
 		deserializeMap(d, t, v, vp.UnsafePointer())
 	case reflect.Struct:

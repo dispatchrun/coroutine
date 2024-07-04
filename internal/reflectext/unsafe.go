@@ -5,6 +5,22 @@ import (
 	"unsafe"
 )
 
+// SliceValue is a wrapper for a slice value that adds the
+// ability to set the underlying data pointer, length and
+// capacity, without allocating memory and regardless of
+// the type.
+type SliceValue struct{ reflect.Value }
+
+// SetSlice sets the slice data pointer, length and capacity.
+func (v SliceValue) SetSlice(data unsafe.Pointer, len, cap int) {
+	if v.Kind() != reflect.Slice {
+		panic("not a slice")
+	} else if !v.CanAddr() {
+		panic("slice is not addressable")
+	}
+	*(*sliceHeader)(v.Addr().UnsafePointer()) = sliceHeader{data: data, len: len, cap: cap}
+}
+
 // StructValue is a wrapper for a struct value that provides
 // access to unexported fields without the read-only flag.
 type StructValue struct {
@@ -22,6 +38,9 @@ func (v *StructValue) Field(i int) reflect.Value {
 		panic("field out of range")
 	}
 	if v.base == nil {
+		// This requires at least one allocation. Cache the base
+		// pointer so that we only pay the cost once per struct
+		// during iteration rather than once per field.
 		v.base = unsafeInterfacePointer(v.Value)
 	}
 	f := v.Type().Field(i)
@@ -30,9 +49,7 @@ func (v *StructValue) Field(i int) reflect.Value {
 
 // FunctionValue is a wrapper for a function value that
 // provides access to closure vars.
-type FunctionValue struct {
-	reflect.Value
-}
+type FunctionValue struct{ reflect.Value }
 
 // Closure retrieves the function's closure variables as a struct value.
 //
@@ -42,6 +59,9 @@ type FunctionValue struct {
 // Closure vars are only available for functions that have type information
 // registered at runtime. See RegisterClosure for more information.
 func (v FunctionValue) Closure() (reflect.Value, bool) {
+	if v.Kind() != reflect.Func {
+		panic("not a func")
+	}
 	addr := v.UnsafePointer()
 	if f := FuncByAddr(uintptr(addr)); f == nil {
 		// function not found at addr
@@ -56,16 +76,6 @@ func (v FunctionValue) Closure() (reflect.Value, bool) {
 		return closure, true
 	}
 	return reflect.Value{}, false
-}
-
-// SetSlice sets the slice data pointer, length and capacity.
-func SetSlice(v reflect.Value, data unsafe.Pointer, len, cap int) {
-	if v.Kind() != reflect.Slice {
-		panic("not a slice")
-	} else if !v.CanAddr() {
-		panic("slice is not addressable")
-	}
-	*(*sliceHeader)(v.Addr().UnsafePointer()) = sliceHeader{data: data, len: len, cap: cap}
 }
 
 // InterfacePointer extracts the data pointer from an interface.
