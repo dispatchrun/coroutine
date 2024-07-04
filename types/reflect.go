@@ -103,8 +103,8 @@ func (s *Serializer) VisitFunc(v reflect.Value) bool {
 		serializeVarint(s, 0)
 		return false
 	}
-	fn := *(**function)(unsafePtr(v))
-	id, _ := s.funcs.RegisterAddr(fn.addr)
+	fn := *(**reflectext.FunctionHeader)(unsafePtr(v))
+	id, _ := s.funcs.RegisterAddr(fn.Addr)
 	serializeVarint(s, int(id))
 	return true
 }
@@ -300,10 +300,9 @@ func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Poi
 		return
 	}
 
-	if static(p) {
+	if offset, ok := reflectext.InternedInt(p); ok {
 		serializeVarint(s, -1)
-		off := staticOffset(p)
-		serializeVarint(s, off)
+		serializeVarint(s, offset)
 		return
 	}
 
@@ -396,7 +395,7 @@ func deserializePointedAt(d *Deserializer, t reflect.Type, length int) unsafe.Po
 	offset := deserializeVarint(d)
 	if id == -1 {
 		// Pointer into static uint64 table.
-		return staticPointer(offset)
+		return reflectext.InternedIntPointer(offset)
 	}
 
 	p := d.ptrs[sID(id)]
@@ -539,7 +538,7 @@ func deserializeStructFields(d *Deserializer, p unsafe.Pointer, n int, field fun
 func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	id := deserializeVarint(d)
 	if id == 0 {
-		*(**function)(p) = nil
+		*(**reflectext.FunctionHeader)(p) = nil
 		return
 	}
 
@@ -568,7 +567,7 @@ func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		// Avoid an allocation by storing a pointer to the immutable Func.
 		// This works because the addr is the first element in both the Func
 		// and function structs.
-		*(**function)(p) = (*function)(unsafe.Pointer(fn))
+		*(**reflectext.FunctionHeader)(p) = (*reflectext.FunctionHeader)(unsafe.Pointer(fn))
 	}
 }
 

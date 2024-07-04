@@ -20,6 +20,13 @@ func SetSlice(v reflect.Value, data unsafe.Pointer, len, cap int) {
 	*(*sliceHeader)(v.Addr().UnsafePointer()) = sliceHeader{data: data, len: len, cap: cap}
 }
 
+// FunctionHeader is the container for function pointers
+// and closure vars.
+type FunctionHeader struct {
+	Addr unsafe.Pointer
+	// closure vars follow...
+}
+
 // Used for unsafe access to internals of interface{} and reflect.Value.
 type iface struct {
 	typ unsafe.Pointer
@@ -79,4 +86,33 @@ func NamedTypeForOffset(offset NamedTypeOffset) reflect.Type {
 		ptr: unsafe.Add(biface.ptr, offset),
 	}
 	return *(*reflect.Type)(unsafe.Pointer(tiface))
+}
+
+const internedCount = 256
+
+var internedBase unsafe.Pointer
+
+func init() {
+	zero := 0
+	var x interface{} = zero
+	internedBase = IfacePtr(unsafe.Pointer(&x), nil)
+}
+
+func InternedInt(p unsafe.Pointer) (int, bool) {
+	if interned(p) {
+		return internedOffset(p), true
+	}
+	return 0, false
+}
+
+func interned(p unsafe.Pointer) bool {
+	return uintptr(p) >= uintptr(internedBase) && uintptr(p) < uintptr(internedBase)+internedCount
+}
+
+func internedOffset(p unsafe.Pointer) int {
+	return int(uintptr(p) - uintptr(internedBase))
+}
+
+func InternedIntPointer(offset int) unsafe.Pointer {
+	return unsafe.Add(internedBase, offset)
 }

@@ -209,8 +209,8 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 			} else if f.Type == nil {
 				// function type info not registered
 			} else if f.Closure != nil && (flags&VisitClosures) != 0 {
-				fp := *(**function)(unsafePtr(v))
-				if fp.addr != addr {
+				fp := *(**reflectext.FunctionHeader)(unsafePtr(v))
+				if fp.Addr != addr {
 					panic("invalid closure")
 				}
 				closure := reflect.NewAt(f.Closure, unsafe.Pointer(fp)).Elem()
