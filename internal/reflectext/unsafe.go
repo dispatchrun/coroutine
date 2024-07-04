@@ -5,6 +5,21 @@ import (
 	"unsafe"
 )
 
+// SetSlice sets the slice data pointer, length and capacity.
+func SetSlice(v reflect.Value, data unsafe.Pointer, len, cap int) {
+	if v.Kind() != reflect.Slice {
+		panic("not a slice")
+	} else if !v.CanAddr() {
+		panic("slice is not addressable")
+	}
+	type sliceHeader struct { // see reflect.SliceHeader
+		data unsafe.Pointer
+		len  int
+		cap  int
+	}
+	*(*sliceHeader)(v.Addr().UnsafePointer()) = sliceHeader{data: data, len: len, cap: cap}
+}
+
 // Used for unsafe access to internals of interface{} and reflect.Value.
 type iface struct {
 	typ unsafe.Pointer

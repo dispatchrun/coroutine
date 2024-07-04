@@ -245,9 +245,13 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 	case reflect.Array:
 		deserializeArray(d, t, v.Addr().UnsafePointer())
 	case reflect.Slice:
-		var value slice
-		deserializeSlice(d, t, unsafe.Pointer(&value))
-		*(*slice)(v.Addr().UnsafePointer()) = value
+		len := deserializeVarint(d)
+		cap := deserializeVarint(d)
+		data := deserializePointedAt(d, t.Elem(), cap)
+		if data == nil {
+			return
+		}
+		reflectext.SetSlice(v, data, len, cap)
 	case reflect.Map:
 		deserializeMap(d, t, v, vp.UnsafePointer())
 	case reflect.Struct:
@@ -513,21 +517,6 @@ func deserializeMap(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.P
 		deserializeValue(regionDeser, t.Elem(), vp)
 		r.SetMapIndex(kp.Elem(), vp.Elem())
 	}
-}
-
-func deserializeSlice(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
-	l := deserializeVarint(d)
-	c := deserializeVarint(d)
-
-	ar := deserializePointedAt(d, t.Elem(), c)
-	if ar == nil {
-		return
-	}
-
-	s := (*slice)(p)
-	s.data = ar
-	s.cap = c
-	s.len = l
 }
 
 func deserializeArray(d *Deserializer, t reflect.Type, p unsafe.Pointer) {

@@ -6,14 +6,6 @@ import (
 	"github.com/dispatchrun/coroutine/internal/reflectext"
 )
 
-// Used instead of reflect.SliceHeader to use an unsafe.Pointer instead of
-// uintptr.
-type slice struct {
-	data unsafe.Pointer
-	len  int
-	cap  int
-}
-
 // Used for unsafe access to a function pointer and closure vars.
 type function struct {
 	addr unsafe.Pointer
