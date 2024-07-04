@@ -58,7 +58,11 @@ func (s *Serializer) VisitFloat32(v float32) { serializeFloat32(s, v) }
 func (s *Serializer) VisitFloat64(v float64) { serializeFloat64(s, v) }
 
 func (s *Serializer) VisitString(v string) {
-	serializeString(s, v)
+	serializeVarint(s, len(v))
+	if len(v) > 0 {
+		p := unsafe.Pointer(unsafe.StringData(v))
+		serializePointedAt(s, byteT, len(v), p)
+	}
 }
 
 func (s *Serializer) VisitSlice(v reflect.Value) bool {
@@ -69,7 +73,23 @@ func (s *Serializer) VisitSlice(v reflect.Value) bool {
 }
 
 func (s *Serializer) VisitInterface(v reflect.Value) bool {
-	serializeInterface(s, v)
+	if v.IsNil() {
+		serializeBool(s, false)
+		return false
+	}
+	serializeBool(s, true)
+
+	et := reflect.TypeOf(v.Interface())
+	serializeType(s, et)
+
+	vi := v.Interface()
+	eptr := ifacePtr(unsafe.Pointer(&vi), et)
+
+	if et.Kind() == reflect.Array {
+		serializePointedAt(s, et.Elem(), et.Len(), eptr)
+	} else {
+		serializePointedAt(s, et, -1, eptr)
+	}
 	return false
 }
 
@@ -80,9 +100,7 @@ func (s *Serializer) VisitMap(v reflect.Value) bool {
 
 func (s *Serializer) VisitFunc(v reflect.Value) bool {
 	if addr := v.Pointer(); addr != 0 {
-		vi := v.Interface()
-		p := ifacePtr(unsafe.Pointer(&vi), v.Type())
-		serializeFunc(s, p)
+		serializeFunc(s, unsafePtr(v))
 	} else {
 		serializeFunc(s, unsafe.Pointer(&addr))
 	}
@@ -590,27 +608,6 @@ func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	}
 }
 
-func serializeInterface(s *Serializer, v reflect.Value) {
-	if v.IsNil() {
-		serializeBool(s, false)
-		return
-	}
-	serializeBool(s, true)
-
-	et := reflect.TypeOf(v.Interface())
-	serializeType(s, et)
-
-	vi := v.Interface()
-
-	eptr := ifacePtr(unsafe.Pointer(&vi), et)
-
-	if et.Kind() == reflect.Array {
-		serializePointedAt(s, et.Elem(), et.Len(), eptr)
-	} else {
-		serializePointedAt(s, et, -1, eptr)
-	}
-}
-
 func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	var ok bool
 	deserializeBool(d, &ok)
@@ -640,19 +637,6 @@ func deserializeInterface(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 	} else {
 		r.Elem().Set(reflect.Zero(et))
 	}
-}
-
-func serializeString(s *Serializer, x string) {
-	// Serialize string as a size and a pointer to an array of bytes.
-
-	l := len(x)
-	serializeVarint(s, l)
-	if l == 0 {
-		return
-	}
-
-	p := unsafe.Pointer(unsafe.StringData(x))
-	serializePointedAt(s, byteT, l, p)
 }
 
 func deserializeString(d *Deserializer, x *string) {
