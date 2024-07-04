@@ -108,10 +108,7 @@ func (s *Serializer) VisitFunc(v reflect.Value) bool {
 	serializeVarint(s, int(id))
 
 	if closure != nil {
-		// Skip the first field, which is the function ptr.
-		serializeStructFields(s, unsafe.Pointer(fn), closure.NumField()-1, func(i int) reflect.StructField {
-			return closure.Field(i + 1)
-		})
+		serializeStructFields(s, unsafe.Pointer(fn), closure.NumField(), closure.Field)
 	}
 
 	return false
@@ -583,11 +580,12 @@ func deserializeFunc(d *Deserializer, t reflect.Type, p unsafe.Pointer) {
 		v := reflect.New(t)
 
 		closure := v.UnsafePointer()
-		*(*uintptr)(closure) = fn.Addr
 
-		deserializeStructFields(d, closure, t.NumField()-1, func(i int) reflect.StructField {
-			return t.Field(i + 1)
+		deserializeStructFields(d, closure, t.NumField(), func(i int) reflect.StructField {
+			return t.Field(i)
 		})
+
+		*(*uintptr)(closure) = fn.Addr
 
 		*(*unsafe.Pointer)(p) = closure
 	} else {
