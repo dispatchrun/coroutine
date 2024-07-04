@@ -278,7 +278,8 @@ func (s *scanner) Visit(v reflect.Value) bool {
 	return true
 }
 
-func (s *scanner) VisitString(str string) {
+func (s *scanner) VisitString(v reflect.Value) {
+	str := v.String()
 	if len(str) == 0 {
 		return
 	}

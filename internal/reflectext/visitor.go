@@ -3,7 +3,6 @@ package reflectext
 import (
 	"fmt"
 	"reflect"
-	"unsafe"
 )
 
 // Visitor visits values in a reflect.Value graph.
@@ -15,72 +14,44 @@ type Visitor interface {
 	Visit(reflect.Value) bool
 
 	// VisitBool is called when a bool value is encountered.
-	VisitBool(bool)
+	VisitBool(reflect.Value)
 
-	// VisitInt is called when a int value is encountered.
-	VisitInt(int)
+	// VisitInt is called when a integer value is encountered.
+	//
+	// The value has a kind of reflect.{Int,Int8,Int16,Int32,Int64}.
+	VisitInt(reflect.Value)
 
-	// VisitInt8 is called when a int8 value is encountered.
-	VisitInt8(int8)
+	// VisitUint is called when a unsigned integer value is encountered.
+	//
+	// The value has a kind of reflect.{Uint,Uint8,Uint16,Uint32,Uint64,Uintptr}.
+	VisitUint(reflect.Value)
 
-	// VisitInt16 is called when a int16 value is encountered.
-	VisitInt16(int16)
+	// VisitFloat is called when a float value is encountered.
+	//
+	// The value has a kind of reflect.{Float32,Float64}.
+	VisitFloat(reflect.Value)
 
-	// VisitInt32 is called when a int32 value is encountered.
-	VisitInt32(int32)
-
-	// VisitInt64 is called when a int64 value is encountered.
-	VisitInt64(int64)
-
-	// VisitUint is called when a uint value is encountered.
-	VisitUint(uint)
-
-	// VisitUint8 is called when a uint8 value is encountered.
-	VisitUint8(uint8)
-
-	// VisitUint16 is called when a uint16 value is encountered.
-	VisitUint16(uint16)
-
-	// VisitUint32 is called when a uint32 value is encountered.
-	VisitUint32(uint32)
-
-	// VisitUint64 is called when a uint64 value is encountered.
-	VisitUint64(uint64)
-
-	// VisitUintptr is called when a uintptr value is encountered.
-	VisitUintptr(uintptr)
-
-	// VisitFloat32 is called when a float32 value is encountered.
-	VisitFloat32(float32)
-
-	// VisitFloat64 is called when a float64 value is encountered.
-	VisitFloat64(float64)
-
-	// VisitComplex64 is called when a complex64 value is encountered.
+	// VisitComplex is called when a complex value is encountered.
+	//
+	// The value has a kind of reflect.{Complex64,Complex128}.
 	//
 	// If the function returns true, the visitor will visit
-	// the nested float32 real and imaginary components.
-	VisitComplex64(complex64) bool
-
-	// VisitComplex128 is called when a complex128 value is encountered.
-	//
-	// If the function returns true, the visitor will visit
-	// the nested float64 real and imaginary components.
-	VisitComplex128(complex128) bool
+	// the nested real and imaginary components.
+	VisitComplex(reflect.Value) bool
 
 	// VisitString is called when a string value is encountered.
 	//
 	// Note that the visitor does not visit the nested *byte pointer.
-	VisitString(string)
-
-	// VisitUnsafePointer is called when an unsafe.Pointer value is encountered.
-	VisitUnsafePointer(unsafe.Pointer)
+	VisitString(reflect.Value)
 
 	// VisitPointer is called when a typed pointer is encountered.
 	//
 	// If the function returns true, the visitor will visit the value
 	// the pointer points to (if not null).
 	VisitPointer(reflect.Value) bool
+
+	// VisitUnsafePointer is called when an unsafe.Pointer value is encountered.
+	VisitUnsafePointer(reflect.Value)
 
 	// VisitArray is called when an array value is encountered.
 	//
@@ -97,7 +68,7 @@ type Visitor interface {
 	// VisitMap is called when a map value is encountered.
 	//
 	// If the function returns true, the visitor will visit each
-	// key/value pair in the map.
+	// key/value pair in the map in an unspecified order.
 	VisitMap(reflect.Value) bool
 
 	// VisitChan is called when a channel value is encountered.
@@ -156,71 +127,34 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 		panic(fmt.Errorf("can't visit reflect.Invalid"))
 
 	case reflect.Bool:
-		visitor.VisitBool(v.Bool())
+		visitor.VisitBool(v)
 
-	case reflect.Int:
-		visitor.VisitInt(int(v.Int()))
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		visitor.VisitInt(v)
 
-	case reflect.Int8:
-		visitor.VisitInt8(int8(v.Int()))
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		visitor.VisitUint(v)
 
-	case reflect.Int16:
-		visitor.VisitInt16(int16(v.Int()))
+	case reflect.Float32, reflect.Float64:
+		visitor.VisitFloat(v)
 
-	case reflect.Int32:
-		visitor.VisitInt32(int32(v.Int()))
-
-	case reflect.Int64:
-		visitor.VisitInt64(v.Int())
-
-	case reflect.Uint:
-		visitor.VisitUint(uint(v.Uint()))
-
-	case reflect.Uint8:
-		visitor.VisitUint8(uint8(v.Uint()))
-
-	case reflect.Uint16:
-		visitor.VisitUint16(uint16(v.Uint()))
-
-	case reflect.Uint32:
-		visitor.VisitUint32(uint32(v.Uint()))
-
-	case reflect.Uint64:
-		visitor.VisitUint64(v.Uint())
-
-	case reflect.Uintptr:
-		visitor.VisitUintptr(uintptr(v.Uint()))
-
-	case reflect.Float32:
-		visitor.VisitFloat32(float32(v.Float()))
-
-	case reflect.Float64:
-		visitor.VisitFloat64(float64(v.Float()))
+	case reflect.Complex64, reflect.Complex128:
+		if visitor.VisitComplex(v) {
+			c := v.Complex()
+			visitor.VisitFloat(reflect.ValueOf(real(c)))
+			visitor.VisitFloat(reflect.ValueOf(imag(c)))
+		}
 
 	case reflect.String:
-		visitor.VisitString(v.String())
-
-	case reflect.Complex64:
-		c := complex64(v.Complex())
-		if visitor.VisitComplex64(c) {
-			visitor.VisitFloat32(real(c))
-			visitor.VisitFloat32(imag(c))
-		}
-
-	case reflect.Complex128:
-		c := v.Complex()
-		if visitor.VisitComplex128(c) {
-			visitor.VisitFloat64(real(c))
-			visitor.VisitFloat64(imag(c))
-		}
-
-	case reflect.UnsafePointer:
-		visitor.VisitUnsafePointer(v.UnsafePointer())
+		visitor.VisitString(v)
 
 	case reflect.Pointer:
 		if visitor.VisitPointer(v) && !v.IsNil() {
 			Visit(visitor, v.Elem(), flags)
 		}
+
+	case reflect.UnsafePointer:
+		visitor.VisitUnsafePointer(v)
 
 	case reflect.Array:
 		if visitor.VisitArray(v) {
@@ -293,25 +227,14 @@ type DefaultVisitor struct{}
 var _ Visitor = DefaultVisitor{}
 
 func (DefaultVisitor) Visit(reflect.Value) bool          { return true }
-func (DefaultVisitor) VisitBool(bool)                    {}
-func (DefaultVisitor) VisitInt(int)                      {}
-func (DefaultVisitor) VisitInt8(int8)                    {}
-func (DefaultVisitor) VisitInt16(int16)                  {}
-func (DefaultVisitor) VisitInt32(int32)                  {}
-func (DefaultVisitor) VisitInt64(int64)                  {}
-func (DefaultVisitor) VisitUint(uint)                    {}
-func (DefaultVisitor) VisitUint8(uint8)                  {}
-func (DefaultVisitor) VisitUint16(uint16)                {}
-func (DefaultVisitor) VisitUint32(uint32)                {}
-func (DefaultVisitor) VisitUint64(uint64)                {}
-func (DefaultVisitor) VisitUintptr(uintptr)              {}
-func (DefaultVisitor) VisitFloat32(float32)              {}
-func (DefaultVisitor) VisitFloat64(float64)              {}
-func (DefaultVisitor) VisitString(string)                {}
-func (DefaultVisitor) VisitUnsafePointer(unsafe.Pointer) {}
-func (DefaultVisitor) VisitComplex64(complex64) bool     { return true }
-func (DefaultVisitor) VisitComplex128(complex128) bool   { return true }
+func (DefaultVisitor) VisitBool(reflect.Value)           {}
+func (DefaultVisitor) VisitInt(reflect.Value)            {}
+func (DefaultVisitor) VisitUint(reflect.Value)           {}
+func (DefaultVisitor) VisitFloat(reflect.Value)          {}
+func (DefaultVisitor) VisitComplex(reflect.Value) bool   { return true }
+func (DefaultVisitor) VisitString(reflect.Value)         {}
 func (DefaultVisitor) VisitPointer(reflect.Value) bool   { return true }
+func (DefaultVisitor) VisitUnsafePointer(reflect.Value)  {}
 func (DefaultVisitor) VisitArray(reflect.Value) bool     { return true }
 func (DefaultVisitor) VisitSlice(reflect.Value) bool     { return true }
 func (DefaultVisitor) VisitMap(reflect.Value) bool       { return true }

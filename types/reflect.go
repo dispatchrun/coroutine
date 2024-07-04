@@ -44,29 +44,61 @@ func (s *Serializer) Visit(v reflect.Value) bool {
 	return true
 }
 
-func (s *Serializer) VisitBool(v bool) { serializeBool(s, v) }
+func (s *Serializer) VisitBool(v reflect.Value) {
+	serializeBool(s, v.Bool())
+}
 
-func (s *Serializer) VisitInt(v int)     { serializeInt(s, v) }
-func (s *Serializer) VisitInt8(v int8)   { serializeInt8(s, v) }
-func (s *Serializer) VisitInt16(v int16) { serializeInt16(s, v) }
-func (s *Serializer) VisitInt32(v int32) { serializeInt32(s, v) }
-func (s *Serializer) VisitInt64(v int64) { serializeInt64(s, v) }
+func (s *Serializer) VisitInt(v reflect.Value) {
+	i := v.Int()
+	switch v.Kind() {
+	case reflect.Int:
+		serializeInt(s, int(i))
+	case reflect.Int8:
+		serializeInt8(s, int8(i))
+	case reflect.Int16:
+		serializeInt16(s, int16(i))
+	case reflect.Int32:
+		serializeInt32(s, int32(i))
+	case reflect.Int64:
+		serializeInt64(s, int64(i))
+	}
+}
 
-func (s *Serializer) VisitUint(v uint)       { serializeUint(s, v) }
-func (s *Serializer) VisitUint8(v uint8)     { serializeUint8(s, v) }
-func (s *Serializer) VisitUint16(v uint16)   { serializeUint16(s, v) }
-func (s *Serializer) VisitUint32(v uint32)   { serializeUint32(s, v) }
-func (s *Serializer) VisitUint64(v uint64)   { serializeUint64(s, v) }
-func (s *Serializer) VisitUintptr(v uintptr) { serializeUint64(s, uint64(v)) }
+func (s *Serializer) VisitUint(v reflect.Value) {
+	u := v.Uint()
+	switch v.Kind() {
+	case reflect.Uint:
+		serializeUint(s, uint(u))
+	case reflect.Uint8:
+		serializeUint8(s, uint8(u))
+	case reflect.Uint16:
+		serializeUint16(s, uint16(u))
+	case reflect.Uint32:
+		serializeUint32(s, uint32(u))
+	case reflect.Uint64:
+		serializeUint64(s, uint64(u))
+	case reflect.Uintptr:
+		serializeUint64(s, uint64(u))
+	}
+}
 
-func (s *Serializer) VisitFloat32(v float32) { serializeFloat32(s, v) }
-func (s *Serializer) VisitFloat64(v float64) { serializeFloat64(s, v) }
+func (s *Serializer) VisitFloat(v reflect.Value) {
+	f := v.Float()
+	switch v.Kind() {
+	case reflect.Float32:
+		serializeFloat32(s, float32(f))
+	case reflect.Float64:
+		serializeFloat64(s, float64(f))
+	}
+}
 
-func (s *Serializer) VisitString(v string) {
-	serializeVarint(s, len(v))
-	if len(v) > 0 {
-		p := unsafe.Pointer(unsafe.StringData(v))
-		serializePointedAt(s, reflectext.ByteType, len(v), p)
+func (s *Serializer) VisitString(v reflect.Value) {
+	str := v.String()
+	siz := len(str)
+	serializeVarint(s, siz)
+	if siz > 0 {
+		p := unsafe.Pointer(unsafe.StringData(str))
+		serializePointedAt(s, reflectext.ByteType, siz, p)
 	}
 }
 
@@ -117,8 +149,8 @@ func (s *Serializer) VisitPointer(v reflect.Value) bool {
 	return false
 }
 
-func (s *Serializer) VisitUnsafePointer(p unsafe.Pointer) {
-	serializePointedAt(s, nil, -1, p)
+func (s *Serializer) VisitUnsafePointer(v reflect.Value) {
+	serializePointedAt(s, nil, -1, v.UnsafePointer())
 }
 
 func (s *Serializer) VisitChan(v reflect.Value) bool {
