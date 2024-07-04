@@ -35,22 +35,29 @@ func FunctionHeaderOf(v reflect.Value) *FunctionHeader {
 	if v.IsNil() {
 		return nil
 	}
-	return *(**FunctionHeader)(unsafePtr(v))
+	return *(**FunctionHeader)(unsafeInterfacePointer(v))
 }
 
-// Used for unsafe access to internals of interface{} and reflect.Value.
-type iface struct {
-	typ unsafe.Pointer
-	ptr unsafe.Pointer
+// InterfacePointer extracts the data pointer from an interface.
+func InterfacePointer(v reflect.Value) unsafe.Pointer {
+	if v.Kind() != reflect.Interface {
+		panic("not an interface")
+	}
+	return unsafeInterfacePointer(v)
 }
 
-// FIXME: don't export this
-func IfacePtr(p unsafe.Pointer, t reflect.Type) unsafe.Pointer {
-	i := (*iface)(p)
-	if ifaceInline(t) {
+func unsafeInterfacePointer(v reflect.Value) unsafe.Pointer {
+	vi := v.Interface()
+	i := (*iface)(unsafe.Pointer(&vi))
+	if ifaceInline(reflect.TypeOf(vi)) {
 		return unsafe.Pointer(&i.ptr)
 	}
 	return i.ptr
+}
+
+type iface struct {
+	typ unsafe.Pointer
+	ptr unsafe.Pointer
 }
 
 func ifaceInline(t reflect.Type) bool {
@@ -106,7 +113,7 @@ var internedBase unsafe.Pointer
 func init() {
 	zero := 0
 	var x interface{} = zero
-	internedBase = IfacePtr(unsafe.Pointer(&x), nil)
+	internedBase = (*iface)(unsafe.Pointer(&x)).ptr
 }
 
 func InternedInt(p unsafe.Pointer) (int, bool) {

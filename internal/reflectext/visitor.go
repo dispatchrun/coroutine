@@ -214,7 +214,7 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 
 	case reflect.Struct:
 		if visitor.VisitStruct(v) {
-			p := unsafePtr(v)
+			p := unsafeInterfacePointer(v)
 			t := v.Type()
 			for i := 0; i < v.NumField(); i++ {
 				ft := t.Field(i)
@@ -252,11 +252,6 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 	default:
 		panic("unreachable")
 	}
-}
-
-func unsafePtr(v reflect.Value) unsafe.Pointer {
-	i := v.Interface()
-	return IfacePtr(unsafe.Pointer(&i), reflect.TypeOf(i))
 }
 
 // DefaultVisitor is a Visitor that visits all values in a

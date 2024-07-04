@@ -80,13 +80,10 @@ func (s *Serializer) VisitInterface(v reflect.Value) bool {
 	}
 	serializeBool(s, true)
 
-	i := v.Interface()
-
-	et := reflect.TypeOf(i)
+	et := v.Elem().Type()
 	serializeType(s, et)
 
-	p := reflectext.IfacePtr(unsafe.Pointer(&i), et)
-
+	p := reflectext.InterfacePointer(v)
 	if et.Kind() == reflect.Array {
 		serializePointedAt(s, et.Elem(), et.Len(), p)
 	} else {
