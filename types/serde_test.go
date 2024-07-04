@@ -16,6 +16,7 @@ import (
 	"unsafe"
 
 	coroutinev1 "github.com/dispatchrun/coroutine/gen/proto/go/coroutine/v1"
+	"github.com/dispatchrun/coroutine/internal/reflectext"
 )
 
 func TestSerdeTime(t *testing.T) {
@@ -202,8 +203,8 @@ func TestReflect(t *testing.T) {
 		t := reflect.TypeOf(x)
 
 		if t.Kind() == reflect.Func {
-			a := FuncAddr(x)
-			if f := FuncByAddr(a); f != nil {
+			a := reflectext.FuncAddr(x)
+			if f := reflectext.FuncByAddr(a); f != nil {
 				f.Type = t
 			}
 		}
@@ -840,7 +841,7 @@ func deepEqual(v1, v2 any) bool {
 	}
 
 	if t1.Kind() == reflect.Func {
-		return FuncAddr(v1) == FuncAddr(v2)
+		return reflectext.FuncAddr(v1) == reflectext.FuncAddr(v2)
 	}
 
 	return reflect.DeepEqual(v1, v2)

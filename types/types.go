@@ -6,6 +6,7 @@ import (
 	"unsafe"
 
 	coroutinev1 "github.com/dispatchrun/coroutine/gen/proto/go/coroutine/v1"
+	"github.com/dispatchrun/coroutine/internal/reflectext"
 )
 
 type typeid = uint32
@@ -354,7 +355,7 @@ type funcmap struct {
 	strings *stringmap
 
 	funcs []*coroutinev1.Function
-	cache doublemap[typeid, *Func]
+	cache doublemap[typeid, *reflectext.Func]
 }
 
 func newFuncMap(types *typemap, strings *stringmap, funcs []*coroutinev1.Function) *funcmap {
@@ -378,7 +379,7 @@ func (m *funcmap) lookup(id funcid) *coroutinev1.Function {
 	return m.funcs[id-1]
 }
 
-func (m *funcmap) ToFunc(id funcid) *Func {
+func (m *funcmap) ToFunc(id funcid) *reflectext.Func {
 	if x, ok := m.cache.getK(id); ok {
 		return x
 	}
@@ -387,7 +388,7 @@ func (m *funcmap) ToFunc(id funcid) *Func {
 		panic(fmt.Sprintf("function ID %d not found", id))
 	}
 	name := m.strings.Lookup(cf.Name)
-	f := FuncByName(name)
+	f := reflectext.FuncByName(name)
 	if f == nil {
 		panic(fmt.Sprintf("function %s not found", name))
 	}
@@ -395,7 +396,7 @@ func (m *funcmap) ToFunc(id funcid) *Func {
 }
 
 func (m *funcmap) RegisterAddr(addr unsafe.Pointer) (id funcid, closureType reflect.Type) {
-	f := FuncByAddr(uintptr(addr))
+	f := reflectext.FuncByAddr(uintptr(addr))
 	if f == nil {
 		panic(fmt.Sprintf("function not found at address %v", addr))
 	}

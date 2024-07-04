@@ -8,6 +8,7 @@ import (
 
 	"github.com/dispatchrun/coroutine"
 	. "github.com/dispatchrun/coroutine/compiler/testdata"
+	"github.com/dispatchrun/coroutine/internal/reflectext"
 	"github.com/dispatchrun/coroutine/types"
 )
 
@@ -313,12 +314,12 @@ func TestCoroutineYield(t *testing.T) {
 	// package.
 	for _, test := range tests {
 		if test.coro != nil {
-			addr := types.FuncAddr(test.coro)
-			fn := types.FuncByAddr(addr)
+			addr := reflectext.FuncAddr(test.coro)
+			fn := reflectext.FuncByAddr(addr)
 			types.RegisterFunc[func()](fn.Name)
 		} else {
-			addr := types.FuncAddr(test.coroR)
-			fn := types.FuncByAddr(addr)
+			addr := reflectext.FuncAddr(test.coroR)
+			fn := reflectext.FuncByAddr(addr)
 			types.RegisterFunc[func() int](fn.Name)
 		}
 	}

@@ -8,6 +8,7 @@ import (
 	"unsafe"
 
 	coroutinev1 "github.com/dispatchrun/coroutine/gen/proto/go/coroutine/v1"
+	"github.com/dispatchrun/coroutine/internal/reflectext"
 )
 
 func (s *Serializer) Visit(v reflect.Value) bool {
@@ -252,7 +253,7 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 	case reflect.Struct:
 		deserializeStructFields(d, vp.UnsafePointer(), t.NumField(), t.Field)
 	case reflect.Func:
-		var fn *Func
+		var fn *reflectext.Func
 		deserializeFunc(d, t, unsafe.Pointer(&fn))
 		if fn != nil {
 			p := v.Addr().UnsafePointer()

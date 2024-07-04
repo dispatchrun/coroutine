@@ -14,6 +14,7 @@ import (
 	"unsafe"
 
 	coroutinev1 "github.com/dispatchrun/coroutine/gen/proto/go/coroutine/v1"
+	"github.com/dispatchrun/coroutine/internal/reflectext"
 )
 
 // sID is the unique sID of a pointer or type in the serialized format.
@@ -29,7 +30,7 @@ var buildInfo *coroutinev1.Build
 
 func init() {
 	buildInfo = &coroutinev1.Build{
-		Id:   buildID,
+		Id:   reflectext.BuildID(),
 		Os:   runtime.GOOS,
 		Arch: runtime.GOARCH,
 	}

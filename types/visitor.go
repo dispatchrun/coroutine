@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"unsafe"
+
+	"github.com/dispatchrun/coroutine/internal/reflectext"
 )
 
 type Visitor interface {
@@ -202,7 +204,7 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 	case reflect.Func:
 		if visitor.VisitFunc(v) && !v.IsNil() {
 			addr := v.UnsafePointer()
-			if f := FuncByAddr(uintptr(addr)); f == nil {
+			if f := reflectext.FuncByAddr(uintptr(addr)); f == nil {
 				// function not found at addr
 			} else if f.Type == nil {
 				// function type info not registered
