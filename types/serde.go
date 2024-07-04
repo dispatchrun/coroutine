@@ -49,7 +49,7 @@ func Serialize(x any) ([]byte, error) {
 	// Scan pointers to collect memory regions.
 	s.scan(t, p)
 
-	serializeValue(s, t, wr.Elem())
+	Visit(s, wr.Elem(), VisitUnexportedFields|VisitClosures)
 
 	state := &coroutinev1.State{
 		Build:     buildInfo,
@@ -166,6 +166,8 @@ func (d *Deserializer) store(i sID, p unsafe.Pointer) {
 // shared memory. Only outermost containers are serialized. All pointers either
 // point to a container, or an offset into that container.
 type Serializer struct {
+	DefaultVisitor
+
 	*serializerContext
 
 	// Output
@@ -187,21 +189,21 @@ func newSerializer() *Serializer {
 	types := newTypeMap(serdes, strings, nil)
 
 	return &Serializer{
-		&serializerContext{
+		serializerContext: &serializerContext{
 			serdes:  serdes,
 			types:   types,
 			strings: strings,
 			funcs:   newFuncMap(types, strings, nil),
 			ptrs:    make(map[unsafe.Pointer]sID),
 		},
-		make([]byte, 0, 128),
+		b: make([]byte, 0, 128),
 	}
 }
 
 func (s *Serializer) fork() *Serializer {
 	return &Serializer{
-		s.serializerContext,
-		make([]byte, 0, 128),
+		serializerContext: s.serializerContext,
+		b:                 make([]byte, 0, 128),
 	}
 }
 
@@ -230,7 +232,7 @@ func SerializeT[T any](s *Serializer, x T) {
 	v := reflect.ValueOf(x)
 	t := v.Type()
 	serializeType(s, t)
-	serializeValue(s, t, v)
+	Visit(s, v, VisitUnexportedFields|VisitClosures)
 }
 
 // Deserialize a value to the provided non-nil pointer. See [RegisterSerde].

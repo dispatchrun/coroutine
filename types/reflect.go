@@ -10,6 +10,98 @@ import (
 	coroutinev1 "github.com/dispatchrun/coroutine/gen/proto/go/coroutine/v1"
 )
 
+func (s *Serializer) Visit(v reflect.Value) bool {
+	t := v.Type()
+
+	// Special case for values with a custom serializer registered.
+	if serde, ok := s.serdes.serdeByType(t); ok {
+		offset := len(s.b)
+		s.b = append(s.b, 0, 0, 0, 0, 0, 0, 0, 0) // store a 64-bit size placeholder
+		serde.ser(s, v)
+		binary.LittleEndian.PutUint64(s.b[offset:], uint64(len(s.b)-offset))
+		return false
+	}
+
+	// Special cases for reflect.Type and reflect.Value.
+	switch t {
+	case reflectTypeT:
+		rt := v.Interface().(reflect.Type)
+		serializeType(s, rt)
+		return false
+
+	case reflectValueT:
+		rv := v.Interface().(reflect.Value)
+		serializeType(s, rv.Type())
+		Visit(s, rv, VisitUnexportedFields|VisitClosures) // FIXME: propagate flags
+		return false
+	}
+
+	return true
+}
+
+func (s *Serializer) VisitBool(v bool) { serializeBool(s, v) }
+
+func (s *Serializer) VisitInt(v int)     { serializeInt(s, v) }
+func (s *Serializer) VisitInt8(v int8)   { serializeInt8(s, v) }
+func (s *Serializer) VisitInt16(v int16) { serializeInt16(s, v) }
+func (s *Serializer) VisitInt32(v int32) { serializeInt32(s, v) }
+func (s *Serializer) VisitInt64(v int64) { serializeInt64(s, v) }
+
+func (s *Serializer) VisitUint(v uint)       { serializeUint(s, v) }
+func (s *Serializer) VisitUint8(v uint8)     { serializeUint8(s, v) }
+func (s *Serializer) VisitUint16(v uint16)   { serializeUint16(s, v) }
+func (s *Serializer) VisitUint32(v uint32)   { serializeUint32(s, v) }
+func (s *Serializer) VisitUint64(v uint64)   { serializeUint64(s, v) }
+func (s *Serializer) VisitUintptr(v uintptr) { serializeUint64(s, uint64(v)) }
+
+func (s *Serializer) VisitFloat32(v float32) { serializeFloat32(s, v) }
+func (s *Serializer) VisitFloat64(v float64) { serializeFloat64(s, v) }
+
+func (s *Serializer) VisitString(v string) {
+	serializeString(s, v)
+}
+
+func (s *Serializer) VisitSlice(v reflect.Value) bool {
+	serializeVarint(s, v.Len())
+	serializeVarint(s, v.Cap())
+	serializePointedAt(s, v.Type().Elem(), v.Cap(), v.UnsafePointer())
+	return false
+}
+
+func (s *Serializer) VisitInterface(v reflect.Value) bool {
+	serializeInterface(s, v)
+	return false
+}
+
+func (s *Serializer) VisitMap(v reflect.Value) bool {
+	serializeMap(s, v)
+	return false
+}
+
+func (s *Serializer) VisitFunc(v reflect.Value) bool {
+	if addr := v.Pointer(); addr != 0 {
+		vi := v.Interface()
+		p := ifacePtr(unsafe.Pointer(&vi), v.Type())
+		serializeFunc(s, p)
+	} else {
+		serializeFunc(s, unsafe.Pointer(&addr))
+	}
+	return false
+}
+
+func (s *Serializer) VisitPointer(v reflect.Value) bool {
+	serializePointedAt(s, v.Type().Elem(), -1, v.UnsafePointer())
+	return false
+}
+
+func (s *Serializer) VisitUnsafePointer(p unsafe.Pointer) {
+	serializePointedAt(s, nil, -1, p)
+}
+
+func (s *Serializer) VisitChan(v reflect.Value) bool {
+	panic("not implemented: reflect.Chan")
+}
+
 func serializeType(s *Serializer, t reflect.Type) {
 	if t != nil && t.Kind() == reflect.Array {
 		id := s.types.ToType(t.Elem())
@@ -20,7 +112,6 @@ func serializeType(s *Serializer, t reflect.Type) {
 		serializeVarint(s, int(id))
 		serializeVarint(s, -1)
 	}
-
 }
 
 func deserializeType(d *Deserializer) (reflect.Type, int) {
@@ -28,99 +119,6 @@ func deserializeType(d *Deserializer) (reflect.Type, int) {
 	length := deserializeVarint(d)
 	t := d.types.ToReflect(typeid(id))
 	return t, length
-}
-
-func serializeValue(s *Serializer, t reflect.Type, v reflect.Value) {
-	if serde, ok := s.serdes.serdeByType(t); ok {
-		offset := len(s.b)
-		s.b = append(s.b, 0, 0, 0, 0, 0, 0, 0, 0) // store a 64-bit size placeholder
-		serde.ser(s, v)
-		binary.LittleEndian.PutUint64(s.b[offset:], uint64(len(s.b)-offset))
-		return
-	}
-
-	switch t {
-	case reflectTypeT:
-		rt := v.Interface().(reflect.Type)
-		serializeType(s, rt)
-		return
-	case reflectValueT:
-		rv := v.Interface().(reflect.Value)
-		serializeType(s, rv.Type())
-		serializeValue(s, rv.Type(), rv)
-		return
-	}
-
-	switch t.Kind() {
-	case reflect.Invalid:
-		panic(fmt.Errorf("can't serialize reflect.Invalid"))
-	case reflect.Bool:
-		serializeBool(s, v.Bool())
-	case reflect.Int:
-		serializeInt(s, int(v.Int()))
-	case reflect.Int8:
-		serializeInt8(s, int8(v.Int()))
-	case reflect.Int16:
-		serializeInt16(s, int16(v.Int()))
-	case reflect.Int32:
-		serializeInt32(s, int32(v.Int()))
-	case reflect.Int64:
-		serializeInt64(s, v.Int())
-	case reflect.Uint:
-		serializeUint(s, uint(v.Uint()))
-	case reflect.Uint8:
-		serializeUint8(s, uint8(v.Uint()))
-	case reflect.Uint16:
-		serializeUint16(s, uint16(v.Uint()))
-	case reflect.Uint32:
-		serializeUint32(s, uint32(v.Uint()))
-	case reflect.Uint64:
-		serializeUint64(s, v.Uint())
-	case reflect.Uintptr:
-		serializeUint64(s, v.Uint())
-	case reflect.Float32:
-		serializeFloat32(s, float32(v.Float()))
-	case reflect.Float64:
-		serializeFloat64(s, v.Float())
-	case reflect.Complex64:
-		serializeComplex64(s, complex64(v.Complex()))
-	case reflect.Complex128:
-		serializeComplex128(s, complex128(v.Complex()))
-	case reflect.String:
-		serializeString(s, v.String())
-	case reflect.Array:
-		et := t.Elem()
-		for i := 0; i < t.Len(); i++ {
-			serializeValue(s, et, v.Index(i))
-		}
-	case reflect.Slice:
-		serializeVarint(s, v.Len())
-		serializeVarint(s, v.Cap())
-		serializePointedAt(s, t.Elem(), v.Cap(), v.UnsafePointer())
-	case reflect.Map:
-		serializeMapReflect(s, v)
-	case reflect.Struct:
-		vi := v.Interface()
-		p := ifacePtr(unsafe.Pointer(&vi), t)
-		serializeStructFields(s, p, t.NumField(), t.Field)
-	case reflect.Func:
-		if addr := v.Pointer(); addr != 0 {
-			vi := v.Interface()
-			p := ifacePtr(unsafe.Pointer(&vi), t)
-			serializeFunc(s, p)
-		} else {
-			serializeFunc(s, unsafe.Pointer(&addr))
-		}
-	case reflect.Pointer:
-		serializePointedAt(s, t.Elem(), -1, v.UnsafePointer())
-	case reflect.Interface:
-		serializeInterface(s, v)
-	case reflect.UnsafePointer:
-		serializePointedAt(s, nil, -1, v.UnsafePointer())
-	default:
-		// TODO: reflect.Chan
-		panic(fmt.Sprintf("not implemented: serializing reflect.Value with type %s (%s)", t, t.Kind()))
-	}
 }
 
 func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
@@ -231,7 +229,7 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 		deserializeSlice(d, t, unsafe.Pointer(&value))
 		*(*slice)(v.Addr().UnsafePointer()) = value
 	case reflect.Map:
-		deserializeMapReflect(d, t, v, vp.UnsafePointer())
+		deserializeMap(d, t, v, vp.UnsafePointer())
 	case reflect.Struct:
 		deserializeStructFields(d, vp.UnsafePointer(), t.NumField(), t.Field)
 	case reflect.Func:
@@ -307,7 +305,7 @@ func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Poi
 
 	if r.len < 0 && r.typ.Kind() == reflect.Map {
 		v := reflect.NewAt(r.typ, r.addr).Elem()
-		serializeMapReflect(s, v)
+		serializeMap(s, v)
 		return
 	}
 
@@ -343,11 +341,11 @@ func serializePointedAt(s *Serializer, et reflect.Type, length int, p unsafe.Poi
 		es := int(r.typ.Size())
 		for i := 0; i < r.len; i++ {
 			v := reflect.NewAt(r.typ, unsafe.Add(r.addr, i*es)).Elem()
-			serializeValue(regionSer, r.typ, v)
+			Visit(regionSer, v, VisitUnexportedFields|VisitClosures) // FIXME: propagate flags
 		}
 	} else {
 		v := reflect.NewAt(r.typ, r.addr).Elem()
-		serializeValue(regionSer, r.typ, v)
+		Visit(regionSer, v, VisitUnexportedFields|VisitClosures) // FIXME: propagate flags
 	}
 	region.Data = regionSer.b
 }
@@ -361,7 +359,7 @@ func deserializePointedAt(d *Deserializer, t reflect.Type, length int) unsafe.Po
 	if length < 0 && t.Kind() == reflect.Map {
 		m := reflect.New(t)
 		p := m.UnsafePointer()
-		deserializeMapReflect(d, t, m.Elem(), m.UnsafePointer())
+		deserializeMap(d, t, m.Elem(), m.UnsafePointer())
 		return p
 	}
 
@@ -421,7 +419,7 @@ func deserializePointedAt(d *Deserializer, t reflect.Type, length int) unsafe.Po
 	return unsafe.Add(p, offset)
 }
 
-func serializeMapReflect(s *Serializer, v reflect.Value) {
+func serializeMap(s *Serializer, v reflect.Value) {
 	if v.IsNil() {
 		serializeVarint(s, 0)
 		return
@@ -448,19 +446,16 @@ func serializeMapReflect(s *Serializer, v reflect.Value) {
 	regionSer := s.fork()
 	serializeVarint(regionSer, size)
 
-	keyT := t.Key()
-	valT := t.Elem()
-
 	iter := v.MapRange()
 	for iter.Next() {
-		serializeValue(regionSer, keyT, iter.Key())
-		serializeValue(regionSer, valT, iter.Value())
+		Visit(regionSer, iter.Key(), VisitUnexportedFields|VisitClosures)   // FIXME: propagate flags
+		Visit(regionSer, iter.Value(), VisitUnexportedFields|VisitClosures) // FIXME: propagate flags
 	}
 
 	region.Data = regionSer.b
 }
 
-func deserializeMapReflect(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.Pointer) {
+func deserializeMap(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.Pointer) {
 	id := deserializeVarint(d)
 	if id == 0 {
 		r.SetZero()
@@ -528,7 +523,7 @@ func serializeStructFields(s *Serializer, p unsafe.Pointer, n int, field func(in
 	for i := 0; i < n; i++ {
 		ft := field(i)
 		v := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset)).Elem()
-		serializeValue(s, ft.Type, v)
+		Visit(s, v, VisitUnexportedFields|VisitClosures) // FIXME: propagate flags
 	}
 }
 
@@ -791,22 +786,12 @@ func deserializeFloat64(d *Deserializer, x *float64) {
 	deserializeUint64(d, (*uint64)(unsafe.Pointer(x)))
 }
 
-func serializeComplex64(s *Serializer, x complex64) {
-	serializeFloat32(s, real(x))
-	serializeFloat32(s, imag(x))
-}
-
 func deserializeComplex64(d *Deserializer, x *complex64) {
 	var real float32
 	var imag float32
 	deserializeFloat32(d, &real)
 	deserializeFloat32(d, &imag)
 	*x = complex(real, imag)
-}
-
-func serializeComplex128(s *Serializer, x complex128) {
-	serializeFloat64(s, real(x))
-	serializeFloat64(s, imag(x))
 }
 
 func deserializeComplex128(d *Deserializer, x *complex128) {
