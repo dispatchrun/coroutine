@@ -30,12 +30,12 @@ func (s *Serializer) Visit(ctx reflectext.VisitContext, v reflect.Value) bool {
 	switch t {
 	case reflectext.ReflectTypeType:
 		rt := v.Interface().(reflect.Type)
-		serializeType(s, rt)
+		s.appendReflectType(rt)
 		return false
 
 	case reflectext.ReflectValueType:
 		rv := v.Interface().(reflect.Value)
-		serializeType(s, rv.Type())
+		s.appendReflectType(rv.Type())
 		s.Serialize(rv)
 		return false
 	}
@@ -97,14 +97,14 @@ func (s *Serializer) VisitString(ctx reflectext.VisitContext, v reflect.Value) {
 	s.appendVarint(siz)
 	if siz > 0 {
 		p := unsafe.Pointer(unsafe.StringData(str))
-		serializeRegion(s, reflectext.ByteType, siz, p)
+		s.serializeRegion(reflectext.ByteType, siz, p)
 	}
 }
 
 func (s *Serializer) VisitSlice(ctx reflectext.VisitContext, v reflect.Value) bool {
 	s.appendVarint(v.Len())
 	s.appendVarint(v.Cap())
-	serializeRegion(s, v.Type().Elem(), v.Cap(), v.UnsafePointer())
+	s.serializeRegion(v.Type().Elem(), v.Cap(), v.UnsafePointer())
 	return false
 }
 
@@ -116,19 +116,49 @@ func (s *Serializer) VisitInterface(ctx reflectext.VisitContext, v reflect.Value
 	s.appendBool(true)
 
 	et := v.Elem().Type()
-	serializeType(s, et)
+	s.appendReflectType(et)
 
 	p := reflectext.InterfaceValueOf(v).DataPointer()
 	if et.Kind() == reflect.Array {
-		serializeRegion(s, et.Elem(), et.Len(), p)
+		s.serializeRegion(et.Elem(), et.Len(), p)
 	} else {
-		serializeRegion(s, et, -1, p)
+		s.serializeRegion(et, -1, p)
 	}
 	return false
 }
 
 func (s *Serializer) VisitMap(ctx reflectext.VisitContext, v reflect.Value) bool {
-	serializeMap(s, v)
+	if v.IsNil() {
+		s.appendVarint(0) // id=0 means nil
+		return false
+	}
+
+	p := v.UnsafePointer()
+
+	id, isNew := s.assignPointerID(p)
+	s.appendVarint(int(id))
+	s.appendVarint(0) // offset, for compat with other region references
+
+	if !isNew {
+		return false
+	}
+
+	region := &coroutinev1.Region{
+		Type: s.types.ToType(v.Type()) << 1,
+	}
+	s.regions = append(s.regions, region)
+
+	regionSerializer := s.fork()
+	regionSerializer.appendVarint(v.Len())
+
+	iter := v.MapRange()
+	for iter.Next() {
+		regionSerializer.Serialize(iter.Key())
+		regionSerializer.Serialize(iter.Value())
+	}
+
+	region.Data = regionSerializer.buffer
+
 	return false
 }
 
@@ -144,19 +174,19 @@ func (s *Serializer) VisitFunc(ctx reflectext.VisitContext, v reflect.Value) boo
 }
 
 func (s *Serializer) VisitPointer(ctx reflectext.VisitContext, v reflect.Value) bool {
-	serializeRegion(s, v.Type().Elem(), -1, v.UnsafePointer())
+	s.serializeRegion(v.Type().Elem(), -1, v.UnsafePointer())
 	return false
 }
 
 func (s *Serializer) VisitUnsafePointer(ctx reflectext.VisitContext, v reflect.Value) {
-	serializeRegion(s, nil, -1, v.UnsafePointer())
+	s.serializeRegion(nil, -1, v.UnsafePointer())
 }
 
 func (s *Serializer) VisitChan(ctx reflectext.VisitContext, v reflect.Value) bool {
 	panic("not implemented: reflect.Chan")
 }
 
-func serializeType(s *Serializer, t reflect.Type) {
+func (s *Serializer) appendReflectType(t reflect.Type) {
 	if t != nil && t.Kind() == reflect.Array {
 		id := s.types.ToType(t.Elem())
 		s.appendVarint(int(id))
@@ -168,7 +198,7 @@ func serializeType(s *Serializer, t reflect.Type) {
 	}
 }
 
-func deserializeType(d *Deserializer) (reflect.Type, int) {
+func (d *Deserializer) reflectType() (reflect.Type, int) {
 	id := d.varint()
 	length := d.varint()
 	t := d.types.ToReflect(typeid(id))
@@ -186,11 +216,12 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 
 	switch t {
 	case reflectext.ReflectTypeType:
-		rt, _ := deserializeType(d)
+		rt, _ := d.reflectType()
 		v.Set(reflect.ValueOf(rt))
 		return
+
 	case reflectext.ReflectValueType:
-		rt, length := deserializeType(d)
+		rt, length := d.reflectType()
 		if length >= 0 {
 			// We can't avoid the ArrayOf call here. We need to build a
 			// reflect.Type in order to return a reflect.Value. The only
@@ -247,7 +278,7 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 	case reflect.String:
 		len := d.varint()
 		if len > 0 {
-			p := deserializeRegion(d, reflectext.ByteType, len)
+			p := d.deserializeRegion(reflectext.ByteType, len)
 			s := unsafe.String((*byte)(p), len)
 			v.SetString(s)
 		}
@@ -262,7 +293,7 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 	case reflect.Slice:
 		len := d.varint()
 		cap := d.varint()
-		data := deserializeRegion(d, t.Elem(), cap)
+		data := d.deserializeRegion(t.Elem(), cap)
 		if data == nil {
 			return
 		}
@@ -280,9 +311,9 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 		deserializeFunc(d, v)
 	case reflect.Interface:
 		if notNil := d.bool(); notNil {
-			et, length := deserializeType(d)
+			et, length := d.reflectType()
 			if et != nil {
-				if ep := deserializeRegion(d, et, length); ep != nil {
+				if ep := d.deserializeRegion(et, length); ep != nil {
 					// FIXME: is there a way to avoid ArrayOf+NewAt here? We can
 					//  access the iface via p. We can set the ptr, but not the typ.
 					if length >= 0 {
@@ -295,17 +326,17 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 			}
 		}
 	case reflect.Pointer:
-		ep := deserializeRegion(d, t.Elem(), -1)
+		ep := d.deserializeRegion(t.Elem(), -1)
 		v.Set(reflect.NewAt(t.Elem(), ep))
 	case reflect.UnsafePointer:
-		p := deserializeRegion(d, reflectext.UnsafePointerType, -1)
+		p := d.deserializeRegion(reflectext.UnsafePointerType, -1)
 		v.SetPointer(p)
 	default:
 		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", t))
 	}
 }
 
-func serializeRegion(s *Serializer, et reflect.Type, length int, p unsafe.Pointer) {
+func (s *Serializer) serializeRegion(et reflect.Type, length int, p unsafe.Pointer) {
 	// If this is a nil pointer, write it as such.
 	if p == nil {
 		s.appendVarint(0)
@@ -340,17 +371,17 @@ func serializeRegion(s *Serializer, et reflect.Type, length int, p unsafe.Pointe
 
 	if r.len < 0 && r.typ.Kind() == reflect.Map {
 		v := reflect.NewAt(r.typ, r.addr).Elem()
-		serializeMap(s, v)
+		s.Serialize(v)
 		return
 	}
 
-	id, new := s.assignPointerID(r.addr)
+	id, isNew := s.assignPointerID(r.addr)
 	s.appendVarint(int(id))
 
 	offset := int(r.offset(p))
 	s.appendVarint(offset)
 
-	if !new {
+	if !isNew {
 		return
 	}
 
@@ -385,7 +416,7 @@ func serializeRegion(s *Serializer, et reflect.Type, length int, p unsafe.Pointe
 	region.Data = regionSerializer.buffer
 }
 
-func deserializeRegion(d *Deserializer, t reflect.Type, length int) unsafe.Pointer {
+func (d *Deserializer) deserializeRegion(t reflect.Type, length int) unsafe.Pointer {
 	// This function is a bit different than the other deserialize* ones
 	// because it deserializes into an unknown location. As a result,
 	// instead of taking an unsafe.Pointer as an input, it returns an
@@ -454,42 +485,6 @@ func deserializeRegion(d *Deserializer, t reflect.Type, length int) unsafe.Point
 	return unsafe.Add(p, offset)
 }
 
-func serializeMap(s *Serializer, v reflect.Value) {
-	if v.IsNil() {
-		s.appendVarint(0)
-		return
-	}
-
-	mapptr := v.UnsafePointer()
-
-	id, new := s.assignPointerID(mapptr)
-	s.appendVarint(int(id))
-	s.appendVarint(0) // offset, for compat with other region references
-
-	if !new {
-		return
-	}
-
-	size := v.Len()
-
-	t := v.Type()
-	region := &coroutinev1.Region{
-		Type: s.types.ToType(t) << 1,
-	}
-	s.regions = append(s.regions, region)
-
-	regionSerializer := s.fork()
-	regionSerializer.appendVarint(size)
-
-	iter := v.MapRange()
-	for iter.Next() {
-		regionSerializer.Serialize(iter.Key())
-		regionSerializer.Serialize(iter.Value())
-	}
-
-	region.Data = regionSerializer.buffer
-}
-
 func deserializeMap(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.Pointer) {
 	id := d.varint()
 	if id == 0 {
@@ -497,7 +492,7 @@ func deserializeMap(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.P
 		return
 	}
 
-	_ = d.varint() // offset
+	_ = d.varint() // offset, for compatibility with other region references
 
 	ptr := d.ptrs[sID(id)]
 	if ptr != nil {

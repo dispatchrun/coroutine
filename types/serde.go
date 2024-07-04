@@ -221,8 +221,7 @@ func (s *Serializer) assignPointerID(p unsafe.Pointer) (sID, bool) {
 // Serialize a value. See [RegisterSerde].
 func SerializeT[T any](s *Serializer, x T) {
 	v := reflect.ValueOf(x)
-	t := v.Type()
-	serializeType(s, t)
+	s.appendReflectType(v.Type())
 	s.Serialize(v)
 }
 
@@ -230,7 +229,7 @@ func SerializeT[T any](s *Serializer, x T) {
 func DeserializeTo[T any](d *Deserializer, x *T) {
 	v := reflect.ValueOf(x)
 	t := v.Type().Elem()
-	actualType, length := deserializeType(d)
+	actualType, length := d.reflectType()
 	if length < 0 {
 		if t != actualType {
 			panic(fmt.Sprintf("cannot deserialize %s as %s", actualType, t))
