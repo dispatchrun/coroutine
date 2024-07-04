@@ -3519,7 +3519,7 @@ func IdentityGenericInt(n int) { IdentityGeneric[int](n) }
 
 //go:noinline
 func IdentityGenericClosure[T any](_fn0 T) {
-	_c := coroutine.LoadContext[T, any]()
+	_c := coroutine.LoadContext[int, any]()
 	var _f0 *struct {
 		IP int
 		X0 T

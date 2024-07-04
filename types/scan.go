@@ -254,10 +254,10 @@ type scanner struct {
 }
 
 func (s *scanner) Scan(v reflect.Value) {
-	reflectext.Visit(s, v, reflectext.VisitUnexportedFields|reflectext.VisitClosures)
+	reflectext.Visit(s, v, reflectext.VisitAll)
 }
 
-func (s *scanner) Visit(v reflect.Value) bool {
+func (s *scanner) Visit(ctx reflectext.VisitContext, v reflect.Value) bool {
 	// Don't scan types where custom serialiazation routines
 	// have been registered.
 	if _, ok := s.serdes.serdeByType(v.Type()); ok {
@@ -278,7 +278,7 @@ func (s *scanner) Visit(v reflect.Value) bool {
 	return true
 }
 
-func (s *scanner) VisitString(v reflect.Value) {
+func (s *scanner) VisitString(ctx reflectext.VisitContext, v reflect.Value) {
 	str := v.String()
 	if len(str) == 0 {
 		return
@@ -286,7 +286,7 @@ func (s *scanner) VisitString(v reflect.Value) {
 	s.containers.add(reflectext.ByteType, len(str), unsafe.Pointer(unsafe.StringData(str)))
 }
 
-func (s *scanner) VisitSlice(v reflect.Value) bool {
+func (s *scanner) VisitSlice(ctx reflectext.VisitContext, v reflect.Value) bool {
 	if v.IsNil() {
 		return false
 	}
@@ -294,7 +294,7 @@ func (s *scanner) VisitSlice(v reflect.Value) bool {
 	return true
 }
 
-func (s *scanner) VisitPointer(v reflect.Value) bool {
+func (s *scanner) VisitPointer(ctx reflectext.VisitContext, v reflect.Value) bool {
 	if v.IsNil() {
 		return false
 	}

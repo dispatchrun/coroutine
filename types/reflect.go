@@ -12,10 +12,10 @@ import (
 )
 
 func (s *Serializer) Serialize(v reflect.Value) {
-	reflectext.Visit(s, v, reflectext.VisitUnexportedFields|reflectext.VisitClosures)
+	reflectext.Visit(s, v, reflectext.VisitAll)
 }
 
-func (s *Serializer) Visit(v reflect.Value) bool {
+func (s *Serializer) Visit(ctx reflectext.VisitContext, v reflect.Value) bool {
 	t := v.Type()
 
 	// Special case for values with a custom serializer registered.
@@ -44,11 +44,11 @@ func (s *Serializer) Visit(v reflect.Value) bool {
 	return true
 }
 
-func (s *Serializer) VisitBool(v reflect.Value) {
+func (s *Serializer) VisitBool(ctx reflectext.VisitContext, v reflect.Value) {
 	serializeBool(s, v.Bool())
 }
 
-func (s *Serializer) VisitInt(v reflect.Value) {
+func (s *Serializer) VisitInt(ctx reflectext.VisitContext, v reflect.Value) {
 	i := v.Int()
 	switch v.Kind() {
 	case reflect.Int:
@@ -64,7 +64,7 @@ func (s *Serializer) VisitInt(v reflect.Value) {
 	}
 }
 
-func (s *Serializer) VisitUint(v reflect.Value) {
+func (s *Serializer) VisitUint(ctx reflectext.VisitContext, v reflect.Value) {
 	u := v.Uint()
 	switch v.Kind() {
 	case reflect.Uint:
@@ -82,7 +82,7 @@ func (s *Serializer) VisitUint(v reflect.Value) {
 	}
 }
 
-func (s *Serializer) VisitFloat(v reflect.Value) {
+func (s *Serializer) VisitFloat(ctx reflectext.VisitContext, v reflect.Value) {
 	f := v.Float()
 	switch v.Kind() {
 	case reflect.Float32:
@@ -92,7 +92,7 @@ func (s *Serializer) VisitFloat(v reflect.Value) {
 	}
 }
 
-func (s *Serializer) VisitString(v reflect.Value) {
+func (s *Serializer) VisitString(ctx reflectext.VisitContext, v reflect.Value) {
 	str := v.String()
 	siz := len(str)
 	serializeVarint(s, siz)
@@ -102,14 +102,14 @@ func (s *Serializer) VisitString(v reflect.Value) {
 	}
 }
 
-func (s *Serializer) VisitSlice(v reflect.Value) bool {
+func (s *Serializer) VisitSlice(ctx reflectext.VisitContext, v reflect.Value) bool {
 	serializeVarint(s, v.Len())
 	serializeVarint(s, v.Cap())
 	serializeRegion(s, v.Type().Elem(), v.Cap(), v.UnsafePointer())
 	return false
 }
 
-func (s *Serializer) VisitInterface(v reflect.Value) bool {
+func (s *Serializer) VisitInterface(ctx reflectext.VisitContext, v reflect.Value) bool {
 	if v.IsNil() {
 		serializeBool(s, false)
 		return false
@@ -128,12 +128,12 @@ func (s *Serializer) VisitInterface(v reflect.Value) bool {
 	return false
 }
 
-func (s *Serializer) VisitMap(v reflect.Value) bool {
+func (s *Serializer) VisitMap(ctx reflectext.VisitContext, v reflect.Value) bool {
 	serializeMap(s, v)
 	return false
 }
 
-func (s *Serializer) VisitFunc(v reflect.Value) bool {
+func (s *Serializer) VisitFunc(ctx reflectext.VisitContext, v reflect.Value) bool {
 	if v.IsNil() {
 		// Function IDs start at 1; use 0 to represent nil ptr.
 		serializeVarint(s, 0)
@@ -144,16 +144,16 @@ func (s *Serializer) VisitFunc(v reflect.Value) bool {
 	return true
 }
 
-func (s *Serializer) VisitPointer(v reflect.Value) bool {
+func (s *Serializer) VisitPointer(ctx reflectext.VisitContext, v reflect.Value) bool {
 	serializeRegion(s, v.Type().Elem(), -1, v.UnsafePointer())
 	return false
 }
 
-func (s *Serializer) VisitUnsafePointer(v reflect.Value) {
+func (s *Serializer) VisitUnsafePointer(ctx reflectext.VisitContext, v reflect.Value) {
 	serializeRegion(s, nil, -1, v.UnsafePointer())
 }
 
-func (s *Serializer) VisitChan(v reflect.Value) bool {
+func (s *Serializer) VisitChan(ctx reflectext.VisitContext, v reflect.Value) bool {
 	panic("not implemented: reflect.Chan")
 }
 
