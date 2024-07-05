@@ -350,17 +350,6 @@ func (d *Deserializer) VisitMap(ctx reflectext.VisitContext, v reflect.Value) bo
 	return false
 }
 
-func (d *Deserializer) VisitStruct(ctx reflectext.VisitContext, v reflect.Value) bool {
-	t := v.Type()
-	p := v.Addr().UnsafePointer()
-	for i := 0; i < t.NumField(); i++ {
-		ft := t.Field(i)
-		fv := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset)).Elem()
-		d.Deserialize(fv)
-	}
-	return false
-}
-
 func (s *Serializer) VisitFunc(ctx reflectext.VisitContext, v reflect.Value) bool {
 	if v.IsNil() {
 		// Function IDs start at 1; use 0 to represent nil ptr.

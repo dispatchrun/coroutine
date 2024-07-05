@@ -40,7 +40,7 @@ func StructValueOf(v reflect.Value) StructValue {
 	if v.Kind() != reflect.Struct {
 		panic("not a struct")
 	}
-	base := unsafeInterfacePointer(v)
+	base := unsafeAddr(v)
 	return StructValue{v, base}
 }
 
@@ -80,7 +80,7 @@ func (v FuncValue) Closure() (reflect.Value, bool) {
 	} else if f.Type == nil {
 		// function type info not registered
 	} else if f.Closure != nil {
-		h := *(**functionHeader)(unsafeInterfacePointer(v.Value))
+		h := *(**functionHeader)(unsafeAddr(v.Value))
 		if h.addr != addr {
 			panic("invalid closure")
 		}
@@ -92,10 +92,10 @@ func (v FuncValue) Closure() (reflect.Value, bool) {
 
 // SetClosure sets the function address and closure vars.
 func (v FuncValue) SetClosure(addr uintptr, c reflect.Value) {
-	if c.Kind() != reflect.Struct || c.Type().Field(0).Type.Kind() != reflect.Uintptr || !c.CanAddr() {
+	if c.Kind() != reflect.Struct || c.Type().Field(0).Type.Kind() != reflect.Uintptr {
 		panic("invalid closure vars")
 	}
-	h := (*functionHeader)(c.Addr().UnsafePointer())
+	h := (*functionHeader)(unsafeAddr(c))
 	h.addr = addr
 	p := v.Addr().UnsafePointer()
 	*(*unsafe.Pointer)(p) = unsafe.Pointer(h)
@@ -122,10 +122,13 @@ func InterfaceValueOf(v reflect.Value) InterfaceValue {
 
 // DataPointer is a pointer to the interface data.
 func (v InterfaceValue) DataPointer() unsafe.Pointer {
-	return unsafeInterfacePointer(v.Value)
+	return unsafeAddr(v.Value)
 }
 
-func unsafeInterfacePointer(v reflect.Value) unsafe.Pointer {
+func unsafeAddr(v reflect.Value) unsafe.Pointer {
+	if v.CanAddr() && v.Kind() != reflect.Interface {
+		return v.Addr().UnsafePointer()
+	}
 	vi := v.Interface()
 	i := (*interfaceHeader)(unsafe.Pointer(&vi))
 	if ifaceInline(reflect.TypeOf(vi)) {

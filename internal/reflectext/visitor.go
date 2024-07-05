@@ -111,6 +111,9 @@ const (
 	VisitUnexportedFields VisitFlags = 1 << iota
 
 	// VisitClosures instructs Visit to visit values captured by closures.
+	//
+	// Closure types must be registered at runtime. See RegisterClosure for
+	// more information.
 	VisitClosures
 
 	// VisitReflectValues instructs Visit to visit values contained within
@@ -123,7 +126,7 @@ const (
 
 // Visit walks a reflect.Value graph.
 //
-// The operation will follow pointers. It's the Visitor's responsibility
+// The operation will follow all pointers. It's the Visitor's responsibility
 // to keep track of values/pointers that have been visited to prevent
 // an infinite loop when there are cycles in the graph.
 func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
