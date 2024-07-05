@@ -24,8 +24,14 @@ func (s *Serializer) Visit(ctx reflectext.VisitContext, v reflect.Value) bool {
 	// Special case for values with a custom serializer registered.
 	if serde, ok := s.serdes.serdeByType(t); ok {
 		offset := len(s.buffer)
-		s.buffer = append(s.buffer, 0, 0, 0, 0, 0, 0, 0, 0) // store a 64-bit size placeholder
+		// Store an 8 byte (64-bit) size placeholder. It's used when scanning
+		// the region (see inspect.go) to skip over the opaque parts that the
+		// custom serialization routine has created. This allows systems
+		// that don't have access to the routine to make sense of the region's
+		// serialized representation.
+		s.buffer = append(s.buffer, 0, 0, 0, 0, 0, 0, 0, 0)
 		serde.ser(s, v)
+		// Fill in the size of the opaque region now that it's known.
 		binary.LittleEndian.PutUint64(s.buffer[offset:], uint64(len(s.buffer)-offset))
 		return false
 	}
@@ -52,7 +58,9 @@ func (d *Deserializer) Visit(ctx reflectext.VisitContext, v reflect.Value) bool 
 
 	// Special case for values with a custom serializer registered.
 	if serde, ok := d.serdes.serdeByType(t); ok {
-		d.buffer = d.buffer[8:] // skip size prefix
+		// Skip the size prefix, since we will defer to the custom
+		// deserialization routine to make sense of the opaque bytes.
+		d.buffer = d.buffer[8:]
 		serde.des(d, v)
 		return false
 	}
@@ -67,11 +75,13 @@ func (d *Deserializer) Visit(ctx reflectext.VisitContext, v reflect.Value) bool 
 	case reflectext.ReflectValueType:
 		rt, length := d.reflectType()
 		if length >= 0 {
-			// We can't avoid the ArrayOf call here. We need to build a
-			// reflect.Type in order to return a reflect.Value. The only
-			// time this path is taken is if the user has explicitly serialized
-			// a reflect.Value, or some other data type that contains or points
-			// to a reflect.Value.
+			// ArrayOf is generally something that should be avoided, since
+			// it creates a new reflect.Type that isn't garbage collected.
+			// Unfortunately we can't avoid the ArrayOf call here. We need to build
+			// a reflect.Type in order to construct a reflect.Value to deserialize
+			// into. Note that the only time this path is taken is if the user has
+			// explicitly serialized a reflect.Value, or some other data type that
+			// contains or points to a reflect.Value.
 			rt = reflect.ArrayOf(length, rt)
 		}
 		rv := reflect.New(rt).Elem()
@@ -514,11 +524,6 @@ func (s *Serializer) serializeRegion(et reflect.Type, length int, p unsafe.Point
 }
 
 func (d *Deserializer) deserializeRegion(t reflect.Type, length int) unsafe.Pointer {
-	// This function is a bit different than the other deserialize* ones
-	// because it deserializes into an unknown location. As a result,
-	// instead of taking an unsafe.Pointer as an input, it returns an
-	// unsafe.Pointer to a deserialized object.
-
 	if length < 0 && t.Kind() == reflect.Map {
 		m := reflect.New(t)
 		p := m.UnsafePointer()
@@ -528,19 +533,16 @@ func (d *Deserializer) deserializeRegion(t reflect.Type, length int) unsafe.Poin
 
 	id := d.varint()
 	if id == 0 {
-		// Nil pointer.
 		return unsafe.Pointer(nil)
 	}
 
 	offset := d.varint()
 	if id == -1 {
-		// Pointer into static uint64 table.
 		return reflectext.InternedIntPointer(offset)
 	}
 
 	p := d.ptrs[sID(id)]
 	if p == nil {
-		// Deserialize the region.
 		if int(id) > len(d.regions) {
 			panic(fmt.Sprintf("region %d not found", id))
 		}
@@ -577,6 +579,5 @@ func (d *Deserializer) deserializeRegion(t reflect.Type, length int) unsafe.Poin
 		}
 	}
 
-	// Create the pointer with an offset into the container.
 	return unsafe.Add(p, offset)
 }
