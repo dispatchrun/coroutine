@@ -14,6 +14,10 @@ func (s *Serializer) Serialize(v reflect.Value) {
 	reflectext.Visit(s, v, reflectext.VisitAll)
 }
 
+func (d *Deserializer) Deserialize(v reflect.Value) {
+	reflectext.Visit(d, v, reflectext.VisitAll)
+}
+
 func (s *Serializer) Visit(ctx reflectext.VisitContext, v reflect.Value) bool {
 	t := v.Type()
 
@@ -205,19 +209,20 @@ func (d *Deserializer) reflectType() (reflect.Type, int) {
 	return t, length
 }
 
-func deserializeValue(d *Deserializer, v reflect.Value) {
+func (d *Deserializer) Visit(ctx reflectext.VisitContext, v reflect.Value) bool {
 	t := v.Type()
+
 	if serde, ok := d.serdes.serdeByType(t); ok {
 		d.buffer = d.buffer[8:] // skip size prefix
 		serde.des(d, v)
-		return
+		return false
 	}
 
 	switch t {
 	case reflectext.ReflectTypeType:
 		rt, _ := d.reflectType()
 		v.Set(reflect.ValueOf(rt))
-		return
+		return false
 
 	case reflectext.ReflectValueType:
 		rt, length := d.reflectType()
@@ -230,9 +235,9 @@ func deserializeValue(d *Deserializer, v reflect.Value) {
 			rt = reflect.ArrayOf(length, rt)
 		}
 		rv := reflect.New(rt).Elem()
-		deserializeValue(d, rv)
+		d.Deserialize(rv)
 		v.Set(reflect.ValueOf(rv))
-		return
+		return false
 	}
 
 	switch t.Kind() {
@@ -287,16 +292,14 @@ func deserializeValue(d *Deserializer, v reflect.Value) {
 		size := int(et.Size())
 		for i := 0; i < t.Len(); i++ {
 			ev := reflect.NewAt(et, unsafe.Add(p, size*i)).Elem()
-			deserializeValue(d, ev)
+			d.Deserialize(ev)
 		}
 	case reflect.Slice:
 		len := d.varint()
 		cap := d.varint()
-		data := d.deserializeRegion(t.Elem(), cap)
-		if data == nil {
-			return
+		if data := d.deserializeRegion(t.Elem(), cap); data != nil {
+			reflectext.SliceValueOf(v).SetSlice(data, len, cap)
 		}
-		reflectext.SliceValueOf(v).SetSlice(data, len, cap)
 	case reflect.Map:
 		deserializeMap(d, t, v, v.Addr().UnsafePointer())
 	case reflect.Struct:
@@ -304,7 +307,7 @@ func deserializeValue(d *Deserializer, v reflect.Value) {
 		for i := 0; i < t.NumField(); i++ {
 			ft := t.Field(i)
 			fv := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset)).Elem()
-			deserializeValue(d, fv)
+			d.Deserialize(fv)
 		}
 	case reflect.Func:
 		deserializeFunc(d, v)
@@ -333,6 +336,7 @@ func deserializeValue(d *Deserializer, v reflect.Value) {
 	default:
 		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", t))
 	}
+	return false
 }
 
 func (s *Serializer) serializeRegion(et reflect.Type, length int, p unsafe.Pointer) {
@@ -463,21 +467,20 @@ func (d *Deserializer) deserializeRegion(t reflect.Type, length int) unsafe.Poin
 					copy(unsafe.Slice((*byte)(p), length), region.Data)
 				}
 			} else {
-				regionDeser := d.fork(region.Data)
+				regionDeserializer := d.fork(region.Data)
 				for i := 0; i < length; i++ {
 					ev := reflect.NewAt(regionType, unsafe.Add(p, elemSize*i)).Elem()
-					deserializeValue(regionDeser, ev)
+					regionDeserializer.Deserialize(ev)
 				}
 			}
 		} else {
 			container := reflect.New(regionType)
 			p = container.UnsafePointer()
 			d.store(sID(id), p)
-			regionDeser := d.fork(region.Data)
+			regionDeserializer := d.fork(region.Data)
 			v := reflect.NewAt(regionType, p).Elem()
-			deserializeValue(regionDeser, v)
+			regionDeserializer.Deserialize(v)
 		}
-
 	}
 
 	// Create the pointer with an offset into the container.
@@ -505,9 +508,9 @@ func deserializeMap(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.P
 	}
 	region := d.regions[id-1]
 
-	regionDeser := d.fork(region.Data)
+	regionDeserializer := d.fork(region.Data)
 
-	n := regionDeser.varint()
+	n := regionDeserializer.varint()
 	if n < 0 { // nil map
 		panic("invalid map size")
 	}
@@ -517,9 +520,9 @@ func deserializeMap(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.P
 	d.store(sID(id), p)
 	for i := 0; i < n; i++ {
 		kv := reflect.New(t.Key()).Elem()
-		deserializeValue(regionDeser, kv)
+		regionDeserializer.Deserialize(kv)
 		vv := reflect.New(t.Elem()).Elem()
-		deserializeValue(regionDeser, vv)
+		regionDeserializer.Deserialize(vv)
 		r.SetMapIndex(kv, vv)
 	}
 }
@@ -543,7 +546,7 @@ func deserializeFunc(d *Deserializer, v reflect.Value) {
 	fv := reflectext.FuncValueOf(v)
 	if fn.Closure != nil {
 		closure := reflect.New(fn.Closure).Elem()
-		deserializeValue(d, closure)
+		d.Deserialize(closure)
 		fv.SetClosure(fn.Addr, closure)
 	} else {
 		fv.SetAddr(fn.Addr)

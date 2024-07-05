@@ -86,7 +86,7 @@ func Deserialize(b []byte) (x interface{}, err error) {
 
 	v := reflect.ValueOf(&x).Elem()
 
-	deserializeValue(d, v)
+	d.Deserialize(v)
 
 	if len(d.buffer) != 0 {
 		err = errors.New("trailing bytes")
@@ -95,6 +95,8 @@ func Deserialize(b []byte) (x interface{}, err error) {
 }
 
 type Deserializer struct {
+	reflectext.DefaultVisitor
+
 	*deserializerContext
 
 	// input
@@ -113,21 +115,21 @@ func newDeserializer(b []byte, ctypes []*coroutinev1.Type, cfuncs []*coroutinev1
 	strings := newStringMap(cstrings)
 	types := newTypeMap(serdes, strings, ctypes)
 	return &Deserializer{
-		&deserializerContext{
+		deserializerContext: &deserializerContext{
 			serdes:  serdes,
 			types:   types,
 			funcs:   newFuncMap(types, strings, cfuncs),
 			regions: regions,
 			ptrs:    make(map[sID]unsafe.Pointer),
 		},
-		b,
+		buffer: b,
 	}
 }
 
 func (d *Deserializer) fork(b []byte) *Deserializer {
 	return &Deserializer{
-		d.deserializerContext,
-		b,
+		deserializerContext: d.deserializerContext,
+		buffer:              b,
 	}
 }
 
@@ -235,5 +237,5 @@ func DeserializeTo[T any](d *Deserializer, x *T) {
 	} else if t.Kind() != reflect.Array || t.Len() != length || t != actualType.Elem() {
 		panic(fmt.Sprintf("cannot deserialize [%d]%s as %s", length, actualType, t))
 	}
-	deserializeValue(d, v)
+	d.Deserialize(v)
 }
