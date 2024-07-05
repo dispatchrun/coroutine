@@ -84,11 +84,9 @@ func Deserialize(b []byte) (x interface{}, err error) {
 
 	d := newDeserializer(state.Root.Data, state.Types, state.Functions, state.Regions, state.Strings)
 
-	ip := &x // w is *interface{}
-	vp := reflect.ValueOf(ip)
-	t := vp.Elem().Type() // what x contains
+	v := reflect.ValueOf(&x).Elem()
 
-	deserializeValue(d, t, vp)
+	deserializeValue(d, v)
 
 	if len(d.buffer) != 0 {
 		err = errors.New("trailing bytes")
@@ -227,8 +225,8 @@ func SerializeT[T any](s *Serializer, x T) {
 
 // Deserialize a value to the provided non-nil pointer. See [RegisterSerde].
 func DeserializeTo[T any](d *Deserializer, x *T) {
-	v := reflect.ValueOf(x)
-	t := v.Type().Elem()
+	v := reflect.ValueOf(x).Elem()
+	t := v.Type()
 	actualType, length := d.reflectType()
 	if length < 0 {
 		if t != actualType {
@@ -237,5 +235,5 @@ func DeserializeTo[T any](d *Deserializer, x *T) {
 	} else if t.Kind() != reflect.Array || t.Len() != length || t != actualType.Elem() {
 		panic(fmt.Sprintf("cannot deserialize [%d]%s as %s", length, actualType, t))
 	}
-	deserializeValue(d, t, v)
+	deserializeValue(d, v)
 }

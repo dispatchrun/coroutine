@@ -58,16 +58,14 @@ func registerSerde[T any](serdes *serdemap,
 		}
 	}
 
-	d := func(d *Deserializer, vp reflect.Value) {
-		if et := vp.Type().Elem(); t != et {
-			box := reflect.New(t)
-			boxp := box.UnsafePointer()
-			if err := deserializer(d, (*T)(boxp)); err != nil {
+	d := func(d *Deserializer, v reflect.Value) {
+		if v.Type() != t {
+			box := reflect.New(t).Elem()
+			if err := deserializer(d, (*T)(box.Addr().UnsafePointer())); err != nil {
 				panic(fmt.Errorf("deserializing %s: %w", t, err))
 			}
-			reinterpreted := reflect.ValueOf(box.Elem().Interface())
-			vp.Elem().Set(reinterpreted)
-		} else if err := deserializer(d, (*T)(vp.UnsafePointer())); err != nil {
+			v.Set(reflect.ValueOf(box.Interface()))
+		} else if err := deserializer(d, (*T)(v.Addr().UnsafePointer())); err != nil {
 			panic(fmt.Errorf("deserializing %s: %w", t, err))
 		}
 	}

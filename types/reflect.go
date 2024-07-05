@@ -205,12 +205,11 @@ func (d *Deserializer) reflectType() (reflect.Type, int) {
 	return t, length
 }
 
-func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
-	v := vp.Elem()
-
+func deserializeValue(d *Deserializer, v reflect.Value) {
+	t := v.Type()
 	if serde, ok := d.serdes.serdeByType(t); ok {
 		d.buffer = d.buffer[8:] // skip size prefix
-		serde.des(d, vp)
+		serde.des(d, v)
 		return
 	}
 
@@ -230,9 +229,9 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 			// to a reflect.Value.
 			rt = reflect.ArrayOf(length, rt)
 		}
-		rp := reflect.New(rt)
-		deserializeValue(d, rt, rp)
-		v.Set(reflect.ValueOf(rp.Elem()))
+		rv := reflect.New(rt).Elem()
+		deserializeValue(d, rv)
+		v.Set(reflect.ValueOf(rv))
 		return
 	}
 
@@ -287,8 +286,8 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 		et := t.Elem()
 		size := int(et.Size())
 		for i := 0; i < t.Len(); i++ {
-			ep := reflect.NewAt(et, unsafe.Add(p, size*i))
-			deserializeValue(d, et, ep)
+			ev := reflect.NewAt(et, unsafe.Add(p, size*i)).Elem()
+			deserializeValue(d, ev)
 		}
 	case reflect.Slice:
 		len := d.varint()
@@ -299,13 +298,13 @@ func deserializeValue(d *Deserializer, t reflect.Type, vp reflect.Value) {
 		}
 		reflectext.SliceValueOf(v).SetSlice(data, len, cap)
 	case reflect.Map:
-		deserializeMap(d, t, v, vp.UnsafePointer())
+		deserializeMap(d, t, v, v.Addr().UnsafePointer())
 	case reflect.Struct:
-		p := vp.UnsafePointer()
+		p := v.Addr().UnsafePointer()
 		for i := 0; i < t.NumField(); i++ {
 			ft := t.Field(i)
-			vp := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset))
-			deserializeValue(d, ft.Type, vp)
+			fv := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset)).Elem()
+			deserializeValue(d, fv)
 		}
 	case reflect.Func:
 		deserializeFunc(d, v)
@@ -466,8 +465,8 @@ func (d *Deserializer) deserializeRegion(t reflect.Type, length int) unsafe.Poin
 			} else {
 				regionDeser := d.fork(region.Data)
 				for i := 0; i < length; i++ {
-					vp := reflect.NewAt(regionType, unsafe.Add(p, elemSize*i))
-					deserializeValue(regionDeser, regionType, vp)
+					ev := reflect.NewAt(regionType, unsafe.Add(p, elemSize*i)).Elem()
+					deserializeValue(regionDeser, ev)
 				}
 			}
 		} else {
@@ -475,8 +474,8 @@ func (d *Deserializer) deserializeRegion(t reflect.Type, length int) unsafe.Poin
 			p = container.UnsafePointer()
 			d.store(sID(id), p)
 			regionDeser := d.fork(region.Data)
-			vp := reflect.NewAt(regionType, p)
-			deserializeValue(regionDeser, regionType, vp)
+			v := reflect.NewAt(regionType, p).Elem()
+			deserializeValue(regionDeser, v)
 		}
 
 	}
@@ -517,11 +516,11 @@ func deserializeMap(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.P
 	r.Set(nv)
 	d.store(sID(id), p)
 	for i := 0; i < n; i++ {
-		kp := reflect.New(t.Key())
-		deserializeValue(regionDeser, t.Key(), kp)
-		vp := reflect.New(t.Elem())
-		deserializeValue(regionDeser, t.Elem(), vp)
-		r.SetMapIndex(kp.Elem(), vp.Elem())
+		kv := reflect.New(t.Key()).Elem()
+		deserializeValue(regionDeser, kv)
+		vv := reflect.New(t.Elem()).Elem()
+		deserializeValue(regionDeser, vv)
+		r.SetMapIndex(kv, vv)
 	}
 }
 
@@ -545,7 +544,7 @@ func deserializeFunc(d *Deserializer, v reflect.Value) {
 	if fn.Closure != nil {
 		t := fn.Closure
 		closure := reflect.New(t)
-		deserializeValue(d, t, closure)
+		deserializeValue(d, closure.Elem())
 		fv.SetClosure(fn.Addr, closure)
 	} else {
 		fv.SetAddr(fn.Addr)
