@@ -380,12 +380,12 @@ func (d *Deserializer) VisitFunc(ctx reflectext.VisitContext, v reflect.Value) b
 	fv := reflectext.FuncValueOf(v)
 	if fn.Closure != nil {
 		closure := reflect.New(fn.Closure).Elem()
-		d.Deserialize(closure)
 		fv.SetClosure(fn.Addr, closure)
 	} else {
+
 		fv.SetAddr(fn.Addr)
 	}
-	return false
+	return true
 }
 
 func (s *Serializer) VisitPointer(ctx reflectext.VisitContext, v reflect.Value) bool {
