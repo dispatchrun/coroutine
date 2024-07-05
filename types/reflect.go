@@ -47,8 +47,48 @@ func (s *Serializer) Visit(ctx reflectext.VisitContext, v reflect.Value) bool {
 	return true
 }
 
+func (d *Deserializer) Visit(ctx reflectext.VisitContext, v reflect.Value) bool {
+	t := v.Type()
+
+	// Special case for values with a custom serializer registered.
+	if serde, ok := d.serdes.serdeByType(t); ok {
+		d.buffer = d.buffer[8:] // skip size prefix
+		serde.des(d, v)
+		return false
+	}
+
+	// Special cases for reflect.Type and reflect.Value.
+	switch t {
+	case reflectext.ReflectTypeType:
+		rt, _ := d.reflectType()
+		v.Set(reflect.ValueOf(rt))
+		return false
+
+	case reflectext.ReflectValueType:
+		rt, length := d.reflectType()
+		if length >= 0 {
+			// We can't avoid the ArrayOf call here. We need to build a
+			// reflect.Type in order to return a reflect.Value. The only
+			// time this path is taken is if the user has explicitly serialized
+			// a reflect.Value, or some other data type that contains or points
+			// to a reflect.Value.
+			rt = reflect.ArrayOf(length, rt)
+		}
+		rv := reflect.New(rt).Elem()
+		d.Deserialize(rv)
+		v.Set(reflect.ValueOf(rv))
+		return false
+	}
+
+	return true
+}
+
 func (s *Serializer) VisitBool(ctx reflectext.VisitContext, v reflect.Value) {
 	s.appendBool(v.Bool())
+}
+
+func (d *Deserializer) VisitBool(ctx reflectext.VisitContext, v reflect.Value) {
+	v.SetBool(d.bool())
 }
 
 func (s *Serializer) VisitInt(ctx reflectext.VisitContext, v reflect.Value) {
@@ -63,8 +103,25 @@ func (s *Serializer) VisitInt(ctx reflectext.VisitContext, v reflect.Value) {
 	case reflect.Int32:
 		s.appendInt32(int32(i))
 	case reflect.Int64:
-		s.appendInt64(int64(i))
+		s.appendInt64(i)
 	}
+}
+
+func (d *Deserializer) VisitInt(ctx reflectext.VisitContext, v reflect.Value) {
+	var i int64
+	switch v.Kind() {
+	case reflect.Int:
+		i = int64(d.int())
+	case reflect.Int8:
+		i = int64(d.int8())
+	case reflect.Int16:
+		i = int64(d.int16())
+	case reflect.Int32:
+		i = int64(d.int32())
+	case reflect.Int64:
+		i = d.int64()
+	}
+	v.SetInt(i)
 }
 
 func (s *Serializer) VisitUint(ctx reflectext.VisitContext, v reflect.Value) {
@@ -85,6 +142,25 @@ func (s *Serializer) VisitUint(ctx reflectext.VisitContext, v reflect.Value) {
 	}
 }
 
+func (d *Deserializer) VisitUint(ctx reflectext.VisitContext, v reflect.Value) {
+	var u uint64
+	switch v.Kind() {
+	case reflect.Uint:
+		u = uint64(d.uint())
+	case reflect.Uint8:
+		u = uint64(d.uint8())
+	case reflect.Uint16:
+		u = uint64(d.uint16())
+	case reflect.Uint32:
+		u = uint64(d.uint32())
+	case reflect.Uint64:
+		u = d.uint64()
+	case reflect.Uintptr:
+		u = uint64(d.uintptr())
+	}
+	v.SetUint(u)
+}
+
 func (s *Serializer) VisitFloat(ctx reflectext.VisitContext, v reflect.Value) {
 	f := v.Float()
 	switch v.Kind() {
@@ -93,6 +169,17 @@ func (s *Serializer) VisitFloat(ctx reflectext.VisitContext, v reflect.Value) {
 	case reflect.Float64:
 		s.appendFloat64(float64(f))
 	}
+}
+
+func (d *Deserializer) VisitFloat(ctx reflectext.VisitContext, v reflect.Value) {
+	var f float64
+	switch v.Kind() {
+	case reflect.Float32:
+		f = float64(d.float32())
+	case reflect.Float64:
+		f = d.float64()
+	}
+	v.SetFloat(f)
 }
 
 func (s *Serializer) VisitString(ctx reflectext.VisitContext, v reflect.Value) {
@@ -105,10 +192,29 @@ func (s *Serializer) VisitString(ctx reflectext.VisitContext, v reflect.Value) {
 	}
 }
 
+func (d *Deserializer) VisitString(ctx reflectext.VisitContext, v reflect.Value) {
+	len := d.varint()
+	if len > 0 {
+		p := d.deserializeRegion(reflectext.ByteType, len)
+		s := unsafe.String((*byte)(p), len)
+		v.SetString(s)
+	}
+}
+
 func (s *Serializer) VisitSlice(ctx reflectext.VisitContext, v reflect.Value) bool {
 	s.appendVarint(v.Len())
 	s.appendVarint(v.Cap())
 	s.serializeRegion(v.Type().Elem(), v.Cap(), v.UnsafePointer())
+	return false
+}
+
+func (d *Deserializer) VisitSlice(ctx reflectext.VisitContext, v reflect.Value) bool {
+	len := d.varint()
+	cap := d.varint()
+	data := d.deserializeRegion(v.Type().Elem(), cap)
+	if data != nil {
+		reflectext.SliceValueOf(v).SetSlice(data, len, cap)
+	}
 	return false
 }
 
@@ -127,6 +233,27 @@ func (s *Serializer) VisitInterface(ctx reflectext.VisitContext, v reflect.Value
 		s.serializeRegion(et.Elem(), et.Len(), p)
 	} else {
 		s.serializeRegion(et, -1, p)
+	}
+	return false
+}
+
+func (d *Deserializer) VisitInterface(ctx reflectext.VisitContext, v reflect.Value) bool {
+	if notNil := d.bool(); !notNil {
+		return false // nil
+	}
+	et, length := d.reflectType()
+	if et == nil {
+		return false
+	}
+	if ep := d.deserializeRegion(et, length); ep != nil {
+		// FIXME: is there a way to avoid ArrayOf+NewAt here? We can
+		//  access the iface via p. We can set the ptr, but not the typ.
+		if length >= 0 {
+			et = reflect.ArrayOf(length, et)
+		}
+		v.Set(reflect.NewAt(et, ep).Elem())
+	} else {
+		v.Set(reflect.Zero(et))
 	}
 	return false
 }
@@ -166,6 +293,64 @@ func (s *Serializer) VisitMap(ctx reflectext.VisitContext, v reflect.Value) bool
 	return false
 }
 
+func (d *Deserializer) VisitMap(ctx reflectext.VisitContext, v reflect.Value) bool {
+	// Nil map.
+	id := d.varint()
+	if id == 0 {
+		v.SetZero()
+		return false
+	}
+
+	_ = d.varint() // offset, for compatibility with other region references
+
+	// Map we've already deserialized, grab the pointer
+	// and create a reference.
+	t := v.Type()
+	p := d.ptrs[sID(id)]
+	if p != nil {
+		existing := reflect.NewAt(t, p).Elem()
+		v.Set(existing)
+		return false
+	}
+
+	if id > len(d.regions) {
+		panic(fmt.Sprintf("region %d not found", id))
+	}
+	region := d.regions[id-1]
+	regionDeserializer := d.fork(region.Data)
+
+	n := regionDeserializer.varint()
+	if n < 0 { // nil map
+		panic("invalid map size")
+	}
+
+	keyType := t.Key()
+	valType := t.Elem()
+
+	nv := reflect.MakeMapWithSize(t, n)
+	v.Set(nv)
+	d.store(sID(id), v.Addr().UnsafePointer())
+	for i := 0; i < n; i++ {
+		kv := reflect.New(keyType).Elem()
+		regionDeserializer.Deserialize(kv)
+		vv := reflect.New(valType).Elem()
+		regionDeserializer.Deserialize(vv)
+		v.SetMapIndex(kv, vv)
+	}
+	return false
+}
+
+func (d *Deserializer) VisitStruct(ctx reflectext.VisitContext, v reflect.Value) bool {
+	t := v.Type()
+	p := v.Addr().UnsafePointer()
+	for i := 0; i < t.NumField(); i++ {
+		ft := t.Field(i)
+		fv := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset)).Elem()
+		d.Deserialize(fv)
+	}
+	return false
+}
+
 func (s *Serializer) VisitFunc(ctx reflectext.VisitContext, v reflect.Value) bool {
 	if v.IsNil() {
 		// Function IDs start at 1; use 0 to represent nil ptr.
@@ -177,13 +362,54 @@ func (s *Serializer) VisitFunc(ctx reflectext.VisitContext, v reflect.Value) boo
 	return true
 }
 
+func (d *Deserializer) VisitFunc(ctx reflectext.VisitContext, v reflect.Value) bool {
+	id := d.varint()
+	if id == 0 {
+		v.SetZero()
+		return false
+	}
+
+	t := v.Type()
+	fn := d.funcs.ToFunc(funcid(id))
+	if fn.Type == nil {
+		panic(fn.Name + ": function type is missing")
+	}
+	if !t.AssignableTo(fn.Type) {
+		panic(fn.Name + ": function type mismatch: " + fn.Type.String() + " != " + t.String())
+	}
+
+	fv := reflectext.FuncValueOf(v)
+	if fn.Closure != nil {
+		closure := reflect.New(fn.Closure).Elem()
+		d.Deserialize(closure)
+		fv.SetClosure(fn.Addr, closure)
+	} else {
+		fv.SetAddr(fn.Addr)
+	}
+
+	// FIXME: use visitor to scan closure
+	return false
+}
+
 func (s *Serializer) VisitPointer(ctx reflectext.VisitContext, v reflect.Value) bool {
 	s.serializeRegion(v.Type().Elem(), -1, v.UnsafePointer())
 	return false
 }
 
+func (d *Deserializer) VisitPointer(ctx reflectext.VisitContext, v reflect.Value) bool {
+	t := v.Type()
+	p := d.deserializeRegion(t.Elem(), -1)
+	v.Set(reflect.NewAt(t.Elem(), p))
+	return false
+}
+
 func (s *Serializer) VisitUnsafePointer(ctx reflectext.VisitContext, v reflect.Value) {
 	s.serializeRegion(nil, -1, v.UnsafePointer())
+}
+
+func (d *Deserializer) VisitUnsafePointer(ctx reflectext.VisitContext, v reflect.Value) {
+	p := d.deserializeRegion(reflectext.UnsafePointerType, -1)
+	v.SetPointer(p)
 }
 
 func (s *Serializer) VisitChan(ctx reflectext.VisitContext, v reflect.Value) bool {
@@ -207,136 +433,6 @@ func (d *Deserializer) reflectType() (reflect.Type, int) {
 	length := d.varint()
 	t := d.types.ToReflect(typeid(id))
 	return t, length
-}
-
-func (d *Deserializer) Visit(ctx reflectext.VisitContext, v reflect.Value) bool {
-	t := v.Type()
-
-	if serde, ok := d.serdes.serdeByType(t); ok {
-		d.buffer = d.buffer[8:] // skip size prefix
-		serde.des(d, v)
-		return false
-	}
-
-	switch t {
-	case reflectext.ReflectTypeType:
-		rt, _ := d.reflectType()
-		v.Set(reflect.ValueOf(rt))
-		return false
-
-	case reflectext.ReflectValueType:
-		rt, length := d.reflectType()
-		if length >= 0 {
-			// We can't avoid the ArrayOf call here. We need to build a
-			// reflect.Type in order to return a reflect.Value. The only
-			// time this path is taken is if the user has explicitly serialized
-			// a reflect.Value, or some other data type that contains or points
-			// to a reflect.Value.
-			rt = reflect.ArrayOf(length, rt)
-		}
-		rv := reflect.New(rt).Elem()
-		d.Deserialize(rv)
-		v.Set(reflect.ValueOf(rv))
-		return false
-	}
-
-	switch t.Kind() {
-	case reflect.Invalid:
-		panic(fmt.Errorf("can't deserialize reflect.Invalid"))
-	case reflect.Bool:
-		v.SetBool(d.bool())
-	case reflect.Int:
-		v.SetInt(int64(d.int()))
-	case reflect.Int8:
-		v.SetInt(int64(d.int8()))
-	case reflect.Int16:
-		v.SetInt(int64(d.int16()))
-	case reflect.Int32:
-		v.SetInt(int64(d.int32()))
-	case reflect.Int64:
-		v.SetInt(d.int64())
-	case reflect.Uint:
-		v.SetUint(uint64(d.uint()))
-	case reflect.Uint8:
-		v.SetUint(uint64(d.uint8()))
-	case reflect.Uint16:
-		v.SetUint(uint64(d.uint16()))
-	case reflect.Uint32:
-		v.SetUint(uint64(d.uint32()))
-	case reflect.Uint64:
-		v.SetUint(d.uint64())
-	case reflect.Uintptr:
-		v.SetUint(uint64(d.uintptr()))
-	case reflect.Float32:
-		v.SetFloat(float64(d.float32()))
-	case reflect.Float64:
-		v.SetFloat(d.float64())
-	case reflect.Complex64:
-		real := d.float32()
-		imag := d.float32()
-		v.SetComplex(complex128(complex(real, imag)))
-	case reflect.Complex128:
-		real := d.float64()
-		imag := d.float64()
-		v.SetComplex(complex(real, imag))
-	case reflect.String:
-		len := d.varint()
-		if len > 0 {
-			p := d.deserializeRegion(reflectext.ByteType, len)
-			s := unsafe.String((*byte)(p), len)
-			v.SetString(s)
-		}
-	case reflect.Array:
-		p := v.Addr().UnsafePointer()
-		et := t.Elem()
-		size := int(et.Size())
-		for i := 0; i < t.Len(); i++ {
-			ev := reflect.NewAt(et, unsafe.Add(p, size*i)).Elem()
-			d.Deserialize(ev)
-		}
-	case reflect.Slice:
-		len := d.varint()
-		cap := d.varint()
-		if data := d.deserializeRegion(t.Elem(), cap); data != nil {
-			reflectext.SliceValueOf(v).SetSlice(data, len, cap)
-		}
-	case reflect.Map:
-		deserializeMap(d, t, v, v.Addr().UnsafePointer())
-	case reflect.Struct:
-		p := v.Addr().UnsafePointer()
-		for i := 0; i < t.NumField(); i++ {
-			ft := t.Field(i)
-			fv := reflect.NewAt(ft.Type, unsafe.Add(p, ft.Offset)).Elem()
-			d.Deserialize(fv)
-		}
-	case reflect.Func:
-		deserializeFunc(d, v)
-	case reflect.Interface:
-		if notNil := d.bool(); notNil {
-			et, length := d.reflectType()
-			if et != nil {
-				if ep := d.deserializeRegion(et, length); ep != nil {
-					// FIXME: is there a way to avoid ArrayOf+NewAt here? We can
-					//  access the iface via p. We can set the ptr, but not the typ.
-					if length >= 0 {
-						et = reflect.ArrayOf(length, et)
-					}
-					v.Set(reflect.NewAt(et, ep).Elem())
-				} else {
-					v.Set(reflect.Zero(et))
-				}
-			}
-		}
-	case reflect.Pointer:
-		ep := d.deserializeRegion(t.Elem(), -1)
-		v.Set(reflect.NewAt(t.Elem(), ep))
-	case reflect.UnsafePointer:
-		p := d.deserializeRegion(reflectext.UnsafePointerType, -1)
-		v.SetPointer(p)
-	default:
-		panic(fmt.Sprintf("not implemented: deserializing reflect.Value with type %s", t))
-	}
-	return false
 }
 
 func (s *Serializer) serializeRegion(et reflect.Type, length int, p unsafe.Pointer) {
@@ -428,7 +524,7 @@ func (d *Deserializer) deserializeRegion(t reflect.Type, length int) unsafe.Poin
 	if length < 0 && t.Kind() == reflect.Map {
 		m := reflect.New(t)
 		p := m.UnsafePointer()
-		deserializeMap(d, t, m.Elem(), m.UnsafePointer())
+		d.Deserialize(m.Elem())
 		return p
 	}
 
@@ -485,70 +581,4 @@ func (d *Deserializer) deserializeRegion(t reflect.Type, length int) unsafe.Poin
 
 	// Create the pointer with an offset into the container.
 	return unsafe.Add(p, offset)
-}
-
-func deserializeMap(d *Deserializer, t reflect.Type, r reflect.Value, p unsafe.Pointer) {
-	id := d.varint()
-	if id == 0 {
-		r.SetZero()
-		return
-	}
-
-	_ = d.varint() // offset, for compatibility with other region references
-
-	ptr := d.ptrs[sID(id)]
-	if ptr != nil {
-		existing := reflect.NewAt(t, ptr).Elem()
-		r.Set(existing)
-		return
-	}
-
-	if id > len(d.regions) {
-		panic(fmt.Sprintf("region %d not found", id))
-	}
-	region := d.regions[id-1]
-
-	regionDeserializer := d.fork(region.Data)
-
-	n := regionDeserializer.varint()
-	if n < 0 { // nil map
-		panic("invalid map size")
-	}
-
-	nv := reflect.MakeMapWithSize(t, n)
-	r.Set(nv)
-	d.store(sID(id), p)
-	for i := 0; i < n; i++ {
-		kv := reflect.New(t.Key()).Elem()
-		regionDeserializer.Deserialize(kv)
-		vv := reflect.New(t.Elem()).Elem()
-		regionDeserializer.Deserialize(vv)
-		r.SetMapIndex(kv, vv)
-	}
-}
-
-func deserializeFunc(d *Deserializer, v reflect.Value) {
-	id := d.varint()
-	if id == 0 {
-		v.SetZero()
-		return
-	}
-
-	t := v.Type()
-	fn := d.funcs.ToFunc(funcid(id))
-	if fn.Type == nil {
-		panic(fn.Name + ": function type is missing")
-	}
-	if !t.AssignableTo(fn.Type) {
-		panic(fn.Name + ": function type mismatch: " + fn.Type.String() + " != " + t.String())
-	}
-
-	fv := reflectext.FuncValueOf(v)
-	if fn.Closure != nil {
-		closure := reflect.New(fn.Closure).Elem()
-		d.Deserialize(closure)
-		fv.SetClosure(fn.Addr, closure)
-	} else {
-		fv.SetAddr(fn.Addr)
-	}
 }
