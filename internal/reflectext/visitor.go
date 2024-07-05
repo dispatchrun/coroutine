@@ -120,8 +120,12 @@ const (
 	// nested reflect.Value.
 	VisitReflectValues
 
+	// VisitSliceLenToCap instructs Visit to visit slice elements between
+	// the slice length and slice capacity.
+	VisitSliceLenToCap
+
 	// VisitAll instructs Visit to visit all values in the graph.
-	VisitAll = VisitUnexportedFields | VisitClosures | VisitReflectValues
+	VisitAll = VisitUnexportedFields | VisitClosures | VisitReflectValues | VisitSliceLenToCap
 )
 
 // Visit walks a reflect.Value graph.
@@ -187,9 +191,17 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 
 	case reflect.Slice:
 		if visitor.VisitSlice(ctx, v) {
-			// TODO: iterate up to v.Cap() if a flag is set
-			for i := 0; i < v.Len(); i++ {
-				Visit(visitor, v.Index(i), flags)
+			if (flags & VisitSliceLenToCap) != 0 {
+				// The wrapper provides access to items beyond the slice's
+				// length, up to its capacity.
+				av := RawArrayValueOf(v.Type().Elem(), v.UnsafePointer(), v.Cap())
+				for i := 0; i < av.Len(); i++ {
+					Visit(visitor, av.Index(i), flags)
+				}
+			} else {
+				for i := 0; i < v.Len(); i++ {
+					Visit(visitor, v.Index(i), flags)
+				}
 			}
 		}
 

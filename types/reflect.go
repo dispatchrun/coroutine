@@ -491,6 +491,7 @@ func (s *Serializer) serializeRegion(et reflect.Type, length int, p unsafe.Point
 	s.regions = append(s.regions, region)
 
 	// Fast path for byte arrays.
+	// TODO: fast paths for other basic types
 	if r.len >= 0 && r.typ.Kind() == reflect.Uint8 {
 		if r.len > 0 {
 			region.Data = unsafe.Slice((*byte)(r.addr), r.len)
@@ -500,10 +501,9 @@ func (s *Serializer) serializeRegion(et reflect.Type, length int, p unsafe.Point
 
 	regionSerializer := s.fork()
 	if r.len >= 0 { // array
-		es := int(r.typ.Size())
-		for i := 0; i < r.len; i++ {
-			v := reflect.NewAt(r.typ, unsafe.Add(r.addr, i*es)).Elem()
-			regionSerializer.Serialize(v)
+		a := reflectext.RawArrayValueOf(r.typ, r.addr, r.len)
+		for i := 0; i < a.Len(); i++ {
+			regionSerializer.Serialize(a.Index(i))
 		}
 	} else {
 		v := reflect.NewAt(r.typ, r.addr).Elem()
@@ -547,15 +547,17 @@ func (d *Deserializer) deserializeRegion(t reflect.Type, length int) unsafe.Poin
 			d.store(sID(id), p)
 
 			// Fast path for byte arrays.
+			//
+			// TODO: fast paths for other basic types
 			if regionType.Kind() == reflect.Uint8 {
 				if length > 0 {
 					copy(unsafe.Slice((*byte)(p), length), region.Data)
 				}
 			} else {
 				regionDeserializer := d.fork(region.Data)
+				a := reflectext.RawArrayValueOf(regionType, p, length)
 				for i := 0; i < length; i++ {
-					ev := reflect.NewAt(regionType, unsafe.Add(p, elemSize*i)).Elem()
-					regionDeserializer.Deserialize(ev)
+					regionDeserializer.Deserialize(a.Index(i))
 				}
 			}
 		} else {

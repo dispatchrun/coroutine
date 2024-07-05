@@ -35,6 +35,40 @@ func (v SliceValue) SetSlice(data unsafe.Pointer, len, cap int) {
 	*(*sliceHeader)(v.Addr().UnsafePointer()) = sliceHeader{data: data, len: len, cap: cap}
 }
 
+// RawArrayValue constructs a "raw" array from an element type,
+// a base pointer and a length (count).
+//
+// The return value can be used like an array reflect.Value,
+// providing equivalent Index and Len method.
+//
+// RawArrayValue is useful in cases where you'd like to avoid
+// reflect.ArrayOf, which creates a reflect.Type that isn't
+// garbage collected.
+type RawArrayValue struct {
+	typ  reflect.Type
+	base unsafe.Pointer
+	len  int
+}
+
+// RawArrayValue constructs a RawArrayValue.
+func RawArrayValueOf(t reflect.Type, base unsafe.Pointer, len int) RawArrayValue {
+	return RawArrayValue{t, base, len}
+}
+
+// Index returns the slice's i'th element.
+func (r RawArrayValue) Index(i int) reflect.Value {
+	if i < 0 || i >= r.len {
+		panic("index out of range")
+	}
+	p := unsafe.Add(r.base, i*int(r.typ.Size()))
+	return reflect.NewAt(r.typ, p).Elem()
+}
+
+// Len returns the array length.
+func (r RawArrayValue) Len() int {
+	return r.len
+}
+
 // StructValue is a wrapper for a struct value that provides
 // unrestricted access to unexported fields (e.g. no read-only flag).
 type StructValue struct {
