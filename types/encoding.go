@@ -24,11 +24,7 @@ func (s *Serializer) appendBool(v bool) {
 	s.appendUint8(c)
 }
 
-func (d *Deserializer) bool() bool {
-	v := d.buffer[0] == 1
-	d.buffer = d.buffer[1:]
-	return v
-}
+func (d *Deserializer) bool() bool { return d.uint8() == 1 }
 
 func (s *Serializer) appendInt(v int)     { s.appendUint64(uint64(v)) }
 func (s *Serializer) appendInt8(v int8)   { s.appendUint8(uint8(v)) }
