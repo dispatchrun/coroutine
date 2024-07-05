@@ -92,13 +92,10 @@ func (v FuncValue) Closure() (reflect.Value, bool) {
 
 // SetClosure sets the function address and closure vars.
 func (v FuncValue) SetClosure(addr uintptr, c reflect.Value) {
-	if c.Kind() != reflect.Pointer ||
-		c.IsNil() ||
-		c.Elem().Kind() != reflect.Struct ||
-		c.Type().Elem().Field(0).Type.Kind() != reflect.Uintptr {
+	if c.Kind() != reflect.Struct || c.Type().Field(0).Type.Kind() != reflect.Uintptr || !c.CanAddr() {
 		panic("invalid closure vars")
 	}
-	h := (*functionHeader)(c.UnsafePointer())
+	h := (*functionHeader)(c.Addr().UnsafePointer())
 	h.addr = addr
 	p := v.Addr().UnsafePointer()
 	*(*unsafe.Pointer)(p) = unsafe.Pointer(h)

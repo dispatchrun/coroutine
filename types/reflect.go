@@ -542,9 +542,8 @@ func deserializeFunc(d *Deserializer, v reflect.Value) {
 
 	fv := reflectext.FuncValueOf(v)
 	if fn.Closure != nil {
-		t := fn.Closure
-		closure := reflect.New(t)
-		deserializeValue(d, closure.Elem())
+		closure := reflect.New(fn.Closure).Elem()
+		deserializeValue(d, closure)
 		fv.SetClosure(fn.Addr, closure)
 	} else {
 		fv.SetAddr(fn.Addr)
