@@ -233,9 +233,7 @@ func (c *containers) insert(x container) int {
 	return i
 }
 
-func (s *Serializer) scan(t reflect.Type, p unsafe.Pointer) {
-	v := reflect.NewAt(t, p).Elem()
-
+func (s *Serializer) scan(v reflect.Value) {
 	sc := &scanner{
 		seen:       map[reflect.Value]struct{}{},
 		containers: &s.containers,

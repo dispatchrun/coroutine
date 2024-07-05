@@ -42,14 +42,12 @@ func init() {
 func Serialize(x any) ([]byte, error) {
 	s := newSerializer()
 
-	i := &x // w is *interface{}
-	vp := reflect.ValueOf(i)
-	t := vp.Elem().Type() // what x contains
+	v := reflect.ValueOf(&x).Elem()
 
 	// Scan pointers to collect memory regions.
-	s.scan(t, vp.UnsafePointer())
+	s.scan(v)
 
-	s.Serialize(vp.Elem())
+	s.Serialize(v)
 
 	state := &coroutinev1.State{
 		Build:     buildInfo,
@@ -58,7 +56,7 @@ func Serialize(x any) ([]byte, error) {
 		Strings:   s.strings.strings,
 		Regions:   s.regions,
 		Root: &coroutinev1.Region{
-			Type: s.types.ToType(t) << 1,
+			Type: s.types.ToType(v.Type()) << 1,
 			Data: s.buffer,
 		},
 	}
