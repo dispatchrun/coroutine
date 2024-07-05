@@ -9,6 +9,14 @@ import (
 // ability to set the underlying data pointer, length and
 // capacity, without allocating memory and regardless of
 // the type.
+//
+// THis wrapper is not necessary when it's a byte slice, since
+// reflect.Value has a SetBytes method, and it's possible to
+// construct a []byte from data/len/cap using unsafe.Slice.
+//
+// TODO: submit proposal for reflect.SetSlice[S ~[]E, E any](S) ?
+// (reflect.Value).SetSlice[S, E] isn't possible because Go
+// doesn't support generic methods.
 type SliceValue struct{ reflect.Value }
 
 // SliceValueOf converts a slice value into a SliceValue.
@@ -28,7 +36,7 @@ func (v SliceValue) SetSlice(data unsafe.Pointer, len, cap int) {
 }
 
 // StructValue is a wrapper for a struct value that provides
-// access to unexported fields without the read-only flag.
+// unrestricted access to unexported fields (e.g. no read-only flag).
 type StructValue struct {
 	reflect.Value
 
@@ -54,8 +62,8 @@ func (v *StructValue) Field(i int) reflect.Value {
 	return reflect.NewAt(f.Type, unsafe.Add(v.base, f.Offset)).Elem()
 }
 
-// FuncValue is a wrapper for a func value that provides access
-// to closure vars.
+// FuncValue is a wrapper for a func value that provides a way
+// to mutate the function address, and access and mutate closure vars.
 type FuncValue struct{ reflect.Value }
 
 // FuncValueOf converts a func value into a FuncValue.
