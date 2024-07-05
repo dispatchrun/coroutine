@@ -386,8 +386,6 @@ func (d *Deserializer) VisitFunc(ctx reflectext.VisitContext, v reflect.Value) b
 	} else {
 		fv.SetAddr(fn.Addr)
 	}
-
-	// FIXME: use visitor to scan closure
 	return false
 }
 
