@@ -11,25 +11,25 @@ type Visitor interface {
 	//
 	// If the function returns false, the visitor does not call any
 	// other methods and does not recurse into nested values.
-	Visit(VisitContext, reflect.Value) bool
+	Visit(VisitorContext, reflect.Value) bool
 
 	// VisitBool is called when a bool value is encountered.
-	VisitBool(VisitContext, reflect.Value)
+	VisitBool(VisitorContext, reflect.Value)
 
 	// VisitInt is called when a integer value is encountered.
 	//
 	// The value has a kind of reflect.{Int,Int8,Int16,Int32,Int64}.
-	VisitInt(VisitContext, reflect.Value)
+	VisitInt(VisitorContext, reflect.Value)
 
 	// VisitUint is called when a unsigned integer value is encountered.
 	//
 	// The value has a kind of reflect.{Uint,Uint8,Uint16,Uint32,Uint64,Uintptr}.
-	VisitUint(VisitContext, reflect.Value)
+	VisitUint(VisitorContext, reflect.Value)
 
 	// VisitFloat is called when a float value is encountered.
 	//
 	// The value has a kind of reflect.{Float32,Float64}.
-	VisitFloat(VisitContext, reflect.Value)
+	VisitFloat(VisitorContext, reflect.Value)
 
 	// VisitComplex is called when a complex value is encountered.
 	//
@@ -37,39 +37,39 @@ type Visitor interface {
 	//
 	// If the function returns true, the visitor will visit
 	// the nested real and imaginary components.
-	VisitComplex(VisitContext, reflect.Value) bool
+	VisitComplex(VisitorContext, reflect.Value) bool
 
 	// VisitString is called when a string value is encountered.
 	//
 	// Note that the visitor does not visit the nested *byte pointer.
-	VisitString(VisitContext, reflect.Value)
+	VisitString(VisitorContext, reflect.Value)
 
 	// VisitPointer is called when a typed pointer is encountered.
 	//
 	// If the function returns true, the visitor will visit the value
 	// the pointer points to (if not null).
-	VisitPointer(VisitContext, reflect.Value) bool
+	VisitPointer(VisitorContext, reflect.Value) bool
 
 	// VisitUnsafePointer is called when an unsafe.Pointer value is encountered.
-	VisitUnsafePointer(VisitContext, reflect.Value)
+	VisitUnsafePointer(VisitorContext, reflect.Value)
 
 	// VisitArray is called when an array value is encountered.
 	//
 	// If the function returns true, the visitor will visit each
 	// item in the array.
-	VisitArray(VisitContext, reflect.Value) bool
+	VisitArray(VisitorContext, reflect.Value) bool
 
 	// VisitSlice is called when a slice value is encountered.
 	//
 	// If the function returns true, the visitor will visit each
 	// item in the slice.
-	VisitSlice(VisitContext, reflect.Value) bool
+	VisitSlice(VisitorContext, reflect.Value) bool
 
 	// VisitMap is called when a map value is encountered.
 	//
 	// If the function returns true, the visitor will visit each
 	// key/value pair in the map in an unspecified order.
-	VisitMap(VisitContext, reflect.Value) bool
+	VisitMap(VisitorContext, reflect.Value) bool
 
 	// VisitChan is called when a channel value is encountered.
 	//
@@ -77,38 +77,38 @@ type Visitor interface {
 	// since doing so would be a blocking operation.
 	//
 	// TODO: support visiting buffered channel items
-	VisitChan(VisitContext, reflect.Value) bool
+	VisitChan(VisitorContext, reflect.Value) bool
 
 	// VisitStruct is called when a struct value is encountered.
 	//
 	// If the function returns true, the visitor will visit each
 	// field in the struct.
-	VisitStruct(VisitContext, reflect.Value) bool
+	VisitStruct(VisitorContext, reflect.Value) bool
 
 	// VisitFunc is called when a function value is encountered.
 	//
 	// If the function returns true, and the appropriate flag is set,
 	// the visitor will visit each closure var (if applicable).
-	VisitFunc(VisitContext, reflect.Value) bool
+	VisitFunc(VisitorContext, reflect.Value) bool
 
 	// VisitInterface is called when an interface value is encountered.
 	//
 	// If the function returns true, the visitor will visit the
 	// interface element.
-	VisitInterface(VisitContext, reflect.Value) bool
+	VisitInterface(VisitorContext, reflect.Value) bool
 }
 
-// VisitContext is Visitor context.
-type VisitContext struct {
-	// TODO
+// NewVisitor creates a visitor.
+func NewVisitor(impl Visitor, flags VisitorFlags) VisitorContext {
+	return VisitorContext{impl: impl, flags: flags}
 }
 
-// VisitFlags controls a Visit operation.
-type VisitFlags int
+// VisitorFlags controls a Visit operation.
+type VisitorFlags int
 
 const (
 	// VisitUnexportedFields instructs Visit to visit unexported struct fields.
-	VisitUnexportedFields VisitFlags = 1 << iota
+	VisitUnexportedFields VisitorFlags = 1 << iota
 
 	// VisitClosures instructs Visit to visit values captured by closures.
 	//
@@ -128,22 +128,32 @@ const (
 	VisitAll = VisitUnexportedFields | VisitClosures | VisitReflectValues | VisitSliceLenToCap
 )
 
+// Has is true if the flag is set.
+func (flags VisitorFlags) Has(flag VisitorFlags) bool {
+	return (flags & flag) != 0
+}
+
+// VisitorContext is Visitor context.
+type VisitorContext struct {
+	parent *VisitorContext
+	impl   Visitor
+	flags  VisitorFlags
+}
+
 // Visit walks a reflect.Value graph.
 //
 // The operation will follow all pointers. It's the Visitor's responsibility
 // to keep track of values/pointers that have been visited to prevent
 // an infinite loop when there are cycles in the graph.
-func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
-	// TODO:
-	ctx := VisitContext{}
-
+func (ctx VisitorContext) Visit(v reflect.Value) {
+	visitor := ctx.impl
 	if !visitor.Visit(ctx, v) {
 		return
 	}
 
 	// Special case for reflect.Value.
-	if (flags&VisitReflectValues) != 0 && v.Type() == ReflectValueType {
-		Visit(visitor, v.Interface().(reflect.Value), flags)
+	if ctx.flags.Has(VisitReflectValues) && v.Type() == ReflectValueType {
+		ctx.Visit(v.Interface().(reflect.Value))
 		return
 	}
 
@@ -175,7 +185,7 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 
 	case reflect.Pointer:
 		if visitor.VisitPointer(ctx, v) && !v.IsNil() {
-			Visit(visitor, v.Elem(), flags)
+			ctx.Visit(v.Elem())
 		}
 
 	case reflect.UnsafePointer:
@@ -184,17 +194,17 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 	case reflect.Array:
 		if visitor.VisitArray(ctx, v) {
 			for i := 0; i < v.Len(); i++ {
-				Visit(visitor, v.Index(i), flags)
+				ctx.Visit(v.Index(i))
 			}
 		}
 
 	case reflect.Slice:
 		if visitor.VisitSlice(ctx, v) {
-			if (flags & VisitSliceLenToCap) != 0 {
+			if ctx.flags.Has(VisitSliceLenToCap) {
 				v = MakeSlice(v.Type(), v.UnsafePointer(), v.Cap(), v.Cap())
 			}
 			for i := 0; i < v.Len(); i++ {
-				Visit(visitor, v.Index(i), flags)
+				ctx.Visit(v.Index(i))
 			}
 		}
 
@@ -202,8 +212,8 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 		if visitor.VisitMap(ctx, v) && !v.IsNil() {
 			iter := v.MapRange()
 			for iter.Next() {
-				Visit(visitor, iter.Key(), flags)
-				Visit(visitor, iter.Value(), flags)
+				ctx.Visit(iter.Key())
+				ctx.Visit(iter.Value())
 			}
 		}
 
@@ -213,35 +223,45 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 
 	case reflect.Struct:
 		if visitor.VisitStruct(ctx, v) {
-			if (flags & VisitUnexportedFields) != 0 {
+			if ctx.flags.Has(VisitUnexportedFields) {
 				unrestricted := StructValueOf(v)
 				for i := 0; i < unrestricted.NumField(); i++ {
-					Visit(visitor, unrestricted.Field(i), flags)
+					ctx.Visit(unrestricted.Field(i))
 				}
 			} else {
 				t := v.Type()
 				for i := 0; i < v.NumField(); i++ {
 					if ft := t.Field(i); ft.IsExported() {
-						Visit(visitor, v.Field(i), flags)
+						ctx.Visit(v.Field(i))
 					}
 				}
 			}
 		}
 
 	case reflect.Func:
-		if visitor.VisitFunc(ctx, v) && !v.IsNil() && (flags&VisitClosures) != 0 {
+		if visitor.VisitFunc(ctx, v) && !v.IsNil() && ctx.flags.Has(VisitClosures) {
 			if closure, ok := FuncValueOf(v).Closure(); ok {
-				Visit(visitor, closure, flags)
+				ctx.Visit(closure)
 			}
 		}
 
 	case reflect.Interface:
 		if visitor.VisitInterface(ctx, v) && !v.IsNil() {
-			Visit(visitor, v.Elem(), flags)
+			ctx.Visit(v.Elem())
 		}
 
 	default:
 		panic("unreachable")
+	}
+}
+
+// Fork creates a new Visitor context, linked to the current
+// context and its location.
+func (ctx VisitorContext) Fork(impl Visitor) VisitorContext {
+	return VisitorContext{
+		parent: &ctx,
+		impl:   impl,
+		flags:  ctx.flags,
 	}
 }
 
@@ -251,19 +271,19 @@ type DefaultVisitor struct{}
 
 var _ Visitor = DefaultVisitor{}
 
-func (DefaultVisitor) Visit(VisitContext, reflect.Value) bool          { return true }
-func (DefaultVisitor) VisitBool(VisitContext, reflect.Value)           {}
-func (DefaultVisitor) VisitInt(VisitContext, reflect.Value)            {}
-func (DefaultVisitor) VisitUint(VisitContext, reflect.Value)           {}
-func (DefaultVisitor) VisitFloat(VisitContext, reflect.Value)          {}
-func (DefaultVisitor) VisitComplex(VisitContext, reflect.Value) bool   { return true }
-func (DefaultVisitor) VisitString(VisitContext, reflect.Value)         {}
-func (DefaultVisitor) VisitPointer(VisitContext, reflect.Value) bool   { return true }
-func (DefaultVisitor) VisitUnsafePointer(VisitContext, reflect.Value)  {}
-func (DefaultVisitor) VisitArray(VisitContext, reflect.Value) bool     { return true }
-func (DefaultVisitor) VisitSlice(VisitContext, reflect.Value) bool     { return true }
-func (DefaultVisitor) VisitMap(VisitContext, reflect.Value) bool       { return true }
-func (DefaultVisitor) VisitChan(VisitContext, reflect.Value) bool      { return true }
-func (DefaultVisitor) VisitStruct(VisitContext, reflect.Value) bool    { return true }
-func (DefaultVisitor) VisitFunc(VisitContext, reflect.Value) bool      { return true }
-func (DefaultVisitor) VisitInterface(VisitContext, reflect.Value) bool { return true }
+func (DefaultVisitor) Visit(VisitorContext, reflect.Value) bool          { return true }
+func (DefaultVisitor) VisitBool(VisitorContext, reflect.Value)           {}
+func (DefaultVisitor) VisitInt(VisitorContext, reflect.Value)            {}
+func (DefaultVisitor) VisitUint(VisitorContext, reflect.Value)           {}
+func (DefaultVisitor) VisitFloat(VisitorContext, reflect.Value)          {}
+func (DefaultVisitor) VisitComplex(VisitorContext, reflect.Value) bool   { return true }
+func (DefaultVisitor) VisitString(VisitorContext, reflect.Value)         {}
+func (DefaultVisitor) VisitPointer(VisitorContext, reflect.Value) bool   { return true }
+func (DefaultVisitor) VisitUnsafePointer(VisitorContext, reflect.Value)  {}
+func (DefaultVisitor) VisitArray(VisitorContext, reflect.Value) bool     { return true }
+func (DefaultVisitor) VisitSlice(VisitorContext, reflect.Value) bool     { return true }
+func (DefaultVisitor) VisitMap(VisitorContext, reflect.Value) bool       { return true }
+func (DefaultVisitor) VisitChan(VisitorContext, reflect.Value) bool      { return true }
+func (DefaultVisitor) VisitStruct(VisitorContext, reflect.Value) bool    { return true }
+func (DefaultVisitor) VisitFunc(VisitorContext, reflect.Value) bool      { return true }
+func (DefaultVisitor) VisitInterface(VisitorContext, reflect.Value) bool { return true }
