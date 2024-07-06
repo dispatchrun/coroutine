@@ -60,15 +60,11 @@ func StructValueOf(v reflect.Value) StructValue {
 	if v.Kind() != reflect.Struct {
 		panic("not a struct")
 	}
-	base := unsafeAddr(v)
-	return StructValue{v, base}
+	return StructValue{Value: v, base: unsafeAddr(v)}
 }
 
 // Field returns the i'th field of the struct.
 func (v *StructValue) Field(i int) reflect.Value {
-	if i > v.NumField() {
-		panic("field out of range")
-	}
 	f := v.Type().Field(i)
 	return reflect.NewAt(f.Type, unsafe.Add(v.base, f.Offset)).Elem()
 }
@@ -153,16 +149,13 @@ func unsafeAddr(v reflect.Value) unsafe.Pointer {
 	// within the interface.
 	vi := v.Interface()
 	i := (*interfaceHeader)(unsafe.Pointer(&vi))
-	if ifaceInline(reflect.TypeOf(vi)) {
+	if inlineIfaceData(reflect.TypeOf(vi)) {
 		return unsafe.Pointer(&i.ptr)
 	}
 	return i.ptr
 }
 
-func ifaceInline(t reflect.Type) bool {
-	if t == nil {
-		return false
-	}
+func inlineIfaceData(t reflect.Type) bool {
 	switch t.Kind() {
 	case reflect.Func:
 		return true
@@ -171,9 +164,9 @@ func ifaceInline(t reflect.Type) bool {
 	case reflect.Map:
 		return true
 	case reflect.Struct:
-		return t.NumField() == 1 && ifaceInline(t.Field(0).Type)
+		return t.NumField() == 1 && inlineIfaceData(t.Field(0).Type)
 	case reflect.Array:
-		return t.Len() == 1 && ifaceInline(t.Elem())
+		return t.Len() == 1 && inlineIfaceData(t.Elem())
 	default:
 		return false
 	}
