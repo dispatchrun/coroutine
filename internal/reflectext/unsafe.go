@@ -9,7 +9,7 @@ import (
 // ability to set the underlying data pointer, length and
 // capacity, regardless of the type.
 //
-// It's useful in cases where you need to avoid creating
+// It's useful in cases where you want/need to avoid making
 // a copy, either to avoid the extra allocations or because
 // you need to create references or aliased sliced of the
 // same underlying array.
@@ -107,8 +107,7 @@ func StructValueOf(v reflect.Value) StructValue {
 	return StructValue{v, base}
 }
 
-// Field returns the i'th field of the struct v.
-// It panics if v's Kind is not Struct or i is out of range.
+// Field returns the i'th field of the struct.
 func (v *StructValue) Field(i int) reflect.Value {
 	if i > v.NumField() {
 		panic("field out of range")
@@ -192,6 +191,9 @@ func unsafeAddr(v reflect.Value) unsafe.Pointer {
 	if v.CanAddr() && v.Kind() != reflect.Interface {
 		return v.Addr().UnsafePointer()
 	}
+	// If the value isn't addressable, we can box the
+	// value and then get the address of the data from
+	// within the interface.
 	vi := v.Interface()
 	i := (*interfaceHeader)(unsafe.Pointer(&vi))
 	if ifaceInline(reflect.TypeOf(vi)) {
@@ -246,33 +248,35 @@ func NamedTypeForOffset(offset NamedTypeOffset) reflect.Type {
 	return *(*reflect.Type)(unsafe.Pointer(tiface))
 }
 
-const internedCount = 256
-
-var internedBase unsafe.Pointer
-
-func init() {
-	zero := 0
-	var x interface{} = zero
-	internedBase = (*interfaceHeader)(unsafe.Pointer(&x)).ptr
-}
-
-func InternedInt(p unsafe.Pointer) (int, bool) {
-	if interned(p) {
-		return internedOffset(p), true
+// InternedValue checks whether the pointer points to the interned value
+// region, and if so returns the offset and true. If the pointer does not
+// point to the interned value region, the function returns false.
+//
+// Go interns boxed booleans and small integers in order to avoid
+// allocations.
+func InternedValue(p unsafe.Pointer) (InternedValueOffset, bool) {
+	if uintptr(p) >= uintptr(internedValueBase) && uintptr(p) < uintptr(internedValueBase)+internedValueBytes {
+		return InternedValueOffset(uintptr(p) - uintptr(internedValueBase)), true
 	}
 	return 0, false
 }
 
-func interned(p unsafe.Pointer) bool {
-	return uintptr(p) >= uintptr(internedBase) && uintptr(p) < uintptr(internedBase)+internedCount
+// InternedValueOffset is an offset into the interned value region of
+// memory.
+type InternedValueOffset int
+
+// UnsafePointer is the interned value offset as a pointer.
+func (o InternedValueOffset) UnsafePointer() unsafe.Pointer {
+	return unsafe.Add(internedValueBase, uintptr(o))
 }
 
-func internedOffset(p unsafe.Pointer) int {
-	return int(uintptr(p) - uintptr(internedBase))
-}
+const internedValueBytes = 256 // determined experimentally
+var internedValueBase unsafe.Pointer
 
-func InternedIntPointer(offset int) unsafe.Pointer {
-	return unsafe.Add(internedBase, offset)
+func init() {
+	zero := 0
+	var x interface{} = zero
+	internedValueBase = (*interfaceHeader)(unsafe.Pointer(&x)).ptr
 }
 
 type sliceHeader struct {

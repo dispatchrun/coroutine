@@ -439,9 +439,9 @@ func (s *Serializer) serializeRegion(et reflect.Type, length int, p unsafe.Point
 		return
 	}
 
-	if offset, ok := reflectext.InternedInt(p); ok {
+	if offset, ok := reflectext.InternedValue(p); ok {
 		s.appendVarint(-1)
-		s.appendVarint(offset)
+		s.appendVarint(int(offset))
 		return
 	}
 
@@ -527,7 +527,7 @@ func (d *Deserializer) deserializeRegion(t reflect.Type, length int) unsafe.Poin
 
 	offset := d.varint()
 	if id == -1 {
-		return reflectext.InternedIntPointer(offset)
+		return reflectext.InternedValueOffset(offset).UnsafePointer()
 	}
 
 	p := d.ptrs[sID(id)]
