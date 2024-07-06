@@ -7,16 +7,37 @@ import (
 
 // SliceValue is a wrapper for a slice value that adds the
 // ability to set the underlying data pointer, length and
-// capacity, without allocating memory and regardless of
-// the type.
+// capacity, regardless of the type.
 //
-// THis wrapper is not necessary when it's a byte slice, since
-// reflect.Value has a SetBytes method, and it's possible to
-// construct a []byte from data/len/cap using unsafe.Slice.
+// It's useful in cases where you need to avoid creating
+// a copy, either to avoid the extra allocations or because
+// you need to create references or aliased sliced of the
+// same underlying array.
 //
-// TODO: submit proposal for reflect.SetSlice[S ~[]E, E any](S) ?
-// (reflect.Value).SetSlice[S, E] isn't possible because Go
-// doesn't support generic methods.
+// This wrapper is not necessary when the type is known at
+// compile time. reflect.Value has Set(reflect.Value(slice))
+// and v.SetBytes(byteSlice) methods, and it's possible to
+// construct a slice from data/len/cap using unsafe.Slice:
+//
+//	bytes := unsafe.Slice((*byte)(data), cap)[:len:cap]
+//	v.SetBytes(bytes)
+//
+//	ints := unsafe.Slice((*int)(data), cap)[:len:cap])
+//	v.Set(reflect.Value(ints))
+//
+// The wrapper is also not necessary if you're ok with
+// making a copy:
+//
+//	v2 := reflect.MakeSlice(typ, len, cap)
+//	siz := int(typ.Elem().Size())
+//	copy(
+//	  unsafe.Slice((*byte)(v2.UnsafePointer()), cap*siz),
+//	  unsafe.Slice((*byte)(data), cap*siz))
+//	v.Set(v2)
+//
+// Unfortunately, there doesn't seem to be a way to construct
+// a slice from a data/len/cap when the type isn't known until
+// runtime (and a reflect.Type is available).
 type SliceValue struct{ reflect.Value }
 
 // SliceValueOf converts a slice value into a SliceValue.
