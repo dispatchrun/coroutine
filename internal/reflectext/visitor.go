@@ -143,8 +143,7 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 
 	// Special case for reflect.Value.
 	if (flags&VisitReflectValues) != 0 && v.Type() == ReflectValueType {
-		rv := v.Interface().(reflect.Value)
-		Visit(visitor, rv, flags)
+		Visit(visitor, v.Interface().(reflect.Value), flags)
 		return
 	}
 
@@ -192,8 +191,6 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 	case reflect.Slice:
 		if visitor.VisitSlice(ctx, v) {
 			if (flags & VisitSliceLenToCap) != 0 {
-				// The wrapper provides access to items beyond the slice's
-				// length, up to its capacity.
 				v = MakeSlice(v.Type(), v.UnsafePointer(), v.Cap(), v.Cap())
 			}
 			for i := 0; i < v.Len(); i++ {
@@ -217,7 +214,6 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 	case reflect.Struct:
 		if visitor.VisitStruct(ctx, v) {
 			if (flags & VisitUnexportedFields) != 0 {
-				// The wrapper makes unexported fields available.
 				unrestricted := StructValueOf(v)
 				for i := 0; i < unrestricted.NumField(); i++ {
 					Visit(visitor, unrestricted.Field(i), flags)
@@ -234,9 +230,7 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 
 	case reflect.Func:
 		if visitor.VisitFunc(ctx, v) && !v.IsNil() && (flags&VisitClosures) != 0 {
-			// The wrapper makes closure vars available.
-			fv := FuncValueOf(v)
-			if closure, ok := fv.Closure(); ok {
+			if closure, ok := FuncValueOf(v).Closure(); ok {
 				Visit(visitor, closure, flags)
 			}
 		}
