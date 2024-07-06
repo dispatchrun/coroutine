@@ -5,89 +5,46 @@ import (
 	"unsafe"
 )
 
-// SliceValue is a wrapper for a slice value that adds the
-// ability to set the underlying data pointer, length and
-// capacity, regardless of the type.
+// MakeSlice makes a slice from a raw data pointer, length
+// and capacity.
 //
-// It's useful in cases where you want/need to avoid making
-// a copy, either to avoid the extra allocations or because
-// you need to create references or aliased sliced of the
-// same underlying array.
+// There's already a reflect.MakeSlice(typ, len, cap), but
+// it doesn't let you set the underlying data pointer.
+// This function is useful in cases where you want/need to
+// avoid making a copy, either to avoid the extra allocations
+// or because you need to create references or aliased sliced
+// of the same underlying array.
 //
-// This wrapper is not necessary when the type is known at
-// compile time. reflect.Value has Set(reflect.Value(slice))
-// and v.SetBytes(byteSlice) methods, and it's possible to
-// construct a slice from data/len/cap using unsafe.Slice:
-//
-//	bytes := unsafe.Slice((*byte)(data), cap)[:len:cap]
-//	v.SetBytes(bytes)
+// This function is not necessary when the type is known at
+// compile time. If the type is known at compile time then
+// it's possible to construct a slice from data/len/cap
+// using unsafe.Slice. You can then create a reflect.Value
+// using reflect.ValueOf(slice), or you can assign a slice
+// to an existing reflect.Value as long as it's a byte slice
+// using SetBytes:
 //
 //	ints := unsafe.Slice((*int)(data), cap)[:len:cap])
-//	v.Set(reflect.Value(ints))
+//	v := reflect.ValueOf(ints)
 //
-// The wrapper is also not necessary if you're ok with
-// making a copy:
+//	bytes := unsafe.Slice((*byte)(data), cap)[:len:cap]
+//	v := reflect.MakeSlice(typ, 0, 0)
+//	v.SetBytes(bytes) // (if you have a reflect.Value already)
 //
-//	v2 := reflect.MakeSlice(typ, len, cap)
-//	siz := int(typ.Elem().Size())
+// The function is also not necessary if a copy will suffice:
+//
+//	slice := reflect.MakeSlice(typ, len, cap)
+//	size := cap * int(typ.Elem().Size())
 //	copy(
-//	  unsafe.Slice((*byte)(v2.UnsafePointer()), cap*siz),
-//	  unsafe.Slice((*byte)(data), cap*siz))
-//	v.Set(v2)
+//	  unsafe.Slice((*byte)(v.UnsafePointer()), size),
+//	  unsafe.Slice((*byte)(data), size))
 //
 // Unfortunately, there doesn't seem to be a way to construct
 // a slice from a data/len/cap when the type isn't known until
-// runtime (and a reflect.Type is available).
-type SliceValue struct{ reflect.Value }
-
-// SliceValueOf converts a slice value into a SliceValue.
-func SliceValueOf(v reflect.Value) SliceValue {
-	if v.Kind() != reflect.Slice {
-		panic("not a slice")
-	}
-	return SliceValue{v}
-}
-
-// SetSlice sets the slice data pointer, length and capacity.
-func (v SliceValue) SetSlice(data unsafe.Pointer, len, cap int) {
-	if !v.CanAddr() {
-		panic("slice is not addressable")
-	}
-	*(*sliceHeader)(v.Addr().UnsafePointer()) = sliceHeader{data: data, len: len, cap: cap}
-}
-
-// RawArrayValue constructs a "raw" array from an element type,
-// a base pointer and a length (count).
-//
-// The return value can be used like an array reflect.Value,
-// providing equivalent Index and Len method.
-//
-// RawArrayValue is useful in cases where you'd like to avoid
-// reflect.ArrayOf, which creates a reflect.Type that isn't
-// garbage collected.
-type RawArrayValue struct {
-	typ  reflect.Type
-	base unsafe.Pointer
-	len  int
-}
-
-// RawArrayValue constructs a RawArrayValue.
-func RawArrayValueOf(t reflect.Type, base unsafe.Pointer, len int) RawArrayValue {
-	return RawArrayValue{t, base, len}
-}
-
-// Index returns the slice's i'th element.
-func (r RawArrayValue) Index(i int) reflect.Value {
-	if i < 0 || i >= r.len {
-		panic("index out of range")
-	}
-	p := unsafe.Add(r.base, i*int(r.typ.Size()))
-	return reflect.NewAt(r.typ, p).Elem()
-}
-
-// Len returns the array length.
-func (r RawArrayValue) Len() int {
-	return r.len
+// runtime (and only a reflect.Type is available).
+func MakeSlice(typ reflect.Type, data unsafe.Pointer, len, cap int) reflect.Value {
+	s := reflect.New(typ).Elem()
+	*(*sliceHeader)(s.Addr().UnsafePointer()) = sliceHeader{data: data, len: len, cap: cap}
+	return s
 }
 
 // StructValue is a wrapper for a struct value that provides

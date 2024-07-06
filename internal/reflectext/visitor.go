@@ -194,14 +194,10 @@ func Visit(visitor Visitor, v reflect.Value, flags VisitFlags) {
 			if (flags & VisitSliceLenToCap) != 0 {
 				// The wrapper provides access to items beyond the slice's
 				// length, up to its capacity.
-				av := RawArrayValueOf(v.Type().Elem(), v.UnsafePointer(), v.Cap())
-				for i := 0; i < av.Len(); i++ {
-					Visit(visitor, av.Index(i), flags)
-				}
-			} else {
-				for i := 0; i < v.Len(); i++ {
-					Visit(visitor, v.Index(i), flags)
-				}
+				v = MakeSlice(v.Type(), v.UnsafePointer(), v.Cap(), v.Cap())
+			}
+			for i := 0; i < v.Len(); i++ {
+				Visit(visitor, v.Index(i), flags)
 			}
 		}
 

@@ -221,9 +221,10 @@ func (s *Serializer) VisitSlice(ctx reflectext.VisitContext, v reflect.Value) bo
 func (d *Deserializer) VisitSlice(ctx reflectext.VisitContext, v reflect.Value) bool {
 	len := d.varint()
 	cap := d.varint()
-	data := d.deserializeRegion(v.Type().Elem(), cap)
+	t := v.Type()
+	data := d.deserializeRegion(t.Elem(), cap)
 	if data != nil {
-		reflectext.SliceValueOf(v).SetSlice(data, len, cap)
+		v.Set(reflectext.MakeSlice(t, data, len, cap))
 	}
 	return false
 }
@@ -501,9 +502,9 @@ func (s *Serializer) serializeRegion(et reflect.Type, length int, p unsafe.Point
 
 	regionSerializer := s.fork()
 	if r.len >= 0 { // array
-		a := reflectext.RawArrayValueOf(r.typ, r.addr, r.len)
-		for i := 0; i < a.Len(); i++ {
-			regionSerializer.Serialize(a.Index(i))
+		data := reflectext.MakeSlice(reflect.SliceOf(r.typ), r.addr, r.len, r.len)
+		for i := 0; i < data.Len(); i++ {
+			regionSerializer.Serialize(data.Index(i))
 		}
 	} else {
 		v := reflect.NewAt(r.typ, r.addr).Elem()
@@ -555,9 +556,9 @@ func (d *Deserializer) deserializeRegion(t reflect.Type, length int) unsafe.Poin
 				}
 			} else {
 				regionDeserializer := d.fork(region.Data)
-				a := reflectext.RawArrayValueOf(regionType, p, length)
+				data := reflectext.MakeSlice(reflect.SliceOf(regionType), p, length, length)
 				for i := 0; i < length; i++ {
-					regionDeserializer.Deserialize(a.Index(i))
+					regionDeserializer.Deserialize(data.Index(i))
 				}
 			}
 		} else {
