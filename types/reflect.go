@@ -46,7 +46,7 @@ func (s *Serializer) Visit(ctx reflectext.VisitorContext, v reflect.Value) bool 
 	case reflectext.ReflectValueType:
 		rv := v.Interface().(reflect.Value)
 		s.appendReflectType(rv.Type())
-		ctx.Visit(rv)
+		ctx.WithReflectValue(v).Visit(rv)
 		return false
 	}
 
@@ -85,7 +85,7 @@ func (d *Deserializer) Visit(ctx reflectext.VisitorContext, v reflect.Value) boo
 			rt = reflect.ArrayOf(length, rt)
 		}
 		rv := reflect.New(rt).Elem()
-		ctx.Visit(rv)
+		ctx.WithReflectValue(v).Visit(rv)
 		v.Set(reflect.ValueOf(rv))
 		return false
 	}
@@ -297,8 +297,10 @@ func (s *Serializer) VisitMap(ctx reflectext.VisitorContext, v reflect.Value) bo
 
 	iter := v.MapRange()
 	for iter.Next() {
-		mapVisitor.Visit(iter.Key())
-		mapVisitor.Visit(iter.Value())
+		key := iter.Key()
+		val := iter.Value()
+		mapVisitor.WithMapKey(v, key).Visit(key)
+		mapVisitor.WithMapValue(v, val).Visit(val)
 	}
 
 	region.Data = regionSerializer.buffer
@@ -342,15 +344,16 @@ func (d *Deserializer) VisitMap(ctx reflectext.VisitorContext, v reflect.Value) 
 
 	mapVisitor := ctx.Fork(regionDeserializer)
 
-	nv := reflect.MakeMapWithSize(t, n)
-	v.Set(nv)
+	v.Set(reflect.MakeMapWithSize(t, n))
 	d.store(sID(id), v.Addr().UnsafePointer())
 	for i := 0; i < n; i++ {
-		kv := reflect.New(keyType).Elem()
-		mapVisitor.Visit(kv)
-		vv := reflect.New(valType).Elem()
-		mapVisitor.Visit(vv)
-		v.SetMapIndex(kv, vv)
+		key := reflect.New(keyType).Elem()
+		mapVisitor.WithMapKey(v, key).Visit(key)
+
+		val := reflect.New(valType).Elem()
+		mapVisitor.WithMapKey(v, val).Visit(val)
+
+		v.SetMapIndex(key, val)
 	}
 	return false
 }
@@ -511,9 +514,9 @@ func (s *Serializer) serializeRegion(ctx reflectext.VisitorContext, et reflect.T
 	regionSerializer := s.fork()
 	regionVisitor := ctx.Fork(regionSerializer)
 	if r.len >= 0 { // array
-		data := reflectext.MakeSlice(reflect.SliceOf(r.typ), r.addr, r.len, r.len)
-		for i := 0; i < data.Len(); i++ {
-			regionVisitor.Visit(data.Index(i))
+		v := reflectext.MakeSlice(reflect.SliceOf(r.typ), r.addr, r.len, r.len)
+		for i := 0; i < v.Len(); i++ {
+			regionVisitor.WithArrayIndex(v, i).Visit(v.Index(i))
 		}
 	} else {
 		v := reflect.NewAt(r.typ, r.addr).Elem()
@@ -566,9 +569,9 @@ func (d *Deserializer) deserializeRegion(ctx reflectext.VisitorContext, t reflec
 			} else {
 				regionDeserializer := d.fork(region.Data)
 				regionVisitor := ctx.Fork(regionDeserializer)
-				data := reflectext.MakeSlice(reflect.SliceOf(regionType), p, length, length)
+				v := reflectext.MakeSlice(reflect.SliceOf(regionType), p, length, length)
 				for i := 0; i < length; i++ {
-					regionVisitor.Visit(data.Index(i))
+					regionVisitor.WithArrayIndex(v, i).Visit(v.Index(i))
 				}
 			}
 		} else {
